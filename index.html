@@ -7693,34 +7693,24 @@
     if (gap <= 0) return;
     var reveal = clamp01(1 - Math.max(0, gap - 540) / 420);
     if (reveal <= 0.02) return;
-    var ink = lum(day.sky[2]) > 0.42 ? [34, 37, 42] : [214, 220, 230];
-    var bg = lum(day.sky[2]) > 0.42 ? [238, 241, 245] : [18, 20, 26];
-    var x = 18, y = topLeftChipY(), w = 150, h = 36;
-    var pulse = REDUCED ? 0 : Math.sin(tSec * 4.4) * 0.05;
-    var a = 0.44 + reveal * 0.42 + pulse * reveal;
+    var ink = lum(day.sky[2]) > 0.42 ? [44, 47, 53] : [206, 212, 222];
+    // Minimal: one muted line tucked directly under the live score in the top
+    // right, tracking your previous best to chase. No box, bar, label, or pulse.
+    var syv = Math.max(0.1, window.innerHeight / VH);
+    var sxv = Math.max(0.1, window.innerWidth / VW);
+    var dr = distEl ? distEl.getBoundingClientRect() : null;
+    var rightX = dr ? dr.right / sxv : VW - 16;
+    var topY = dr ? (dr.bottom + 3) / syv : 30;
     g.save();
-    g.globalAlpha = a;
-    g.fillStyle = css(bg, lum(day.sky[2]) > 0.42 ? 0.30 : 0.24);
-    g.fillRect(x, y, w, h);
-    g.strokeStyle = css(ink, 0.24 + reveal * 0.22);
-    g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    g.fillStyle = css(ink, 0.82);
-    g.font = "700 8px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-    g.textAlign = "left";
-    g.textBaseline = "top";
-    g.fillText("BEST", x + 9, y + 6);
+    g.globalAlpha = 0.5 + reveal * 0.28;
     g.textAlign = "right";
-    g.fillText(String(gap).padStart(4, "0") + "m", x + w - 9, y + 6);
-    g.textAlign = "left";
-    g.font = "700 7px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-    g.fillStyle = css(ink, 0.58);
-    g.fillText("previous best", x + 9, y + 18);
-    g.fillStyle = css(ink, 0.20);
-    g.fillRect(x + 9, y + h - 7, w - 18, 2);
-    g.fillStyle = css(customize.look === "void" ? [178, 168, 255] : [220, 208, 170], 0.54);
-    g.fillRect(x + 9, y + h - 7, Math.max(2, Math.round((w - 18) * clamp01(1 - gap / Math.max(1, runStartBest)))), 2);
+    g.textBaseline = "top";
+    g.font = "700 8px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+    g.fillStyle = css(ink, 0.82);
+    g.fillText("best " + String(Math.round(runStartBest)).padStart(4, "0") + "m", rightX, topY);
     g.restore();
     g.textAlign = "start";
+    g.textBaseline = "alphabetic";
   }
 
   function drawChallengeHud(day) {
@@ -8051,16 +8041,15 @@
     g.lineTo(fx + 2, fy - 26);
     g.closePath();
     g.fill();
-    var nearF = clamp01(1 - Math.abs(fx - ANCHOR_X) / 220);
-    if (nearF > 0.08) {
-      g.font = "700 9px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-      g.textAlign = "center";
-      g.textBaseline = "bottom";
-      g.fillStyle = css(bright > 0.42 ? [40, 42, 48] : [210, 214, 224], 0.3 + 0.55 * nearF);
-      g.fillText("your best · " + bestM + "m", Math.round(fx), fy - 40);
-      g.textAlign = "start";
-      g.textBaseline = "alphabetic";   // don't leak 'bottom' into later text (vigil, etc.)
-    }
+    // The label stays pinned to the flag at a steady opacity no matter where the
+    // figure is in relation to it — no fading in/out as you approach or leave.
+    g.font = "700 9px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+    g.textAlign = "center";
+    g.textBaseline = "bottom";
+    g.fillStyle = css(bright > 0.42 ? [40, 42, 48] : [210, 214, 224], 0.78);
+    g.fillText("your best · " + bestM + "m", Math.round(fx), fy - 40);
+    g.textAlign = "start";
+    g.textBaseline = "alphabetic";   // don't leak 'bottom' into later text (vigil, etc.)
   }
 
   // The vigil: one torch at base camp for every consecutive day climbed. Your
@@ -8122,7 +8111,7 @@
   }
 
   function drawQuoteSign(wxL, wxR) {
-    var SIGN_AT = 500;
+    var SIGN_AT = 1000;
     var SIGN_SPEED = GROUND_SCROLL;   // move the sign at the ground's scroll rate so it's planted, not floating
     var sx = ANCHOR_X + 260 - (altitude - SIGN_AT) * SIGN_SPEED;
     if (sx < wxL - 150 || sx > wxR + 150) return;
@@ -9333,7 +9322,7 @@
         canyonDominance * 0.84,
         greekDominance * 0.86
       );
-      var mountainLayerAlpha = 0.62 * bgMountainFade * mountainWaterfallFade;
+      var mountainLayerAlpha = 0.92 * bgMountainFade * mountainWaterfallFade;
       // Recomposite the far-mountain layer only when its inputs actually move:
       // the parallax shift advances <0.3px per frame, so most frames can reuse
       // the previous composite untouched.
@@ -9366,8 +9355,8 @@
       var mountainBandAlpha = Math.round(clamp01(mountainLayerAlpha / 0.62) * 40) / 40;
       g.fillStyle = lgrad(g, 0, bgY, 0, bgY + Math.max(220, VH * 0.36), [
         [0, css(edgeSky, 0)],
-        [0.30, css(edgeSky, 0.18 * mountainBandAlpha)],
-        [0.62, css(edgeSky, 0.08 * mountainBandAlpha)],
+        [0.30, css(edgeSky, 0.09 * mountainBandAlpha)],
+        [0.62, css(edgeSky, 0.04 * mountainBandAlpha)],
         [1, css(edgeSky, 0)]
       ]);
       g.fillRect(0, bgY, VW, Math.max(240, VH * 0.44));
