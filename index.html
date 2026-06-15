@@ -1334,6 +1334,75 @@
     border-color: rgba(255,255,255,0.62);
     color: rgba(255,255,255,0.92);
   }
+  /* email signup — quiet panel at the very bottom of the menu */
+  #startscreen .email-join {
+    width: min(640px, 96%);
+    margin: 22px auto max(24px, env(safe-area-inset-bottom));
+    padding: 16px 16px 18px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(20,22,28,0.34);
+    border-radius: 8px;
+    text-align: center;
+  }
+  #startscreen .email-join-title {
+    font-size: clamp(12px, 1.5vw, 15px);
+    letter-spacing: 0.06em;
+    color: rgba(238,241,246,0.92);
+    font-weight: 700;
+  }
+  #startscreen .email-join-sub {
+    margin-top: 5px;
+    font-size: clamp(9px, 1.05vw, 11px);
+    letter-spacing: 0.03em;
+    color: rgba(228,232,240,0.55);
+  }
+  #startscreen .email-join-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  #startscreen .email-join-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid rgba(255,255,255,0.20);
+    background: rgba(10,11,15,0.42);
+    color: rgba(240,243,248,0.94);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    border-radius: 6px;
+    outline: none;
+  }
+  #startscreen .email-join-row input:focus {
+    border-color: rgba(220,208,170,0.66);
+  }
+  #startscreen .email-join-row input::placeholder { color: rgba(228,232,240,0.36); }
+  #startscreen .email-join-row button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 18px;
+    border: 1px solid rgba(220,208,170,0.5);
+    background: rgba(220,208,170,0.14);
+    color: rgba(244,238,214,0.95);
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #startscreen .email-join-row button:hover { border-color: rgba(220,208,170,0.85); }
+  #startscreen .email-join-row button:disabled { opacity: 0.5; cursor: default; }
+  #startscreen .email-join-msg {
+    margin-top: 9px;
+    min-height: 13px;
+    font-size: clamp(9px, 1.05vw, 11px);
+    letter-spacing: 0.04em;
+    color: rgba(190,210,180,0.9);
+  }
+  #startscreen .email-join-msg.err { color: rgba(224,150,130,0.95); }
   #startscreen .start-selected {
     margin-top: 18px;
     position: static !important;
@@ -1829,6 +1898,15 @@
         <strong>SHARE</strong>
         <button id="sharebtn" class="share-btn" type="button">copy link</button>
       </div>
+    </div>
+    <div class="email-join" aria-label="join the email list">
+      <div class="email-join-title">enjoying the climb?</div>
+      <div class="email-join-sub">leave your email for new realms &amp; updates. no spam.</div>
+      <form id="emailjoinform" class="email-join-row">
+        <input id="emailjoininput" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" aria-label="email address" />
+        <button id="emailjoinbtn" type="submit">join</button>
+      </form>
+      <div id="emailjoinmsg" class="email-join-msg" aria-live="polite"></div>
     </div>
   </div>
 
@@ -2388,6 +2466,7 @@
   var distEl = document.getElementById("dist");
   var chaseBestEl = document.getElementById("chasebest");
   var titlewrapEl = document.getElementById("titlewrap");
+  var titleTextEl = document.getElementById("title");
   var startEl = document.getElementById("startscreen");
   var controlHintEl = document.getElementById("controlhint");
   var modeBannerEl = document.getElementById("modebanner");
@@ -4181,6 +4260,53 @@
   }
 
   if (shareBtnEl) shareBtnEl.addEventListener("click", copyShareLink);
+
+  // ---- email list signup (bottom of the menu) ----
+  // To actually RECEIVE signups, paste a form endpoint here (e.g. a free
+  // Formspree form URL like "https://formspree.io/f/xxxxxxx" or a Buttondown
+  // endpoint). While empty, the form validates + thanks the user and logs the
+  // address to the console so nothing is lost during testing.
+  var EMAIL_JOIN_ENDPOINT = "";
+  var emailJoinForm = document.getElementById("emailjoinform");
+  var emailJoinInput = document.getElementById("emailjoininput");
+  var emailJoinBtn = document.getElementById("emailjoinbtn");
+  var emailJoinMsg = document.getElementById("emailjoinmsg");
+  function emailJoinShow(text, isErr) {
+    if (!emailJoinMsg) return;
+    emailJoinMsg.textContent = text;
+    emailJoinMsg.classList.toggle("err", !!isErr);
+  }
+  if (emailJoinForm) {
+    emailJoinForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var email = (emailJoinInput && emailJoinInput.value || "").trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        emailJoinShow("enter a valid email", true);
+        return;
+      }
+      if (EMAIL_JOIN_ENDPOINT) {
+        if (emailJoinBtn) emailJoinBtn.disabled = true;
+        emailJoinShow("joining…", false);
+        fetch(EMAIL_JOIN_ENDPOINT, {
+          method: "POST",
+          headers: { "Accept": "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, source: "myth-of-sisyphus" })
+        }).then(function (r) {
+          if (r.ok) { if (emailJoinInput) emailJoinInput.value = ""; emailJoinShow("you're on the list — thank you.", false); }
+          else { emailJoinShow("something went wrong — try again", true); }
+        }).catch(function () {
+          emailJoinShow("network error — try again", true);
+        }).finally(function () {
+          if (emailJoinBtn) emailJoinBtn.disabled = false;
+        });
+      } else {
+        try { console.log("[sisyphus email signup]", email); } catch (logErr) {}
+        if (emailJoinInput) emailJoinInput.value = "";
+        emailJoinShow("thank you — you're on the list.", false);
+      }
+    });
+  }
   if (postCloseEl) postCloseEl.addEventListener("click", closePostcard);
   if (postCopyLinkEl) postCopyLinkEl.addEventListener("click", function () { copyLink((postcardSnapshot || runSummary()).link, "challenge link copied"); });
   if (postCopyTextEl) postCopyTextEl.addEventListener("click", function () { copyText(resultText(postcardSnapshot || runSummary()), "result copied"); });
@@ -9781,6 +9907,26 @@
     drawOldSelfChaseHud(day);
     drawChallengeHud(day);
     drawMilestoneFlash(day);
+    syncHudTextColor(day);
+  }
+
+  // Dynamic HUD text colour: dark ink on a light sky, light ink on a dark sky,
+  // so the top title + the score (+ the "best" line) stay readable in every
+  // realm and weather. Only writes to the DOM when the light/dark state flips.
+  var lastHudInk = "";
+  function syncHudTextColor(day) {
+    var bright = lum(day.sky[1]) * (1 - (day.galaxy || 0) * 0.6);
+    var darkBg = bright <= 0.46;
+    var key = darkBg ? "d" : "l";
+    if (key === lastHudInk) return;
+    lastHudInk = key;
+    var col = darkBg ? "rgba(234,238,246,0.95)" : "#30343a";
+    var shadow = darkBg
+      ? "0 1px 2px rgba(0,0,0,0.55), 0 0 9px rgba(0,0,0,0.32)"
+      : "0 1px 0 rgba(255,255,255,0.18)";
+    if (titleTextEl) { titleTextEl.style.color = col; titleTextEl.style.textShadow = shadow; }
+    if (distEl) { distEl.style.color = col; distEl.style.textShadow = shadow; }
+    if (chaseBestEl) { chaseBestEl.style.color = col; chaseBestEl.style.textShadow = shadow; }
   }
 
   // a clean round rock: solid dark outline ring + subtle matte shading
