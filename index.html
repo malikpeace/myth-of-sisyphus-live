@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sisyphus">
+<meta name="theme-color" content="#000000">
 <title>Myth of Sisyphus</title>
 <style>
   :root { color-scheme: dark; }
@@ -62,7 +67,7 @@
   }
   #titlewrap {
     position: fixed; top: 0; left: 0; right: 0;
-    padding-top: 4.2vh;
+    padding-top: calc(env(safe-area-inset-top) + 4.2vh);
     padding-bottom: 1.35vh;
     text-align: center; pointer-events: none; z-index: 10;
     background: transparent;
@@ -80,7 +85,7 @@
     opacity: 0.55; font-weight: 400; text-transform: lowercase;
   }
   #dist {
-    position: fixed; top: 4.4vh; right: 4vw; z-index: 10; pointer-events: none;
+    position: fixed; top: calc(env(safe-area-inset-top) + 4.4vh); right: 4vw; z-index: 10; pointer-events: none;
     mix-blend-mode: normal; color: #30343a; opacity: 0.86;
     text-shadow: 0 1px 0 rgba(255,255,255,0.14);
     font-size: clamp(10px, 1.25vw, 14px); letter-spacing: 0.16em;
@@ -104,7 +109,7 @@
      (which starts at top:64px on phones) and clears the centered title. */
   #mpause {
     position: fixed;
-    top: 12px; left: 12px;
+    top: calc(env(safe-area-inset-top) + 12px); left: 12px;
     z-index: 30;
     display: none;
     width: 44px; height: 44px;
@@ -206,8 +211,8 @@
     #modehud {
       left: 18px;
       /* sit below the centered title band so the chip and the game title
-         never overlap on phones */
-      top: max(64px, 9vh);
+         never overlap on phones (and clear the iOS notch/status bar) */
+      top: calc(env(safe-area-inset-top) + max(64px, 9vh));
       width: min(166px, 44vw);
     }
   }
@@ -9307,7 +9312,9 @@
         bgLayer.width = VW;
         bgLayer.height = VH;
       }
-      var bgMountainFade = gameState === "intro" ? openingT : 1;
+      // The far mountains stay fully visible the instant you hit start — no
+      // fade-in over the intro pan (which read as a "cover" lifting off them).
+      var bgMountainFade = 1;
       var waterfallDominance = waterfallSceneReveal();
       var aboveCloudsDominance = aboveCloudsSceneReveal();
       var galaxyDominance = galaxySceneReveal();
