@@ -99,6 +99,33 @@
     color: rgba(255,255,255,0.78);
     text-shadow: 0 0 10px rgba(255,255,255,0.16), 0 1px 0 rgba(0,0,0,0.26);
   }
+  /* Mobile pause button — top-left corner, tap to pause. Only shown on touch
+     devices during active play (JS toggles .show). Sits above the mode chip
+     (which starts at top:64px on phones) and clears the centered title. */
+  #mpause {
+    position: fixed;
+    top: 12px; left: 12px;
+    z-index: 30;
+    display: none;
+    width: 44px; height: 44px;
+    align-items: center; justify-content: center;
+    gap: 5px;
+    padding: 0;
+    background: rgba(18,20,26,0.34);
+    border: 1px solid rgba(236,240,248,0.24);
+    border-radius: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  #mpause.show { display: flex; }
+  #mpause span {
+    width: 5px; height: 15px;
+    border-radius: 1px;
+    background: rgba(236,240,248,0.86);
+  }
+  #mpause:active { background: rgba(18,20,26,0.52); }
   #modebanner {
     position: fixed;
     left: 50%;
@@ -1636,6 +1663,7 @@
     <div id="title">MYTH OF SISYPHUS</div>
   </div>
   <div id="dist">0000</div>
+  <button id="mpause" type="button" aria-label="pause"><span></span><span></span></button>
 
   <div id="pausescreen">
     <div class="p-title">PAUSED</div>
@@ -2370,6 +2398,7 @@
   var postFormatButtons = document.querySelectorAll("[data-post-format]");
   var postFormat = "square";
   var pauseScreenEl = document.getElementById("pausescreen");
+  var mPauseEl = document.getElementById("mpause");
   var pauseResumeEl = document.getElementById("pauseresume");
   var pauseCarveEl = document.getElementById("pausecarve");
   var pauseRestartEl = document.getElementById("pauserestart");
@@ -4565,6 +4594,11 @@
       return fn.apply(this, arguments);
     };
   }
+  if (mPauseEl) mPauseEl.addEventListener("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (gameState === "playing" && modePhase === "play" && !paused) setPaused(true);
+  });
   if (pauseResumeEl) pauseResumeEl.addEventListener("click", whenPanelVisible(pauseScreenEl, function () { setPaused(false); }));
   if (pauseCarveEl) pauseCarveEl.addEventListener("click", whenPanelVisible(pauseScreenEl, function () {
     if (!canCarveCurrentRun(false)) {
@@ -5547,7 +5581,7 @@
   }
 
   function shouldIgnorePressTarget(target) {
-    return !!(target && target.closest && target.closest("#startscreen, #pausescreen, #gameover, #postcard, #againpanel"));
+    return !!(target && target.closest && target.closest("#mpause, #startscreen, #pausescreen, #gameover, #postcard, #againpanel"));
   }
 
 	  window.addEventListener("keydown", function (e) {
@@ -7571,6 +7605,10 @@
   }
 
   function updateModeHud(day) {
+    if (mPauseEl) {
+      var showPause = touchControls && gameState === "playing" && modePhase === "play" && !paused;
+      mPauseEl.classList.toggle("show", showPause);
+    }
     if (!modeHudEl) return;
     if (gameState !== "playing" || playMode === "endless") {
       modeHudEl.classList.remove("show");
