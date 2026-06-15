@@ -6952,6 +6952,22 @@
     var drift = REDUCED ? 0 : Math.sin(tSec / 120) * 0.018;
     return ((day.cycle || 0) + drift + 1) % 1;
   }
+  // Continuous day-cycle for the SUN/MOON position. The sky-colour `day.cycle`
+  // is a per-stage constant (held flat across each 210m stage, blended only at
+  // the boundary) — driving the sun off it froze the sun within a stage and
+  // snapped it at the seam ("stops, then moves"). Here we interpolate the same
+  // per-stage cycle anchors smoothly across meters so the sun glides at a steady
+  // pace, while staying in sync with the colour stage (same anchors) so its
+  // height still reads the time of day.
+  function continuousSkyCycle() {
+    var pos = Math.max(0, visualMeters()) / STAGE_LENGTH;
+    var i0 = Math.floor(pos);
+    var f = pos - i0;                                  // linear within the stage = constant pace
+    var c0 = STAGES[i0 % STAGES.length].cycle;
+    var c1 = STAGES[(i0 + 1) % STAGES.length].cycle;
+    var drift = REDUCED ? 0 : Math.sin(tSec / 120) * 0.018;
+    return (wrapLerp01(c0, c1, f) + drift + 1) % 1;
+  }
   function arcPoint(phase) {
     var lift = Math.sin(phase * Math.PI);
     return {
@@ -7034,7 +7050,7 @@
     g.restore();
   }
   function drawCelestials(day) {
-    var cycle = skyTimeCycle(day);
+    var cycle = continuousSkyCycle();
     var rainDim = 1 - (day.rain || 0) * 0.55;
     var galaxyDim = 1 - (day.galaxy || 0) * 0.96;
     var topLum = lum(day.sky[0]);
