@@ -5009,16 +5009,9 @@
         runMilestones[mark] = Date.now();
         runMilestonesHit += 1;
         saveMilestones(playMode, runMilestones);
-        milestoneFlash = 2.0;
-        milestoneFlashText = String(mark).padStart(4, "0") + "m reached";
-        shakePulse = Math.max(shakePulse, 0.6);
-        hitStopT = Math.max(hitStopT, 0.06);   // a milestone struck lands with weight
-        pulseHaptic(12);
-        playSound("mark");
-        if (!(playMode === "summit" && mark === SUMMIT_ALT && modePhase !== "play")) {
-          showModeBanner("record mark " + String(mark).padStart(4, "0"), 1.45);
-        }
-        sharePrompt = Math.max(sharePrompt, 1.75);
+        // Milestone marks (100/250/500m…) no longer announce themselves along the
+        // way — removed by request. No banner, panel, shake, hit-stop, haptic, or
+        // sound. Tracking stays silent so stats/achievements/ranks are unaffected.
         refreshLegacyLine();
         break;
       }
