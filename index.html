@@ -109,6 +109,17 @@
     color: rgba(255,255,255,0.78);
     text-shadow: 0 0 10px rgba(255,255,255,0.16), 0 1px 0 rgba(0,0,0,0.26);
   }
+  /* "best 0xxxm" chase line — real HTML text (sharp), tucked under the live
+     score and styled to match it, instead of being drawn blurry on the canvas. */
+  #chasebest {
+    position: fixed; top: calc(env(safe-area-inset-top) + 4.4vh + 20px); right: 4vw;
+    z-index: 10; pointer-events: none; display: none;
+    color: #30343a; opacity: 0.7;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.14);
+    font-size: clamp(8px, 0.98vw, 11px); letter-spacing: 0.14em;
+    font-variant-numeric: tabular-nums; font-weight: 500;
+    text-align: right; text-transform: uppercase;
+  }
   /* Mobile pause button — top-left corner, tap to pause. Only shown on touch
      devices during active play (JS toggles .show). Sits above the mode chip
      (which starts at top:64px on phones) and clears the centered title. */
@@ -1677,6 +1688,7 @@
     <div id="title">MYTH OF SISYPHUS</div>
   </div>
   <div id="dist">0000</div>
+  <div id="chasebest"></div>
   <button id="mpause" type="button" aria-label="pause"><span></span><span></span></button>
 
   <div id="pausescreen">
@@ -2374,6 +2386,7 @@
     publishQaState();
   }
   var distEl = document.getElementById("dist");
+  var chaseBestEl = document.getElementById("chasebest");
   var titlewrapEl = document.getElementById("titlewrap");
   var startEl = document.getElementById("startscreen");
   var controlHintEl = document.getElementById("controlhint");
@@ -7718,29 +7731,23 @@
   }
 
   function drawOldSelfChaseHud(day) {
-    if (gameState !== "playing" || runStartBest < 80 || oldBestPassed) return;
-    var gap = Math.round(runStartBest - scoreNow());
-    if (gap <= 0) return;
-    var reveal = clamp01(1 - Math.max(0, gap - 540) / 420);
-    if (reveal <= 0.02) return;
-    var ink = lum(day.sky[2]) > 0.42 ? [44, 47, 53] : [206, 212, 222];
-    // Minimal: one muted line tucked directly under the live score in the top
-    // right, tracking your previous best to chase. No box, bar, label, or pulse.
-    var syv = Math.max(0.1, window.innerHeight / VH);
-    var sxv = Math.max(0.1, window.innerWidth / VW);
-    var dr = distEl ? distEl.getBoundingClientRect() : null;
-    var rightX = dr ? dr.right / sxv : VW - 16;
-    var topY = dr ? (dr.bottom + 3) / syv : 30;
-    g.save();
-    g.globalAlpha = 0.5 + reveal * 0.28;
-    g.textAlign = "right";
-    g.textBaseline = "top";
-    g.font = "700 8px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-    g.fillStyle = css(ink, 0.82);
-    g.fillText("best " + String(Math.round(runStartBest)).padStart(4, "0") + "m", rightX, topY);
-    g.restore();
-    g.textAlign = "start";
-    g.textBaseline = "alphabetic";
+    // Sharp HTML text (not canvas): track your previous best as a crisp line
+    // tucked under the live score. Updates the #chasebest DOM element each frame.
+    if (!chaseBestEl) return;
+    var show = gameState === "playing" && runStartBest >= 80 && !oldBestPassed;
+    var gap = show ? Math.round(runStartBest - scoreNow()) : 0;
+    var reveal = (show && gap > 0) ? clamp01(1 - Math.max(0, gap - 540) / 420) : 0;
+    if (reveal <= 0.02) {
+      if (chaseBestEl.style.display !== "none") chaseBestEl.style.display = "none";
+      return;
+    }
+    var txt = "best " + String(Math.round(runStartBest)).padStart(4, "0") + "m";
+    if (chaseBestEl.textContent !== txt) chaseBestEl.textContent = txt;
+    chaseBestEl.style.opacity = (0.55 + reveal * 0.30).toFixed(3);
+    if (chaseBestEl.style.display !== "block") chaseBestEl.style.display = "block";
+    if (distEl) {  // pin it directly under the live score on every device
+      chaseBestEl.style.top = Math.round(distEl.getBoundingClientRect().bottom + 2) + "px";
+    }
   }
 
   function drawChallengeHud(day) {
