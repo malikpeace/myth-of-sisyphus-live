@@ -1435,8 +1435,11 @@
   }
   @media (max-width: 680px) {
     #startscreen {
-      /* clear the iOS status bar / notch so the title isn't under the clock */
-      padding: calc(env(safe-area-inset-top) + 22px) 12px max(18px, env(safe-area-inset-bottom));
+      /* Clear the iOS status bar / notch with a guaranteed minimum buffer. Use
+         the real safe-area inset when it reports (~47-59px), but never less than
+         a 56px floor — so even if env() resolves to 0 (some standalone/cached
+         states) the title still drops below the clock/battery and is readable. */
+      padding: calc(max(env(safe-area-inset-top), 56px) + 14px) 12px max(18px, env(safe-area-inset-bottom));
     }
     #startscreen .s-title {
       margin-bottom: 1.6em;
