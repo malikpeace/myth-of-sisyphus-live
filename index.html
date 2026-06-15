@@ -8381,7 +8381,7 @@
       var radius = 1320 + Math.round(hash(mark * 0.17) * 180);
       if (center < wxL - radius || center > wxR + radius) continue;
 
-      var gorgeW = 1280 + Math.round(hash(mark * 0.31) * 180);
+      var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);   // ~half-width gorge → shorter bridge
       var leftTop = center - gorgeW * 0.78;
       var rightTop = center + gorgeW * 0.82;
       var reveal = waterfallPathFeatureReveal(mark, leftTop - 110, rightTop + 110, wxL, wxR);
@@ -8501,7 +8501,7 @@
       var radius = 1320 + Math.round(hash(mark * 0.17) * 180);
       if (center < wxL - radius || center > wxR + radius) continue;
 
-      var gorgeW = 1280 + Math.round(hash(mark * 0.31) * 180);
+      var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);   // ~half-width gorge → shorter bridge
       var left = center - gorgeW * 0.78;
       var right = center + gorgeW * 0.82;
       var reveal = waterfallPathFeatureReveal(mark, left - 110, right + 110, wxL, wxR);
