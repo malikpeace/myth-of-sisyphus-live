@@ -2199,6 +2199,13 @@
     storageSet("sisyphus.sound", "on");
     storageSet("sisyphus.sound.default.v2", "1");
   }
+  // Restore the saved visual style (look) + fx across sessions — the choice was
+  // always written on click, but only sound was read back on load before, so
+  // night/green/ember/void reset to classic every visit. Now they persist.
+  var savedLook = storageGet("sisyphus.look", "");
+  if (/^(classic|verdant|noir|ember|void)$/.test(savedLook)) customize.look = savedLook;
+  var savedFx = storageGet("sisyphus.fx", "");
+  if (/^(calm|cinematic|mythic)$/.test(savedFx)) customize.fx = savedFx;
   storageRemove("sisyphus.stone");
   storageRemove("sisyphus2.sisyphus.cosmetic.v1");   // legacy v2-format cleanup only — never touch the v4 key
   if (params.has("stone")) {
