@@ -10018,6 +10018,7 @@
     if (Date.now() - lastFrameWall > 520) stepFrame(performance.now());
   }, 240);
 
+  var lastResizeW = 0, lastResizeH = 0;
   function resize() {
     // Size the canvas to the #stage host box (height:100lvh) rather than
     // window.innerHeight: in an iOS standalone PWA innerHeight gets inset to the
@@ -10029,6 +10030,11 @@
     // Hidden tabs, iframes, and in-app webviews can report 0x0; bail and keep
     // the last good size instead of poisoning VH with NaN for every draw.
     if (!isFinite(winW) || !isFinite(winH) || winW <= 0 || winH <= 0) return;
+    // Skip when nothing changed: reassigning canvas.width/height WIPES the canvas,
+    // so the many launch-time resize ticks (rAF/load/delays/observer) were each
+    // blanking it for a frame → the flashing. Only do real work on a true change.
+    if (winW === lastResizeW && winH === lastResizeH) return;
+    lastResizeW = winW; lastResizeH = winH;
     VW = 480;
     VH = Math.max(240, Math.round(VW * winH / winW));   // match window aspect -> fills, no black bars
     canvas.width = VW;
