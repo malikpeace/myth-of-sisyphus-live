@@ -35,6 +35,8 @@
     touch-action: none;
   }
   canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;   /* always fill #stage — a bad measurement can never letterbox it */
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     display: block;
@@ -10031,8 +10033,9 @@
     VH = Math.max(240, Math.round(VW * winH / winW));   // match window aspect -> fills, no black bars
     canvas.width = VW;
     canvas.height = VH;
-    canvas.style.width = winW + "px";
-    canvas.style.height = winH + "px";
+    // Display size is CSS-driven (canvas{width:100%;height:100%} fills #stage),
+    // so even a transient bad measurement at launch can't letterbox the canvas —
+    // only VW/VH (internal resolution) is derived from the host box here.
     g.imageSmoothingEnabled = false;
     ANCHOR_X = Math.round(VW * 0.42);
     // Aspect-adaptive framing: wide screens keep the classic 0.60 anchor; tall
@@ -10049,10 +10052,20 @@
     if (paused) { try { draw(); } catch (redrawErr) {} }
   }
   window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", function () { resize(); setTimeout(resize, 250); });
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden) resize();
   });
+  // iOS PWA launch can report a transient wrong viewport size (→ a letterboxed
+  // canvas with black bars). Re-measure when the stage box actually settles, and
+  // on a few delayed ticks after launch, so it always locks to full-screen.
+  if (window.ResizeObserver) {
+    try { new ResizeObserver(function () { resize(); }).observe(canvas.parentElement); } catch (roErr) {}
+  }
   resize();
+  requestAnimationFrame(resize);
+  window.addEventListener("load", function () { resize(); requestAnimationFrame(resize); });
+  [120, 350, 700, 1200].forEach(function (ms) { setTimeout(resize, ms); });
   setTimeout(snapStartMenuTop, 0);
 
 })();
