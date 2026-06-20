@@ -1850,10 +1850,6 @@
         <strong>TIMED</strong>
         <span>choose a short clock and see how far you can push before time runs out.</span>
       </button>
-      <button class="mode-card" data-mode="trial">
-        <strong>TRIAL</strong>
-        <span>heavier stone, rougher weather, and a stamina bar that matters.</span>
-      </button>
     </div>
     <div id="timedpicker" class="timed-picker" aria-label="timed run length">
       <strong>Timed run:</strong>
@@ -2105,8 +2101,8 @@
   function normalizeMode(mode) {
     var m = String(mode || "").toLowerCase();
     if (m === "absurd") return "summit";
-    // "run" and "daily" modes retired — any saved/shared/URL token falls back to endless.
-    return /^(endless|summit|resolve|trial|timed)$/.test(m) ? m : "";
+    // "run", "daily", "trial" modes retired — any saved/shared/URL token falls back to endless.
+    return /^(endless|summit|resolve|timed)$/.test(m) ? m : "";
   }
   function urlModeToken(mode) {
     var m = normalizeMode(mode);
