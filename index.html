@@ -1881,14 +1881,6 @@
         </div>
       </div>
       <div class="customizer-panel">
-        <strong>FX</strong>
-        <div class="choice-row">
-          <button class="choice active" data-custom="fx" data-value="calm">calm</button>
-          <button class="choice" data-custom="fx" data-value="cinematic">cinematic</button>
-          <button class="choice" data-custom="fx" data-value="mythic">mythic</button>
-        </div>
-      </div>
-      <div class="customizer-panel">
         <strong>SOUND</strong>
         <div class="choice-row">
           <button class="choice active" data-custom="sound" data-value="off">off</button>
@@ -2205,8 +2197,8 @@
   // night/green/ember/void reset to classic every visit. Now they persist.
   var savedLook = storageGet("sisyphus.look", "");
   if (/^(classic|verdant|noir|ember|void)$/.test(savedLook)) customize.look = savedLook;
-  var savedFx = storageGet("sisyphus.fx", "");
-  if (/^(calm|cinematic|mythic)$/.test(savedFx)) customize.fx = savedFx;
+  // FX picker retired — the game is locked to "calm" (the minimal effect level).
+  customize.fx = "calm";
   storageRemove("sisyphus.stone");
   storageRemove("sisyphus2.sisyphus.cosmetic.v1");   // legacy v2-format cleanup only — never touch the v4 key
   if (params.has("stone")) {
