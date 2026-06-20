@@ -1848,7 +1848,7 @@
       </button>
       <button class="mode-card" data-mode="timed">
         <strong>TIMED</strong>
-        <span>choose a short clock and see how far you can push before time runs out.</span>
+        <span>push as far as possible before time runs out.</span>
       </button>
     </div>
     <div id="timedpicker" class="timed-picker" aria-label="timed run length">
@@ -5225,7 +5225,7 @@
       if (!span._baseText) span._baseText = span.textContent;
       var mode = card.getAttribute("data-mode");
       if (mode === "timed") {
-        span.textContent = "choose " + timedDurationLabel(timedDuration) + " and push as far as possible before time runs out.";
+        span.textContent = "push as far as possible before time runs out.";
         continue;
       }
       if (mode === "daily") {
