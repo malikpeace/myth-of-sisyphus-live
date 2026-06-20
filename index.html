@@ -592,7 +592,8 @@
   #startscreen.menu-entered .record-label,
   #startscreen.menu-entered .record-tablets,
   #startscreen.menu-entered .progress-panel,
-  #startscreen.menu-entered .customizer { transition-delay: 0.34s; }
+  #startscreen.menu-entered .customizer,
+  #startscreen.menu-entered .email-join { transition-delay: 0.34s; }
   #startscreen:not(.menu-ready) .s-copy,
   #startscreen:not(.menu-ready) .mode-label,
   #startscreen:not(.menu-ready) .mode-grid,
@@ -604,6 +605,7 @@
   #startscreen:not(.menu-ready) .daily-line,
   #startscreen:not(.menu-ready) .progress-panel,
   #startscreen:not(.menu-ready) .customizer,
+  #startscreen:not(.menu-ready) .email-join,
   #startscreen:not(.menu-ready) .start-selected {
     opacity: 0;
     transform: translateY(22px);
@@ -622,6 +624,7 @@
   #startscreen.menu-settled .daily-line,
   #startscreen.menu-settled .progress-panel,
   #startscreen.menu-settled .customizer,
+  #startscreen.menu-settled .email-join,
   #startscreen.menu-settled .start-selected {
     opacity: 1 !important;
     transform: none !important;
