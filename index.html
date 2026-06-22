@@ -1834,6 +1834,10 @@
     <button id="startselected" class="start-selected" type="button">start</button>
     <div class="mode-label">Game modes:</div>
     <div class="mode-grid" aria-label="game modes">
+      <button class="mode-card mode-card-daily" data-mode="daily">
+        <strong>DAILY</strong>
+        <span>today's mountain — one real named peak everyone climbs today. reach the target, keep your streak.</span>
+      </button>
       <button class="mode-card" data-mode="endless">
         <strong>ENDLESS</strong>
         <span>the current climb. no top, just distance, weather, and the weight.</span>
@@ -1849,6 +1853,10 @@
       <button class="mode-card" data-mode="timed">
         <strong>TIMED</strong>
         <span>push as far as possible before time runs out.</span>
+      </button>
+      <button class="mode-card" data-mode="rush">
+        <strong>RUSH</strong>
+        <span>fun mode. fast and loud. a clean tap cadence builds a combo that rockets you up.</span>
       </button>
     </div>
     <div id="timedpicker" class="timed-picker" aria-label="timed run length">
@@ -2044,6 +2052,15 @@
   var hitStopT = 0;   // brief time-dilation on heave connect (research: 2-4 frames max)
   var playMode = "endless", modePhase = "play", modeTimer = 0, momentumStreak = 0, momentumLevel = 0, rhythmPulse = 0, rhythmBreak = 0;
   var resolveMeter = 0, cleanPushStreak = 0, bestCleanPushStreak = 0;
+  // RUSH (Fun) mode + shared timing legibility. comboCount drives the arcade
+  // reward in rush; lastJudgeKind classifies each tap (3 PERFECT / 2 GOOD /
+  // 1 EARLY / 0 LATE / -1 MISS / 9 first) for popups; judgePops are the floating
+  // canvas labels; rushFever ramps at high combo. None of this shows outside rush
+  // except a faint in-rhythm glow (see drawRushFx / base-mode cue).
+  var comboCount = 0, comboBest = 0, comboMult = 1, rushFever = 0, rushEdgeGlow = 0;
+  var lastJudgeKind = 9, lastJudgeT = 0;
+  var judgePops = [];
+  var boulderSX = 0, boulderSY = 0;   // boulder screen anchor for popups (set each frame in draw)
   var braceHeld = false, bracePower = 0, braceStartedAt = 0;
   var heavePulse = 0, heaveCooldown = 0, heaveFlash = 0;
   var fallRecoveryPower = 0, recoveryCue = 0, recoverySavedThisRun = 0, activeFalling = false;
@@ -2093,8 +2110,9 @@
   function normalizeMode(mode) {
     var m = String(mode || "").toLowerCase();
     if (m === "absurd") return "summit";
-    // "run", "daily", "trial" modes retired — any saved/shared/URL token falls back to endless.
-    return /^(endless|summit|resolve|timed)$/.test(m) ? m : "";
+    if (m === "fun") return "rush";
+    // "daily" is a first-class mode again (the centerpiece). "run"/"trial" retired.
+    return /^(endless|summit|resolve|timed|rush|daily)$/.test(m) ? m : "";
   }
   function urlModeToken(mode) {
     var m = normalizeMode(mode);
@@ -2416,8 +2434,34 @@
       fallRecoveryPower = Math.min(1, fallRecoveryPower + 0.20 + resolveMeter * 0.10);
       recoveryCue = 0.55;
     }
+    // --- timing judgment (RUSH combo + legible feedback) ---
+    // kind: 3 PERFECT, 2 GOOD, 1 EARLY (mashed too fast), 0 LATE (dawdled),
+    // -1 MISS (same key, no alternation), 9 first tap (no judgment).
+    var judged = !lastTapStamp ? 9 : (!alternating ? -1
+      : (gap > 150 && gap < 430 ? 3
+      : (gap > 105 && gap < 520 ? 2
+      : (gap <= 105 ? 1 : 0))));
+    lastJudgeKind = judged;
+    lastJudgeT = 0.75;
+    if (playMode === "rush" && judged !== 9) {
+      if (judged >= 2) {
+        comboCount = Math.min(999, comboCount + 1);
+        comboBest = Math.max(comboBest, comboCount);
+        rhythmPulse = Math.max(rhythmPulse, 0.30 + Math.min(comboCount, 40) * 0.012);
+      } else {
+        if (comboCount >= 8) shakePulse = Math.max(shakePulse, 0.35);   // a real combo breaking stings
+        comboCount = 0;
+      }
+      comboMult = 1 + Math.min(comboCount, 50) * 0.04;                 // up to 3x at 50
+      spawnJudgePop(judged);
+    }
     lastTapStamp = now;
     lastTapInput = key;
+  }
+  // floating PERFECT/GOOD/EARLY/LATE/MISS label above the boulder (rush only)
+  function spawnJudgePop(kind) {
+    if (judgePops.length > 7) judgePops.shift();
+    judgePops.push({ x: boulderSX + (hash(tSec * 13.1) - 0.5) * 26, y: boulderSY, t0: tSec, kind: kind, combo: comboCount });
   }
   function press(key) {
     // one-more-run: on the run/timed death screen, an L/R game tap restarts
@@ -2467,6 +2511,11 @@
       roll += 0.055;
       runThreat = Math.max(0, runThreat - 0.010);
       updateScoreText();
+    } else if (playMode === "rush") {
+      // snappier impulse + higher ceiling so the pace feels fast and the combo
+      // multiplier (applied to climb in physics) has headroom to show off.
+      if (key !== lastKey) { effort = Math.min(1.5, effort + IMPULSE * 1.06); lastKey = key; }
+      else { effort = Math.min(1.5, effort + 0.04); }
     } else {
       if (key !== lastKey) { effort = Math.min(1, effort + IMPULSE); lastKey = key; }
       else { effort = Math.min(1, effort + 0.05); }
@@ -2544,7 +2593,7 @@
   var controlHintLastLeft = "";
   var controlHintLastTop = "";
   var lastDistRender = "";
-  var preferredMode = sharedModeIsValid ? sharedMode : "endless";
+  var preferredMode = sharedModeIsValid ? sharedMode : "daily";   // Daily is the centerpiece / default landing mode
   var touchControls = (("ontouchstart" in window) || navigator.maxTouchPoints > 0);
   var controlHintMainEl = controlHintEl ? controlHintEl.querySelector(".main") : null;
   var controlHintMinorEl = controlHintEl ? controlHintEl.querySelector(".minor") : null;
@@ -3628,25 +3677,39 @@
     }
   }
 
+  // Real named peaks. The calendar DATE picks which mountain (same for everyone,
+  // Wordle-style); each peak's height (target), steepness (climb/slip) and weather
+  // are intrinsic, so a given mountain always plays the same — but each day feels
+  // genuinely different: a quick green hill, an icy spire, an epic storm-wracked giant.
+  var DAILY_MOUNTAINS = [
+    { name: "everest",     target: 700, climb: 0.95, slip: 1.07, weather: 0.85, wind: 0.80, rare: true },
+    { name: "k2",          target: 660, climb: 0.95, slip: 1.08, weather: 0.90, wind: 0.85, rare: true },
+    { name: "aconcagua",   target: 620, climb: 0.97, slip: 1.02, weather: 0.50, wind: 0.85, rare: false },
+    { name: "denali",      target: 580, climb: 0.96, slip: 1.06, weather: 0.72, wind: 0.70, rare: false },
+    { name: "fitz roy",    target: 560, climb: 0.95, slip: 1.05, weather: 0.70, wind: 0.90, rare: false },
+    { name: "kilimanjaro", target: 520, climb: 1.02, slip: 0.99, weather: 0.30, wind: 0.30, rare: false },
+    { name: "elbrus",      target: 500, climb: 0.99, slip: 1.06, weather: 0.65, wind: 0.60, rare: false },
+    { name: "mont blanc",  target: 480, climb: 0.99, slip: 1.05, weather: 0.60, wind: 0.50, rare: false },
+    { name: "matterhorn",  target: 460, climb: 0.96, slip: 1.04, weather: 0.55, wind: 0.60, rare: false },
+    { name: "rainier",     target: 440, climb: 0.99, slip: 1.05, weather: 0.62, wind: 0.55, rare: false },
+    { name: "fuji",        target: 400, climb: 1.04, slip: 0.98, weather: 0.20, wind: 0.35, rare: false },
+    { name: "olympus",     target: 380, climb: 1.03, slip: 0.99, weather: 0.25, wind: 0.40, rare: false },
+    { name: "sinai",       target: 350, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false },
+    { name: "mitchell",    target: 320, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false }
+  ];
   function dailyProfile() {
     if (dailyProfile.cache && dailyProfile.cache.date === dailyDate) return dailyProfile.cache;
-    var prophecies = [
-      "daily climb",
-      "daily climb",
-      "daily climb",
-      "daily climb"
-    ];
-    var names = ["ash ridge", "glass dawn", "wolf pass", "low thunder", "crown dust", "black meadow", "salt sky", "old stair"];
+    var m = DAILY_MOUNTAINS[Math.floor(hash(dailySeed * 3.91) * DAILY_MOUNTAINS.length) % DAILY_MOUNTAINS.length];
     var p = {
       date: dailyDate,
-      prophecy: prophecies[Math.floor(hash(dailySeed * 2.17) * prophecies.length)],
-      name: names[Math.floor(hash(dailySeed * 3.91) * names.length)],
-      target: 340 + Math.round(hash(dailySeed * 5.23) * 275),   // v3: 520 + hash*420 (rescaled x0.65)
-      climb: 0.97 + hash(dailySeed * 7.11) * 0.08,
-      slip: 0.99 + hash(dailySeed * 11.4) * 0.08,
-      wind: hash(dailySeed * 13.2),
-      weather: hash(dailySeed * 17.6),
-      rare: hash(dailySeed * 23.8) > 0.72
+      prophecy: "today's mountain",
+      name: m.name,
+      target: m.target,
+      climb: m.climb,
+      slip: m.slip,
+      wind: m.wind,
+      weather: m.weather,
+      rare: m.rare
     };
     dailyProfile.cache = p;
     return p;
@@ -4954,6 +5017,14 @@
     resolveMeter = 0;
     cleanPushStreak = 0;
     bestCleanPushStreak = 0;
+    comboCount = 0;
+    comboBest = 0;
+    comboMult = 1;
+    rushFever = 0;
+    rushEdgeGlow = 0;
+    judgePops.length = 0;
+    lastJudgeKind = 9;
+    lastJudgeT = 0;
     braceHeld = false;
     bracePower = 0;
     braceStartedAt = 0;
@@ -7916,6 +7987,11 @@
       pct = clamp01(scoreNow() / dailyProfile().target);
       sub = "target " + String(dailyProfile().target).padStart(4, "0") + "m";
       accent = [178, 188, 220];
+    } else if (playMode === "rush") {
+      label = rushFever > 0.5 ? "FEVER" : "RUSH";
+      pct = clamp01(comboCount / 50);
+      sub = comboCount > 1 ? "combo x" + comboCount : "clean cadence builds combo";
+      accent = rushFever > 0.5 ? [120, 230, 255] : (comboCount >= 12 ? [240, 200, 90] : [150, 220, 150]);
     }
 
     if (gameState === "playing" && modePhase === "play") {
@@ -7927,7 +8003,7 @@
         else if (currentHazard.type === "ice") sub = "ice";
         else if (currentHazard.type === "ledge") sub = "ledge";
         else if (currentHazard.type === "wind") sub = "wind";
-      } else if (resolveMeter > 0.64 && playMode !== "resolve") sub = "resolve";
+      } else if (resolveMeter > 0.64 && playMode !== "resolve" && playMode !== "rush") sub = "resolve";
     }
 
     var darkHud = lum(day.sky[2]) <= 0.42;
@@ -9292,6 +9368,17 @@
     } else {
       momentumLevel += (resolveMeter * 0.42 - momentumLevel) * Math.min(1, 4 * dt);
     }
+    // RUSH: fever ramps with a sustained combo; the edge glow tracks it. Both
+    // bleed back to 0 in every other mode so no arcade flair leaks into the calm.
+    if (playMode === "rush") {
+      var feverTarget = comboCount >= 25 ? 1 : (comboCount >= 14 ? 0.5 : 0);
+      rushFever += (feverTarget - rushFever) * Math.min(1, 3 * dt);
+      rushEdgeGlow += (clamp01(comboCount / 28) - rushEdgeGlow) * Math.min(1, 4 * dt);
+    } else if (rushFever > 0.0001 || rushEdgeGlow > 0.0001) {
+      rushFever = Math.max(0, rushFever - dt * 2.5);
+      rushEdgeGlow = Math.max(0, rushEdgeGlow - dt * 2.5);
+    }
+    if (lastJudgeT > 0) lastJudgeT = Math.max(0, lastJudgeT - dt);
     var envDay = sampleStage(visualMeters());
     currentHazard = hazardAtMeters(scoreNow(), envDay);
     if (gameState === "playing" && modePhase === "play") {
@@ -9388,6 +9475,10 @@
       var dp = dailyProfile();
       modeClimb *= dp.climb;
       modeSlip *= dp.slip;
+    } else if (playMode === "rush") {
+      modeClimb *= 1.16;
+      modeSlip *= 0.86;
+      modeClimb *= 1 + Math.min(comboCount, 50) * 0.03 + rushFever * 0.35;   // the combo IS the reward: climb faster
     }
     // v4: weather is something you fight now — but strictly deterministic
     // (hazards are seeded by position, never random in time), telegraphed by
@@ -9773,6 +9864,7 @@
     var camT = cameraScaleT();
     var focusX = Math.round(lerp(ANCHOR_X, VW * 0.31, camT));
     var focusY = Math.round(lerp(ANCHOR_Y, VH * 0.68, camT));
+    boulderSX = focusX; boulderSY = focusY;   // screen anchor for RUSH judgment popups
     if (playMode === "summit" && modePhase === "summitLaunch") {
       // Watch the stone roll back down: track its ACTUAL path down the curved
       // summit (sample the surface at the rolled-to point) so it stays framed as it
@@ -9999,6 +10091,23 @@
         g.arc(blx, bly, glowR, 0, Math.PI * 2);
         g.fill();
       }
+      // base-mode "in rhythm" whisper: a faint warm aura behind the stone that
+      // grows with a sustained clean alternating streak — a quiet, on-tone sign
+      // you're flowing. No numbers/popups. RUSH has its own loud feedback, skip it.
+      var rhythmAura = (playMode !== "rush" && gameState === "playing" && modePhase === "play")
+        ? clamp01((cleanPushStreak - 8) / 24) : 0;
+      if (rhythmAura > 0.01) {
+        var auraA = rhythmAura * 0.13 * (0.72 + 0.28 * Math.sin(tSec * 3.1));
+        var auraR = brad * (1.5 + rhythmAura * 0.45);
+        var aura = g.createRadialGradient(blx, bly, brad * 0.7, blx, bly, auraR);
+        aura.addColorStop(0, "rgba(242,228,194," + auraA.toFixed(3) + ")");
+        aura.addColorStop(0.6, "rgba(242,228,194," + (auraA * 0.3).toFixed(3) + ")");
+        aura.addColorStop(1, "rgba(242,228,194,0)");
+        g.fillStyle = aura;
+        g.beginPath();
+        g.arc(blx, bly, auraR, 0, Math.PI * 2);
+        g.fill();
+      }
       if (rockReady && !skin.forceDraw) {
         if (launchT > 0.02) {
           var dustA = Math.min(0.72, 0.22 + launchT * 0.72);
@@ -10125,7 +10234,66 @@
     drawOldSelfChaseHud(day);
     drawChallengeHud(day);
     drawMilestoneFlash(day);
+    drawRushFx(day);
     syncHudTextColor(day);
+  }
+
+  // RUSH-only arcade flair: a combo multiplier number that pulses + colours up by
+  // tier, floating PERFECT/GOOD/EARLY/LATE/MISS labels above the boulder, and a
+  // fever edge-glow. Gated hard behind playMode==="rush" so the base game stays calm.
+  var JUDGE_TEXT = { "3": "PERFECT", "2": "GOOD", "1": "EARLY", "0": "LATE", "-1": "MISS" };
+  var JUDGE_COL = { "3": [150, 240, 255], "2": [150, 220, 150], "1": [240, 200, 90], "0": [232, 158, 92], "-1": [232, 110, 90] };
+  function drawRushFx(day) {
+    if (playMode !== "rush" || gameState !== "playing") { if (judgePops.length) judgePops.length = 0; return; }
+    g.save();
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    // fever / combo edge glow (top + sides), builds with the combo
+    if (rushEdgeGlow > 0.01) {
+      var gcol = rushFever > 0.5 ? [120, 230, 255] : [240, 200, 90];
+      var ga = rushEdgeGlow * (0.18 + 0.10 * Math.sin(tSec * 6));
+      var grd = g.createLinearGradient(0, 0, 0, VH);
+      grd.addColorStop(0, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + "," + (ga * 0.9).toFixed(3) + ")");
+      grd.addColorStop(0.22, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + ",0)");
+      grd.addColorStop(0.8, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + ",0)");
+      grd.addColorStop(1, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + "," + (ga * 0.7).toFixed(3) + ")");
+      g.fillStyle = grd;
+      g.fillRect(0, 0, VW, VH);
+    }
+    // combo multiplier number
+    if (comboCount >= 2) {
+      var tier = comboCount >= 25 ? [120, 230, 255] : (comboCount >= 12 ? [240, 200, 90] : [150, 220, 150]);
+      var pop = clamp01(lastJudgeT / 0.75);
+      var sz = 16 + Math.min(comboCount, 60) * 0.16 + pop * 4 + rushFever * 4;
+      var cyTop = Math.max(30, boulderSY - 64);
+      g.font = "800 " + sz.toFixed(1) + "px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+      g.lineWidth = 3;
+      g.strokeStyle = "rgba(0,0,0,0.55)";
+      g.strokeText("x" + comboCount, boulderSX, cyTop);
+      g.fillStyle = "rgba(" + tier[0] + "," + tier[1] + "," + tier[2] + ",0.96)";
+      g.fillText("x" + comboCount, boulderSX, cyTop);
+      g.font = "700 7px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+      g.fillStyle = "rgba(" + tier[0] + "," + tier[1] + "," + tier[2] + ",0.7)";
+      g.fillText("COMBO", boulderSX, cyTop + sz * 0.62);
+    }
+    // floating per-tap judgment labels
+    for (var i = judgePops.length - 1; i >= 0; i--) {
+      var p = judgePops[i];
+      var age = tSec - p.t0;
+      if (age < 0 || age > 0.7) { judgePops.splice(i, 1); continue; }
+      var k = clamp01(age / 0.7);
+      var col = JUDGE_COL[String(p.kind)] || [220, 220, 220];
+      var alpha = (1 - k) * (p.kind >= 2 ? 0.96 : 0.9);
+      var rise = 8 + k * 30;
+      var js = (p.kind >= 3 ? 12 : 10) + (1 - clamp01(age / 0.18)) * 4;
+      g.font = "800 " + js.toFixed(1) + "px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+      g.lineWidth = 2.5;
+      g.strokeStyle = "rgba(0,0,0," + (alpha * 0.5).toFixed(3) + ")";
+      g.strokeText(JUDGE_TEXT[String(p.kind)] || "", p.x, p.y - 26 - rise);
+      g.fillStyle = "rgba(" + col[0] + "," + col[1] + "," + col[2] + "," + alpha.toFixed(3) + ")";
+      g.fillText(JUDGE_TEXT[String(p.kind)] || "", p.x, p.y - 26 - rise);
+    }
+    g.restore();
   }
 
   // Dynamic HUD text colour: dark ink on a light sky, light ink on a dark sky,
