@@ -2370,6 +2370,9 @@
   var valleysImg = new Image(), valleysReady = false;
   valleysImg.onload = function () { valleysReady = true; };
   valleysImg.src = "assets/valleys-realm.png";
+  var snowPeaksImg = new Image(), snowPeaksReady = false;
+  snowPeaksImg.onload = function () { snowPeaksReady = true; };
+  snowPeaksImg.src = "assets/snow-peaks-realm.png";
   var canyonImg = new Image(), canyonReady = false;
   canyonImg.onload = function () { canyonReady = true; };
   canyonImg.src = "assets/canyon-river-realm.png";
@@ -6992,6 +6995,39 @@
     drawRealmLookWash(reveal * 0.62);
     g.restore();
   }
+  // Snow-peaks vista — shows wherever it's snowing (cold daily peaks like everest,
+  // + high-altitude weather snow). Fades out above ~4.1km so the deep realms own
+  // the far summit. Mirrors the valleys/canyon backdrop painter.
+  function drawSnowPeaksScene(day, openingT, alphaMul) {
+    var reveal = clamp01(((day.snow || 0) - 0.18) / 0.5) * (1 - clamp01((altitude - 4100) / 700));
+    if (reveal <= 0.002 || !snowPeaksReady) return;
+    var imgW = snowPeaksImg.naturalWidth || 1672;
+    var imgH = snowPeaksImg.naturalHeight || 941;
+    var scale = Math.max(VW / imgW, VH / imgH) * 1.04;
+    var dw = Math.round(imgW * scale);
+    var dh = Math.round(imgH * scale);
+    var drift = REDUCED ? 0 : (altitude * 0.6) % dw;
+    var portraitView = (VW / Math.max(1, VH)) < 0.72;
+    var dx = Math.round((VW - dw) * 0.5 - drift);
+    var dy = Math.round((VH - dh) * (portraitView ? 0.40 : 0.46));
+    var a = reveal * (0.86 + (openingT || 0) * 0.06) * (alphaMul == null ? 1 : alphaMul);
+    g.save();
+    g.globalAlpha = a;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(snowPeaksImg, dx, dy, dw, dh);
+    if (dx > 0) g.drawImage(snowPeaksImg, dx - dw, dy, dw, dh);
+    if (dx + dw < VW) g.drawImage(snowPeaksImg, dx + dw, dy, dw, dh);
+    g.restore();
+    g.save();
+    var veil = g.createLinearGradient(0, 0, 0, VH);
+    veil.addColorStop(0, css([212, 226, 242], 0.05 * reveal));
+    veil.addColorStop(0.55, css([196, 212, 232], 0.04 * reveal));
+    veil.addColorStop(1, css([26, 30, 40], 0.10 * reveal));
+    g.fillStyle = veil;
+    g.fillRect(0, 0, VW, VH);
+    drawRealmLookWash(reveal * 0.5);
+    g.restore();
+  }
   function drawCanyonRiverScene(day, openingT, alphaMul) {
     var reveal = canyonSceneReveal() * (1 - (day.snow || 0) * 0.88);
     if (reveal <= 0.002 || !canyonReady) return;
@@ -9837,6 +9873,7 @@
       drawGreekSunsetScene(day, openingT);
       drawAboveCloudsScene(day, openingT);
       drawGalaxyNightScene(day, openingT);
+      drawSnowPeaksScene(day, openingT);
       drawRealm4Scenes(day, openingT);
       // Subtle day/night tint over the whole backdrop. A hard cutoff here shows up
       // as a horizontal band, so keep every overlay softly blended.
