@@ -3709,11 +3709,6 @@
     { name: "sinai",       height: 2285, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false, cold: false },
     { name: "mitchell",    height: 2037, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false, cold: false }
   ];
-  function dailyTargetForHeight(h) {
-    // map real summit elevation (~2000-8849 m) to a playable game distance
-    // (300-700 m), proportionally: everest ~700, mitchell ~300.
-    return Math.round((300 + clamp01((h - 2000) / 6850) * 400) / 10) * 10;
-  }
   function dailyProfile() {
     if (dailyProfile.cache && dailyProfile.cache.date === dailyDate) return dailyProfile.cache;
     var m = DAILY_MOUNTAINS[Math.floor(hash(dailySeed * 3.91) * DAILY_MOUNTAINS.length) % DAILY_MOUNTAINS.length];
@@ -3722,7 +3717,7 @@
       prophecy: "today's mountain",
       name: m.name,
       height: m.height,
-      target: dailyTargetForHeight(m.height),
+      target: m.height,   // climb the REAL summit elevation — everest is a true 8,849 m ascent
       climb: m.climb,
       slip: m.slip,
       wind: m.wind,
@@ -3794,7 +3789,7 @@
       main.className = "daily-main";
       var kicker = document.createElement("span");
       kicker.className = "daily-kicker";
-      kicker.textContent = "today's mountain · " + p.height.toLocaleString() + " m";
+      kicker.textContent = "today's mountain";
       var name = document.createElement("span");
       name.className = "daily-name";
       name.textContent = p.name;
