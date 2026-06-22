@@ -2343,6 +2343,12 @@
   var flowerGroundTex = new Image(), flowerGroundReady = false;
   flowerGroundTex.onload = function () { flowerGroundReady = true; };
   flowerGroundTex.src = "assets/flower-ground-atlas.png";
+  // Snow biome ground: crossfades in wherever day.snow is high (cold daily peaks
+  // + high-altitude weather). Procedurally snow-dusted from the rock atlas; drop a
+  // hand-made assets/snow-rock-ground-atlas.png to upgrade it.
+  var snowGroundTex = new Image(), snowGroundReady = false;
+  snowGroundTex.onload = function () { snowGroundReady = true; };
+  snowGroundTex.src = "assets/snow-rock-ground-atlas.png";
   var GROUND_SCROLL = 7.2;   // px of ground travel per metre climbed (all ground layers share this)
 
   var pathGrassImg = new Image(), pathGrassReady = false;
@@ -3682,20 +3688,20 @@
   // are intrinsic, so a given mountain always plays the same — but each day feels
   // genuinely different: a quick green hill, an icy spire, an epic storm-wracked giant.
   var DAILY_MOUNTAINS = [
-    { name: "everest",     target: 700, climb: 0.95, slip: 1.07, weather: 0.85, wind: 0.80, rare: true },
-    { name: "k2",          target: 660, climb: 0.95, slip: 1.08, weather: 0.90, wind: 0.85, rare: true },
-    { name: "aconcagua",   target: 620, climb: 0.97, slip: 1.02, weather: 0.50, wind: 0.85, rare: false },
-    { name: "denali",      target: 580, climb: 0.96, slip: 1.06, weather: 0.72, wind: 0.70, rare: false },
-    { name: "fitz roy",    target: 560, climb: 0.95, slip: 1.05, weather: 0.70, wind: 0.90, rare: false },
-    { name: "kilimanjaro", target: 520, climb: 1.02, slip: 0.99, weather: 0.30, wind: 0.30, rare: false },
-    { name: "elbrus",      target: 500, climb: 0.99, slip: 1.06, weather: 0.65, wind: 0.60, rare: false },
-    { name: "mont blanc",  target: 480, climb: 0.99, slip: 1.05, weather: 0.60, wind: 0.50, rare: false },
-    { name: "matterhorn",  target: 460, climb: 0.96, slip: 1.04, weather: 0.55, wind: 0.60, rare: false },
-    { name: "rainier",     target: 440, climb: 0.99, slip: 1.05, weather: 0.62, wind: 0.55, rare: false },
-    { name: "fuji",        target: 400, climb: 1.04, slip: 0.98, weather: 0.20, wind: 0.35, rare: false },
-    { name: "olympus",     target: 380, climb: 1.03, slip: 0.99, weather: 0.25, wind: 0.40, rare: false },
-    { name: "sinai",       target: 350, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false },
-    { name: "mitchell",    target: 320, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false }
+    { name: "everest",     target: 700, climb: 0.95, slip: 1.07, weather: 0.85, wind: 0.80, rare: true,  cold: true },
+    { name: "k2",          target: 660, climb: 0.95, slip: 1.08, weather: 0.90, wind: 0.85, rare: true,  cold: true },
+    { name: "aconcagua",   target: 620, climb: 0.97, slip: 1.02, weather: 0.50, wind: 0.85, rare: false, cold: false },
+    { name: "denali",      target: 580, climb: 0.96, slip: 1.06, weather: 0.72, wind: 0.70, rare: false, cold: true },
+    { name: "fitz roy",    target: 560, climb: 0.95, slip: 1.05, weather: 0.70, wind: 0.90, rare: false, cold: true },
+    { name: "kilimanjaro", target: 520, climb: 1.02, slip: 0.99, weather: 0.30, wind: 0.30, rare: false, cold: false },
+    { name: "elbrus",      target: 500, climb: 0.99, slip: 1.06, weather: 0.65, wind: 0.60, rare: false, cold: true },
+    { name: "mont blanc",  target: 480, climb: 0.99, slip: 1.05, weather: 0.60, wind: 0.50, rare: false, cold: true },
+    { name: "matterhorn",  target: 460, climb: 0.96, slip: 1.04, weather: 0.55, wind: 0.60, rare: false, cold: true },
+    { name: "rainier",     target: 440, climb: 0.99, slip: 1.05, weather: 0.62, wind: 0.55, rare: false, cold: true },
+    { name: "fuji",        target: 400, climb: 1.04, slip: 0.98, weather: 0.20, wind: 0.35, rare: false, cold: false },
+    { name: "olympus",     target: 380, climb: 1.03, slip: 0.99, weather: 0.25, wind: 0.40, rare: false, cold: false },
+    { name: "sinai",       target: 350, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false, cold: false },
+    { name: "mitchell",    target: 320, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false, cold: false }
   ];
   function dailyProfile() {
     if (dailyProfile.cache && dailyProfile.cache.date === dailyDate) return dailyProfile.cache;
@@ -3709,7 +3715,8 @@
       slip: m.slip,
       wind: m.wind,
       weather: m.weather,
-      rare: m.rare
+      rare: m.rare,
+      cold: m.cold
     };
     dailyProfile.cache = p;
     return p;
@@ -6025,6 +6032,10 @@
       day.tintA = Math.max(day.tintA || 0, 0.08 * day.greek);
     }
     var snowT = Math.max(snowCoverFor(meters), snowCoverFor(altitude));
+    if (activeVisualMode() === "daily") {
+      var dpcold = dailyProfile();
+      if (dpcold.cold) snowT = Math.max(snowT, clamp01(0.42 + dpcold.weather * 0.5));   // cold peaks (everest, denali...) are snow biomes
+    }
     day.snow = snowT > 0.002 ? snowT : 0;
     if (day.snow) {
       var st = day.snow;
@@ -6062,12 +6073,12 @@
     var stageMode = activeVisualMode();
     if (stageMode === "daily") {
       var dp = dailyProfile();
-      if (dp.weather > 0.62) {
+      if (dp.weather > 0.62 && !dp.cold) {
         day.rain = Math.max(day.rain || 0, (dp.weather - 0.55) * 1.3);
         day.tint = mix(day.tint || [210, 220, 228], [72, 82, 104], 0.22);
         day.tintA = Math.max(day.tintA || 0, 0.12);
         day.cloud = mix(day.cloud, [124, 134, 152], 0.28);
-      } else {
+      } else if (!dp.cold) {
         day.sky[2] = mix(day.sky[2], [236, 228, 196], 0.08 + dp.wind * 0.05);
         day.ground = mix(day.ground, [128, 120, 96], 0.08);
       }
@@ -7661,6 +7672,12 @@
     var flowerA = flowerGroundReady ? flowerGroundReveal() : 0;
     if (flowerA > 0.002) {
       drawAtlasTiles(flowerGroundTex, Math.min(0.96, flowerA));
+    }
+    // Snow biome ground: crossfade the snow-dusted atlas in wherever it's snowing
+    // (cold daily peaks + high-altitude weather), mirroring the flower crossfade.
+    var snowA = snowGroundReady ? clamp01(((day && day.snow || 0) - 0.12) / 0.5) : 0;
+    if (snowA > 0.002) {
+      drawAtlasTiles(snowGroundTex, Math.min(0.97, snowA));
     }
     g.globalAlpha = 1;
 
