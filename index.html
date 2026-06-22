@@ -7078,10 +7078,13 @@
     if (reveal <= 0.002 || !snowPeaksReady) return;
     var imgW = snowPeaksImg.naturalWidth || 1672;
     var imgH = snowPeaksImg.naturalHeight || 941;
-    var scale = Math.max(VW / imgW, VH / imgH) * 1.04;
+    // Overscan so a SINGLE centred image always covers the full width (+ the small
+    // drift range) — no tiled copy is ever needed, so a non-seamless edge can never
+    // meet its repeat and show a hard vertical seam.
+    var scale = Math.max(VW / imgW, VH / imgH) * 1.16;
     var dw = Math.round(imgW * scale);
     var dh = Math.round(imgH * scale);
-    var drift = REDUCED ? 0 : (altitude * 0.6) % dw;
+    var drift = REDUCED ? 0 : Math.sin(altitude * 0.0016) * 20;
     var portraitView = (VW / Math.max(1, VH)) < 0.72;
     var dx = Math.round((VW - dw) * 0.5 - drift);
     var dy = Math.round((VH - dh) * (portraitView ? 0.40 : 0.46));
@@ -8878,6 +8881,7 @@
       drawGreekSunsetScene(day, 1, reveal);
       drawAboveCloudsScene(day, 1, reveal);
       drawGalaxyNightScene(day, 1, reveal);
+      drawSnowPeaksScene(day, 1, reveal);   // gorge must show the snow vista too, else it reads as bare sunset sky
       drawRealm4Scenes(day, reveal);
       var skyC4 = day.sky[1];
       var realmSkyT4 = Math.max((day.galaxy || 0) * 0.68, (day.aboveClouds || 0) * 0.36, (day.valleys || 0) * 0.26, (day.canyon || 0) * 0.28, (day.greek || 0) * 0.32);
