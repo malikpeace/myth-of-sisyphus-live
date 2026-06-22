@@ -5813,7 +5813,9 @@
   function visualMeters() {
     var m = altitude + mountainIndex * SUMMIT_ALT;
     var mode = activeVisualMode();
-    if (mode === "daily") m += dailySeed % 840;
+    // Daily no longer offsets the sky clock by the date seed — every climb begins
+    // at dawn with the sun in the top-left, then the day advances as you ascend.
+    // (Daily variety comes from the mountain itself: height, weather, snow.)
     if (mode === "trial") m += altitude * 0.18;
     return m;
   }
@@ -7380,9 +7382,12 @@
     // The sun begins in the TOP-LEFT corner at the start of the day and sweeps
     // down and across to the right as the day advances (a descending arc).
     var drop = Math.pow(phase, 1.22);
-    var x = lerp(VW * 0.10, VW * 0.92, phase);
-    var topY = Math.max(20, VH * 0.10);
-    var lowY = HORIZON + 26;
+    var x = lerp(VW * 0.08, VW * 0.92, phase);
+    // The sun stays in the SKY all day — it sweeps across the upper third and
+    // never dips into the bottom half of the screen (horizon-based lowY used to
+    // let it sink low-right on wide screens).
+    var topY = Math.max(16, VH * 0.07);
+    var lowY = VH * 0.34;
     var y = lerp(topY, lowY, drop);
     var lift = 1 - drop; // higher = larger, brighter sun
     // No title-vs-play offset: the sun must stay put when the run starts.
