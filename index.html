@@ -1281,6 +1281,41 @@
   #startscreen .daily-day.today {
     box-shadow: 0 0 0 1px rgba(255,255,255,0.34);
   }
+  #startscreen .daily-diff {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 10px;
+    margin-top: 2px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  #startscreen .daily-diff-label {
+    color: rgba(255,255,255,0.44);
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  #startscreen .daily-diff-track {
+    position: relative;
+    flex: 1;
+    height: 9px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    overflow: hidden;
+  }
+  #startscreen .daily-diff-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+  #startscreen .daily-diff-word {
+    color: rgba(255,255,255,0.84);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    min-width: 58px;
+    text-align: right;
+  }
   #startscreen .customizer {
     width: min(980px, 90vw);
     margin-top: 4px;
@@ -3709,6 +3744,25 @@
     { name: "sinai",       height: 2285, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false, cold: false },
     { name: "mitchell",    height: 2037, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false, cold: false }
   ];
+  function dailyDifficulty(m) {
+    // Mostly the climb length (real height), plus steepness, slip, and weather.
+    // everest/k2 land ~brutal; mitchell ~gentle.
+    var heightNorm = clamp01((m.height - 2000) / 6849);
+    var steepness = clamp01((1.05 - m.climb) / 0.11);
+    var slipNorm = clamp01((m.slip - 0.97) / 0.11);
+    return clamp01(0.60 * heightNorm + 0.18 * steepness + 0.12 * slipNorm + 0.07 * m.weather + 0.03 * m.wind);
+  }
+  function dailyDifficultyLabel(d) {
+    if (d >= 0.82) return "brutal";
+    if (d >= 0.60) return "hard";
+    if (d >= 0.38) return "moderate";
+    if (d >= 0.18) return "fair";
+    return "gentle";
+  }
+  function dailyDifficultyColor(d) {
+    return d < 0.5 ? mix([120, 200, 120], [232, 196, 90], clamp01(d / 0.5))
+                   : mix([232, 196, 90], [226, 96, 72], clamp01((d - 0.5) / 0.5));
+  }
   function dailyProfile() {
     if (dailyProfile.cache && dailyProfile.cache.date === dailyDate) return dailyProfile.cache;
     var m = DAILY_MOUNTAINS[Math.floor(hash(dailySeed * 3.91) * DAILY_MOUNTAINS.length) % DAILY_MOUNTAINS.length];
@@ -3723,7 +3777,8 @@
       wind: m.wind,
       weather: m.weather,
       rare: m.rare,
-      cold: m.cold
+      cold: m.cold,
+      difficulty: dailyDifficulty(m)
     };
     dailyProfile.cache = p;
     return p;
@@ -3740,6 +3795,30 @@
     cell.appendChild(l);
     cell.appendChild(v);
     el.appendChild(cell);
+  }
+
+  function appendDailyDifficulty(el, d) {
+    if (!el) return;
+    var row = document.createElement("div");
+    row.className = "daily-diff";
+    var label = document.createElement("span");
+    label.className = "daily-diff-label";
+    label.textContent = "difficulty";
+    var track = document.createElement("div");
+    track.className = "daily-diff-track";
+    var fill = document.createElement("div");
+    fill.className = "daily-diff-fill";
+    var col = dailyDifficultyColor(d);
+    fill.style.width = Math.round(8 + d * 92) + "%";
+    fill.style.background = "rgba(" + Math.round(col[0]) + "," + Math.round(col[1]) + "," + Math.round(col[2]) + ",0.92)";
+    track.appendChild(fill);
+    var word = document.createElement("strong");
+    word.className = "daily-diff-word";
+    word.textContent = dailyDifficultyLabel(d);
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(word);
+    el.appendChild(row);
   }
 
   function appendDailyCalendar(el) {
@@ -3804,6 +3883,7 @@
       appendDailyStat(dailyLineEl, "today best", String(best).padStart(4, "0") + "m");
       appendDailyStat(dailyLineEl, "memory", left > 0 ? String(left).padStart(4, "0") + "m left" : "cleared · " + markCountLabel(records, false));
       appendDailyStat(dailyLineEl, "streak", streak);
+      appendDailyDifficulty(dailyLineEl, p.difficulty);
       appendDailyCalendar(dailyLineEl);
     }
   }
