@@ -40,7 +40,11 @@
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     display: block;
+    transition: filter 0.85s ease;   /* smooth unblur when the climb begins */
   }
+  /* Soft-focus the backdrop on the title + menu so the overlaid text reads cleanly;
+     it clears the moment the climb starts. */
+  canvas.menu-blur { filter: blur(3px); }
   #controlhint {
     position: fixed;
     left: 50%;
@@ -6744,23 +6748,8 @@
         [1, css([198, 112, 64], 0.16 * a)]
       ]);
       g.fillRect(0, HORIZON - 46, VW, 46);
-      // basalt spires
-      for (var vs = 0; vs < 10; vs++) {
-        var vsx = hash(vs * 5.51) * VW;
-        var vsw = 4 + hash(vs * 2.3) * 8;
-        var vsh = 18 + hash(vs * 9.2) * 34;
-        g.fillStyle = css([34, 28, 28], 0.48 * a);
-        g.beginPath();
-        g.moveTo(vsx - vsw / 2, HORIZON);
-        g.lineTo(vsx - vsw * 0.2, HORIZON - vsh * 0.55);
-        g.lineTo(vsx, HORIZON - vsh);
-        g.lineTo(vsx + vsw / 2, HORIZON);
-        g.closePath(); g.fill();
-        if (vs % 3 === 0) {
-          g.fillStyle = css([198, 112, 64], 0.30 * a);
-          g.fillRect(Math.round(vsx + vsw * 0.3), Math.round(HORIZON - vsh * 0.8), 1, Math.round(vsh * 0.8));
-        }
-      }
+      // basalt spires removed by request — the jagged dark spikes along the
+      // horizon read as out of place. The volcanic glow + embers carry the realm.
       // caldera pulse
       var calPulse = Math.max(0, Math.sin(tSec * 0.45));
       calPulse = calPulse * calPulse * calPulse;
@@ -8537,6 +8526,8 @@
   // The vigil: one torch at base camp for every consecutive day climbed. Your
   // streak is a place you walk past at the start of every run, still burning.
   function drawVigil(wxL, wxR, day) {
+    return;   // streak vigil torches removed by request
+    // eslint-disable-next-line no-unreachable
     if (gameState === "title" || playMode === "run" || altitude > 90) return;
     var info = getStreakInfo();
     var n = Math.min(14, info.streak);
@@ -10531,6 +10522,9 @@
   function frame(now) {
     var minFrameMs = gameState === "playing" || gameState === "intro" ? 16 : 80;
     if (Date.now() - lastFrameWall >= minFrameMs) stepFrame(now);
+    // Soft-focus the backdrop only on the title/menu; the CSS transition unblurs it
+    // smoothly the instant the climb begins. Idempotent — no transition restart.
+    if (canvas) canvas.classList.toggle("menu-blur", gameState === "title");
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
