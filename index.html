@@ -3690,22 +3690,30 @@
   // Wordle-style); each peak's height (target), steepness (climb/slip) and weather
   // are intrinsic, so a given mountain always plays the same — but each day feels
   // genuinely different: a quick green hill, an icy spire, an epic storm-wracked giant.
+  // `height` is the REAL summit elevation (m). The in-game target is scaled from it
+  // (dailyTargetForHeight) so a taller real peak is a genuinely longer climb —
+  // everest is the longest, mitchell the shortest — while staying playable.
   var DAILY_MOUNTAINS = [
-    { name: "everest",     target: 700, climb: 0.95, slip: 1.07, weather: 0.85, wind: 0.80, rare: true,  cold: true },
-    { name: "k2",          target: 660, climb: 0.95, slip: 1.08, weather: 0.90, wind: 0.85, rare: true,  cold: true },
-    { name: "aconcagua",   target: 620, climb: 0.97, slip: 1.02, weather: 0.50, wind: 0.85, rare: false, cold: false },
-    { name: "denali",      target: 580, climb: 0.96, slip: 1.06, weather: 0.72, wind: 0.70, rare: false, cold: true },
-    { name: "fitz roy",    target: 560, climb: 0.95, slip: 1.05, weather: 0.70, wind: 0.90, rare: false, cold: true },
-    { name: "kilimanjaro", target: 520, climb: 1.02, slip: 0.99, weather: 0.30, wind: 0.30, rare: false, cold: false },
-    { name: "elbrus",      target: 500, climb: 0.99, slip: 1.06, weather: 0.65, wind: 0.60, rare: false, cold: true },
-    { name: "mont blanc",  target: 480, climb: 0.99, slip: 1.05, weather: 0.60, wind: 0.50, rare: false, cold: true },
-    { name: "matterhorn",  target: 460, climb: 0.96, slip: 1.04, weather: 0.55, wind: 0.60, rare: false, cold: true },
-    { name: "rainier",     target: 440, climb: 0.99, slip: 1.05, weather: 0.62, wind: 0.55, rare: false, cold: true },
-    { name: "fuji",        target: 400, climb: 1.04, slip: 0.98, weather: 0.20, wind: 0.35, rare: false, cold: false },
-    { name: "olympus",     target: 380, climb: 1.03, slip: 0.99, weather: 0.25, wind: 0.40, rare: false, cold: false },
-    { name: "sinai",       target: 350, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false, cold: false },
-    { name: "mitchell",    target: 320, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false, cold: false }
+    { name: "everest",     height: 8849, climb: 0.95, slip: 1.07, weather: 0.85, wind: 0.80, rare: true,  cold: true },
+    { name: "k2",          height: 8611, climb: 0.95, slip: 1.08, weather: 0.90, wind: 0.85, rare: true,  cold: true },
+    { name: "aconcagua",   height: 6961, climb: 0.97, slip: 1.02, weather: 0.50, wind: 0.85, rare: false, cold: false },
+    { name: "denali",      height: 6190, climb: 0.96, slip: 1.06, weather: 0.72, wind: 0.70, rare: false, cold: true },
+    { name: "kilimanjaro", height: 5895, climb: 1.02, slip: 0.99, weather: 0.30, wind: 0.30, rare: false, cold: false },
+    { name: "elbrus",      height: 5642, climb: 0.99, slip: 1.06, weather: 0.65, wind: 0.60, rare: false, cold: true },
+    { name: "mont blanc",  height: 4806, climb: 0.99, slip: 1.05, weather: 0.60, wind: 0.50, rare: false, cold: true },
+    { name: "matterhorn",  height: 4478, climb: 0.96, slip: 1.05, weather: 0.55, wind: 0.60, rare: false, cold: true },
+    { name: "rainier",     height: 4392, climb: 0.99, slip: 1.05, weather: 0.62, wind: 0.55, rare: false, cold: true },
+    { name: "fuji",        height: 3776, climb: 1.04, slip: 0.98, weather: 0.20, wind: 0.35, rare: false, cold: false },
+    { name: "fitz roy",    height: 3405, climb: 0.94, slip: 1.06, weather: 0.70, wind: 0.90, rare: false, cold: true },
+    { name: "olympus",     height: 2917, climb: 1.03, slip: 0.99, weather: 0.25, wind: 0.40, rare: false, cold: false },
+    { name: "sinai",       height: 2285, climb: 1.02, slip: 1.00, weather: 0.15, wind: 0.50, rare: false, cold: false },
+    { name: "mitchell",    height: 2037, climb: 1.05, slip: 0.97, weather: 0.20, wind: 0.25, rare: false, cold: false }
   ];
+  function dailyTargetForHeight(h) {
+    // map real summit elevation (~2000-8849 m) to a playable game distance
+    // (300-700 m), proportionally: everest ~700, mitchell ~300.
+    return Math.round((300 + clamp01((h - 2000) / 6850) * 400) / 10) * 10;
+  }
   function dailyProfile() {
     if (dailyProfile.cache && dailyProfile.cache.date === dailyDate) return dailyProfile.cache;
     var m = DAILY_MOUNTAINS[Math.floor(hash(dailySeed * 3.91) * DAILY_MOUNTAINS.length) % DAILY_MOUNTAINS.length];
@@ -3713,7 +3721,8 @@
       date: dailyDate,
       prophecy: "today's mountain",
       name: m.name,
-      target: m.target,
+      height: m.height,
+      target: dailyTargetForHeight(m.height),
       climb: m.climb,
       slip: m.slip,
       wind: m.wind,
@@ -3785,7 +3794,7 @@
       main.className = "daily-main";
       var kicker = document.createElement("span");
       kicker.className = "daily-kicker";
-      kicker.textContent = "today's mountain";
+      kicker.textContent = "today's mountain · " + p.height.toLocaleString() + " m";
       var name = document.createElement("span");
       name.className = "daily-name";
       name.textContent = p.name;
