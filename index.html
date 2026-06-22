@@ -7080,7 +7080,10 @@
     return 1 - Math.pow(1 - t, 2.7);
   }
   function summitFallProgress(t) {
-    return smooth01(clamp01((t - 0.12) / 0.88));
+    // Break away PROMPTLY — no dead-zone, fast initial roll — so the stone doesn't
+    // sit motionless beside him after the celebration (that read as "touching it");
+    // sine ease-out keeps it natural as it rolls off and settles into the distance.
+    return Math.sin(clamp01(t) * Math.PI * 0.5);
   }
   function summitBaseBoulderLocalX() {
     return Math.round(22 * BASE_SCALE) + Math.round(BOULDER_R * BASE_SCALE * boulderScaleNow());
@@ -9771,15 +9774,17 @@
     var focusX = Math.round(lerp(ANCHOR_X, VW * 0.31, camT));
     var focusY = Math.round(lerp(ANCHOR_Y, VH * 0.68, camT));
     if (playMode === "summit" && modePhase === "summitLaunch") {
-      // Watch the stone roll back down: track it down the slope so it stays in
-      // frame (cancels its screen drift — +cos on X, -sin on Y in the rotated
-      // frame). 0.9 keeps it just shy of dead-centre so it still reads as
-      // pulling away from him. The draw-top zoom-out reveals the slope below.
+      // Watch the stone roll back down: track its ACTUAL path down the curved
+      // summit (sample the surface at the rolled-to point) so it stays framed as it
+      // descends, not just drifts sideways. 0.9 keeps it just shy of dead-centre so
+      // it still reads as pulling away from him; the zoom-out reveals the slope below.
       var fallCamT = summitFallProgress(summitFlight);
-      var theta2 = Math.atan(leanSlope);
-      var rolledPx = 1180 * BASE_SCALE * fallCamT * 0.9;
-      focusX += Math.round(rolledPx * Math.cos(theta2) * zoom);
-      focusY -= Math.round(rolledPx * Math.sin(theta2) * zoom);
+      var ballX0 = summitBaseBoulderLocalX();
+      var ballX = ballX0 - 1180 * BASE_SCALE * fallCamT;
+      var camDX = ballX - ballX0;                                         // how far it rolled (negative = left)
+      var camDY = terrainLipAt(ANCHOR_X + ballX) - terrainLipAt(ANCHOR_X + ballX0);   // how far it dropped
+      focusX -= Math.round(camDX * zoom * 0.9);
+      focusY -= Math.round(camDY * zoom * 0.9);
     }
     // clouds (in front of background)
     var drift = REDUCED ? 0 : (tSec * 4 + altitude * 0.2 + mountainIndex * 43);
@@ -9941,10 +9946,11 @@
       var crestRoll = 0;
       if (launchT > 0) {
         var fallT = summitFallProgress(launchT);
-        // bly stays constant: in the slope-rotated frame a fixed bly always sits
-        // ON the slope for ANY x, so sliding blx alone rolls the stone downhill
-        // perfectly seated — no surface re-solve, no curve, nothing to desync.
+        // Roll the stone back DOWN the curved summit: slide blx downhill and re-seat
+        // it ON the dome each frame (bly follows the real surface) so it rolls down
+        // the slope instead of floating off the crest at a fixed height.
         blx = blx - 1180 * BASE_SCALE * fallT;
+        bly = boulderCenterOnSurface(blx, 0);
       }
       // During the summit approach, keep Sisyphus and the boulder in the same
       // rigid push frame. Letting the boulder chase the curved terrain here makes
@@ -9954,8 +9960,15 @@
       if ((day.galaxy || 0) > 0.02) rockBase = mix(rockBase, [78, 72, 104], 0.24 * (day.galaxy || 0));
       var skin = boulderSkin(rockBase);
       var PX = Math.max(1, Math.round(LOW_PX * BASE_SCALE));
-      var actorW = VW + ACTOR_PAD_LEFT + ACTOR_PAD_RIGHT;
-      var actorH = VH + ACTOR_PAD_TOP + ACTOR_PAD_BOTTOM;
+      // During THE FALL the stone rolls far to the LEFT (~1180*BASE_SCALE px); the
+      // default buffer only has 72px of left room, so it clipped at the edge and
+      // vanished. Widen leftward (and trim the now-unused right/bottom room) so you
+      // can watch the stone roll all the way down without hitting an invisible wall.
+      var inLaunch = playMode === "summit" && modePhase === "summitLaunch";
+      var padLeft = inLaunch ? 1600 : ACTOR_PAD_LEFT;
+      var padRight = inLaunch ? 200 : ACTOR_PAD_RIGHT;
+      var actorW = VW + padLeft + padRight;
+      var actorH = VH + ACTOR_PAD_TOP + ACTOR_PAD_BOTTOM;   // bottom room holds the stone's descent
       if (fullC.width !== actorW || fullC.height !== actorH) {
         fullC.width = actorW; fullC.height = actorH;
       }
@@ -9963,7 +9976,7 @@
       fullG.clearRect(0, 0, actorW, actorH);
       var realG = g; g = fullG;
       g.save();
-      g.translate(ACTOR_PAD_LEFT, ACTOR_PAD_TOP);
+      g.translate(padLeft, ACTOR_PAD_TOP);
 
       // set up local frame: pivot at man's ground-contact point, rotated to the slope angle
       // (leanSlope eases toward the crest angle without making the mountain fully flat)
@@ -10102,7 +10115,7 @@
       lowG.clearRect(0, 0, sw, sh);
       lowG.drawImage(fullC, 0, 0, actorW, actorH, 0, 0, sw, sh);
       g.imageSmoothingEnabled = false;
-      g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(ACTOR_PAD_LEFT * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
+      g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
     drawRunAsh(day);
     drawRain(day);
