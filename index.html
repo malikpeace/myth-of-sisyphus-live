@@ -6669,18 +6669,8 @@
     t = day.r4.storm || 0;
     if (t > 0.003) {
       a = t * openingT;
-      // anvil clouds
-      for (var si = 0; si < 8; si++) {
-        var scx = ((hash(si * 4.71) * (VW + 240) - tSec * 2.5) % (VW + 240) + (VW + 240)) % (VW + 240) - 120;
-        var sby = HORIZON - 90 + hash(si * 7.3) * 60;
-        for (var sk = 0; sk < 4; sk++) {
-          var sw4 = Math.round((200 - sk * 46) * (0.5 + hash(si * 3.1) * 0.6));
-          g.fillStyle = css([80, 86, 98], 0.42 * a);
-          g.fillRect(Math.round(scx - sw4 / 2 + (sk % 2 ? 6 : -6)), Math.round(sby - sk * 8), sw4, 9);
-        }
-        g.fillStyle = css([38, 42, 52], 0.30 * a);
-        g.fillRect(Math.round(scx - 100), Math.round(sby + 9), 200, 3);
-      }
+      // anvil clouds removed by request (blocky background shapes) — the storm
+      // mood now reads through the dark sky tint + rain + lightning alone.
       // rain shafts
       for (var rs4 = 0; rs4 < 3; rs4++) {
         var rsx = ((hash(rs4 * 9.7) * VW - tSec * 4) % VW + VW) % VW;
@@ -6718,19 +6708,8 @@
     t = day.r4.ruins || 0;
     if (t > 0.003) {
       a = t * openingT;
-      // colonnade
-      for (var ci4 = 0; ci4 < 8; ci4++) {
-        var colx = 30 + ((hash(ci4 * 6.13) * (VW - 60) - visualMeters() * 0.02) % (VW - 60) + (VW - 60)) % (VW - 60);
-        var colw = Math.round(6 + hash(ci4 * 2.9) * 4);
-        var broken = hash(ci4 * 4.4) > 0.55;
-        var colh = broken ? Math.round(18 + hash(ci4 * 8.8) * 16) : 44;
-        g.fillStyle = css([88, 82, 78], 0.40 * a);
-        g.fillRect(Math.round(colx), HORIZON - colh, colw, colh);
-        if (!broken) g.fillRect(Math.round(colx - 2), HORIZON - colh - 3, colw + 4, 3);
-        else { g.fillRect(Math.round(colx), HORIZON - colh - 2, Math.round(colw * 0.6), 2); g.fillRect(Math.round(colx), HORIZON - colh - 4, Math.round(colw * 0.3), 2); }
-      }
-      // Removed predecessor/Sisyphus silhouettes: they read as stray ghost players
-      // in the background and confused the main action.
+      // colonnade (pillars) removed by request — the ruins now read through the
+      // dusty light + drifting dust motes alone, no column silhouettes.
       // dust motes
       var dustN = REDUCED ? 8 : 16;
       for (var dm = 0; dm < dustN; dm++) {
@@ -6814,29 +6793,8 @@
     t = day.r4.bones || 0;
     if (t > 0.003) {
       a = t * openingT;
-      // colossal ribcages
-      for (var bc = 0; bc < 3; bc++) {
-        var bcx = 70 + hash(bc * 7.9) * (VW - 140);
-        g.strokeStyle = css([168, 160, 148], (bc === 0 ? 0.30 : 0.38) * a);
-        g.lineWidth = 2;
-        for (var rib = 0; rib < 5; rib++) {
-          var ribR = 34 + bc * 12 - rib * 5;
-          g.beginPath();
-          g.arc(bcx + (rib - 2) * 9, HORIZON + 4, ribR, Math.PI * 1.05, Math.PI * 1.85, false);
-          g.stroke();
-        }
-        g.fillStyle = css([168, 160, 148], 0.30 * a);
-        for (var vrt = 0; vrt < 5; vrt++) g.fillRect(Math.round(bcx - 24 + vrt * 11), HORIZON + 2, 5, 3);
-      }
-      // the half-buried skull, facing the climb
-      var skx = VW * 0.62, sky4 = HORIZON + 12;
-      g.fillStyle = css([168, 160, 148], 0.55 * a);
-      g.beginPath(); g.arc(Math.round(skx), Math.round(sky4), 17, Math.PI, 0, false); g.fill();
-      g.fillStyle = css([46, 44, 48], 0.85 * a);
-      g.fillRect(Math.round(skx - 9), Math.round(sky4 - 9), 5, 6);
-      g.fillRect(Math.round(skx - 1), Math.round(sky4 - 4), 2, 4);
-      g.fillStyle = css([198, 190, 176], 0.4 * a);
-      g.beginPath(); g.arc(Math.round(skx), Math.round(sky4), 16, Math.PI * 1.15, Math.PI * 1.5, false); g.stroke();
+      // ribcage arches + half-buried skull removed by request — the bones realm
+      // now reads through its pale light + mist bands + drifting spores alone.
       // mist bands
       for (var mb = 0; mb < 3; mb++) {
         g.fillStyle = css([142, 142, 148], (0.06 + 0.02 * Math.sin(tSec * 0.4 + mb * 2)) * a);
@@ -6896,45 +6854,9 @@
     t = day.r4.elysium || 0;
     if (t > 0.003) {
       a = t * openingT;
-      // god-rays
-      for (var gr4 = 0; gr4 < 3; gr4++) {
-        var grx = 40 + gr4 * 130 + Math.sin(tSec * 0.1 + gr4) * 6;
-        g.fillStyle = css([228, 204, 150], (0.05 + 0.02 * Math.sin(tSec * 0.25 + gr4)) * a);
-        g.beginPath();
-        g.moveTo(grx, 0); g.lineTo(grx + 18, 0);
-        g.lineTo(grx + 110, VH * 0.7); g.lineTo(grx + 70, VH * 0.7);
-        g.closePath(); g.fill();
-      }
-      // floating terraces
-      for (var tr4 = 0; tr4 < 6; tr4++) {
-        var trw = 44 + hash(tr4 * 5.7) * 70;
-        var trx = hash(tr4 * 8.9) * (VW - trw);
-        var trY = 34 + hash(tr4 * 3.3) * (HORIZON - 90) + Math.sin(tSec * 0.3 + tr4 * 1.9) * 2;
-        g.fillStyle = css([130, 126, 122], 0.40 * a);
-        g.fillRect(Math.round(trx), Math.round(trY), Math.round(trw), 7);
-        g.fillStyle = css([60, 62, 66], 0.35 * a);
-        g.beginPath();
-        g.moveTo(trx, trY + 7); g.lineTo(trx + trw, trY + 7);
-        g.lineTo(trx + trw * 0.62, trY + 17 + hash(tr4 * 2.2) * 8); g.lineTo(trx + trw * 0.38, trY + 17 + hash(tr4 * 2.2) * 8);
-        g.closePath(); g.fill();
-        g.fillStyle = css([190, 160, 96], 0.45 * a);
-        g.fillRect(Math.round(trx), Math.round(trY) - 1, Math.round(trw), 1);
-        if (tr4 % 3 === 0) {
-          g.fillStyle = css([184, 180, 172], 0.40 * a);
-          g.fillRect(Math.round(trx + trw * 0.3), Math.round(trY) - 7, 2, 6);
-          g.fillRect(Math.round(trx + trw * 0.6), Math.round(trY) - 7, 2, 6);
-          g.beginPath();
-          g.moveTo(trx + trw * 0.26, trY - 7); g.lineTo(trx + trw * 0.45, trY - 12); g.lineTo(trx + trw * 0.64, trY - 7);
-          g.closePath(); g.fill();
-        }
-      }
-      // the echo: even in Elysium, someone is still pushing
-      var ecx = 40 + 1 * 130 + Math.sin(tSec * 0.1 + 1) * 6 + 60;
-      var ecy = HORIZON - 52;
-      g.fillStyle = css([60, 62, 66], 0.7 * a);
-      g.beginPath(); g.arc(Math.round(ecx + 5), Math.round(ecy - 2), 2.5, 0, Math.PI * 2); g.fill();
-      g.fillRect(Math.round(ecx), Math.round(ecy - 1), 4, 1);
-      g.beginPath(); g.arc(Math.round(ecx - 1), Math.round(ecy - 4), 1.2, 0, Math.PI * 2); g.fill();
+      // light-pillars (god-rays), floating terraces + triangle roofs, and the echo
+      // figure removed by request — elysium now reads through its warm color +
+      // drifting golden pollen alone, no hard background shapes.
       // golden pollen
       var plN = REDUCED ? 8 : 16;
       for (var pl4 = 0; pl4 < plN; pl4++) {
