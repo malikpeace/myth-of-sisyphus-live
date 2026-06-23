@@ -40,11 +40,7 @@
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     display: block;
-    transition: filter 0.85s ease;   /* smooth unblur when the climb begins */
   }
-  /* Soft-focus the backdrop on the title + menu so the overlaid text reads cleanly;
-     it clears the moment the climb starts. */
-  canvas.menu-blur { filter: blur(3px); }
   #controlhint {
     position: fixed;
     left: 50%;
@@ -10448,9 +10444,6 @@
   function frame(now) {
     var minFrameMs = gameState === "playing" || gameState === "intro" ? 16 : 80;
     if (Date.now() - lastFrameWall >= minFrameMs) stepFrame(now);
-    // Soft-focus the backdrop only on the title/menu; the CSS transition unblurs it
-    // smoothly the instant the climb begins. Idempotent — no transition restart.
-    if (canvas) canvas.classList.toggle("menu-blur", gameState === "title");
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
