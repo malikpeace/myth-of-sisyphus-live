@@ -2648,7 +2648,7 @@
   var controlHintLastLeft = "";
   var controlHintLastTop = "";
   var lastDistRender = "";
-  var preferredMode = sharedModeIsValid ? sharedMode : "daily";   // Daily is the centerpiece / default landing mode
+  var preferredMode = sharedModeIsValid ? sharedMode : "endless";   // Endless is the default landing mode (shared links still honor their mode)
   var touchControls = (("ontouchstart" in window) || navigator.maxTouchPoints > 0);
   var controlHintMainEl = controlHintEl ? controlHintEl.querySelector(".main") : null;
   var controlHintMinorEl = controlHintEl ? controlHintEl.querySelector(".minor") : null;
