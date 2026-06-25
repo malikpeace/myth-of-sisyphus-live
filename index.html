@@ -7866,7 +7866,10 @@
     if (!foregroundTreeReady || (gameState !== "playing" && gameState !== "intro")) return;
     var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
     if (wfa <= 0.02) return;
-    var layerA = smoother01(clamp01((wfa - 0.04) / 0.32));
+    // OPAQUE trees: solid wherever they show. Only a hair of fade right at the very
+    // fringe of the waterfall zone (so they don't hard-pop) — reaches full opacity
+    // almost immediately, never a see-through tree in the play area.
+    var layerA = smoother01(clamp01((wfa - 0.03) / 0.1));
     if (layerA <= 0.02) return;
     if (fgTreeC.width !== VW || fgTreeC.height !== VH) { fgTreeC.width = VW; fgTreeC.height = VH; }
     var fg = fgTreeCtx;
@@ -7911,7 +7914,7 @@
     g.restore();
   }
   // distant line behind the figure (he walks past it) — small, slow, hazy
-  var TREES_BG = { par: 0.9, spacing: 300, skip: 0.18, baseYFrac: 0.58, treeH: 0.32, scaleLo: 0.72, scaleHi: 1.06, jitter: 80, darken: 0.34, tint: 0.34, seed: 333 };
+  var TREES_BG = { par: 0.9, spacing: 300, skip: 0.18, baseYFrac: 0.58, treeH: 0.32, scaleLo: 0.72, scaleHi: 1.06, jitter: 80, darken: 0.3, tint: 0.12, seed: 333 };
   // close trees in front of the action — tall, fast, occasional, in deep shadow
   var TREES_FG = { par: 1.8, spacing: 720, skip: 0.48, baseYFrac: 1.05, treeH: 0.62, scaleLo: 0.72, scaleHi: 1.22, jitter: 150, darken: 0.5, tint: 0.16, seed: 0 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_FG); }
