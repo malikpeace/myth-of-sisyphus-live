@@ -7202,6 +7202,11 @@
       var crestT = smoother01(clamp01((altitude - (sm - CREST_ZONE)) / CREST_ZONE));
       z = lerp(z, 0.74, crestT);
     }
+    // Mobile/portrait: don't zoom out as far. At the full far-view scale the
+    // bottomless void below the slope swallows nearly half a tall screen. Raise
+    // the zoom floor as the screen gets taller; wide/desktop keeps the far view.
+    var effMin = lerp(0.36, ZOOM_MIN, clamp01((VW / VH - 0.5) / 0.85));
+    if (z < effMin) z = effMin;
     return z;
   }
   function cameraScaleT() {
@@ -9940,7 +9945,10 @@
       var bgBaseX = Math.round((VW - bgW) / 2);
       var bgMode = activeVisualMode();
       var bgShift = REDUCED ? 0 : altitude * 0.056 + mountainIndex * 61 + (bgMode === "daily" ? (dailySeed % 73) : 0);
-      var bgY = Math.round((VH - bgH) / 2);
+      // Lift the backdrop UP as the intro camera pans down to the figure, so the
+      // mountain range stays visible above the grass once the climb begins
+      // (centred on the title; ~0.16 VH higher in play).
+      var bgY = Math.round((VH - bgH) / 2 - openingT * VH * 0.16);
       var bgK0 = Math.floor((0 - bgBaseX + bgShift) / bgW) - 1;
       var bgK1 = Math.ceil((VW - bgBaseX + bgShift) / bgW) + 1;
       if (bgLayer.width !== VW || bgLayer.height !== VH) {
@@ -10069,7 +10077,11 @@
     }
     if ((day.galaxy || 0) < 0.55) drawBirds(day);
     drawWindVeil(day);
-    drawBackgroundTrees(day);   // distant forest line behind the figure (he walks past it)
+    // Trees are scenery BEHIND the ground — drawn before the foreground slope so
+    // the ground occludes their bases (they read as growing down the hillside,
+    // not floating on top of the slope). Distant line first, nearer trees over it.
+    drawBackgroundTrees(day);
+    drawForegroundTrees(day);
 
     // zoom offset: everything scales uniformly around the anchor point
     var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX;
@@ -10404,7 +10416,6 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
-    drawForegroundTrees(day);   // depth: close trees sweep in front of the action
     drawRunAsh(day);
     drawRain(day);
     drawSnow(day);
