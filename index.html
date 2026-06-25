@@ -2368,6 +2368,11 @@
   var mtBg = new Image(), mtBgReady = false;
   mtBg.onload = function () { mtBgReady = true; };
   mtBg.src = "assets/start-mountain-backdrop.png";
+  // Rock arch bridge — an alternate bridge variant over the gorge crossings
+  // (transparent PNG; its arch lets the see-through gorge show through).
+  var rockBridgeImg = new Image(), rockBridgeReady = false;
+  rockBridgeImg.onload = function () { rockBridgeReady = true; };
+  rockBridgeImg.src = "assets/rock-bridge.png";
   var bgLayer = document.createElement("canvas");
   var bgLayerCtx = bgLayer.getContext("2d");
   var bgLayerLastKey = "";
@@ -8944,6 +8949,26 @@
     }
   }
 
+  // Alternate bridge: Malik's rock arch image, spanning the same gorge. Its deck
+  // (walking surface) sits ~28.8% down the image; the arch + legs hang below into
+  // the see-through gorge. Drawn in the bridge's rotated frame so it follows the
+  // lip angle exactly, like the plank deck.
+  function drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark) {
+    var ov = 64;                                       // overlap onto each lip so the deck never floats
+    var targetW = len + ov * 2;
+    var sc = targetW / rockBridgeImg.naturalWidth;
+    var drawH = Math.round(rockBridgeImg.naturalHeight * sc);
+    var deckFrac = 0.288;                              // walking-surface row / image height
+    g.save();
+    g.globalAlpha = a;
+    g.translate(left, yL);
+    g.rotate(angle);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(rockBridgeImg, -ov, -Math.round(deckFrac * drawH), targetW, drawH);
+    g.imageSmoothingEnabled = false;
+    g.restore();
+  }
+
   function drawWaterfallBridge(wxL, wxR, day) {
     if (gameState === "title" || playMode === "run") return;
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
@@ -8974,6 +8999,13 @@
       var len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
       var angle = Math.atan2(dy, dx);
       var a = reveal * (0.86 + reveal * 0.14);
+
+      // Every other gorge (deterministic per mark) uses the rock arch instead of
+      // the plank bridge — a variety of crossings on the way up.
+      if (rockBridgeReady && hash(mark * 1.73) > 0.5) {
+        drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark);
+        continue;
+      }
 
       g.save();
       g.globalAlpha = a;
