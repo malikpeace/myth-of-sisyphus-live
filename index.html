@@ -2367,7 +2367,7 @@
 
   var mtBg = new Image(), mtBgReady = false;
   mtBg.onload = function () { mtBgReady = true; };
-  mtBg.src = "generated-pixel-background.png";
+  mtBg.src = "assets/start-mountain-backdrop.png";
   var bgLayer = document.createElement("canvas");
   var bgLayerCtx = bgLayer.getContext("2d");
   var bgLayerLastKey = "";
@@ -9895,18 +9895,20 @@
     // background: image if loaded, else sky gradient
     if (mtBgReady) {
       drawSkyStrip(g, day.sky, VH, VW);
-      // Use only the mountain band from the backdrop image. The sky is drawn
-      // procedurally above, which keeps baked-in source panels from showing.
+      // The start backdrop is a COMPLETE scene (its own warm sky + full mountain
+      // range), so show it WHOLE — cover-fit over the procedural sky instead of
+      // cropping out a mountain band. It fades out as the realm scenes take over,
+      // and the procedural sky shows through once it's gone.
       g.imageSmoothingEnabled = true;
-      var bgSrcY = Math.round(mtBg.naturalHeight * 0.43);
-      var bgSrcH = Math.round(mtBg.naturalHeight * 0.42);
-      var bgScale = Math.max(VW / mtBg.naturalWidth, (VH * 0.70) / bgSrcH) * (1.18 + openingT * 0.06);
+      var bgSrcY = 0;
+      var bgSrcH = mtBg.naturalHeight;
+      var bgScale = Math.max(VW / mtBg.naturalWidth, VH / mtBg.naturalHeight);
       var bgW = Math.round(mtBg.naturalWidth * bgScale);
       var bgH = Math.round(bgSrcH * bgScale);
       var bgBaseX = Math.round((VW - bgW) / 2);
       var bgMode = activeVisualMode();
       var bgShift = REDUCED ? 0 : altitude * 0.056 + mountainIndex * 61 + (bgMode === "daily" ? (dailySeed % 73) : 0);
-      var bgY = Math.round(VH * (gameState === "title" ? 0.42 : lerp(0.42, 0.16, openingT)));
+      var bgY = Math.round((VH - bgH) / 2);
       var bgK0 = Math.floor((0 - bgBaseX + bgShift) / bgW) - 1;
       var bgK1 = Math.ceil((VW - bgBaseX + bgShift) / bgW) + 1;
       if (bgLayer.width !== VW || bgLayer.height !== VH) {
@@ -9947,27 +9949,12 @@
           drawMirroredImageCropTo(bgLayerCtx, mtBg, 0, bgSrcY, mtBg.naturalWidth, bgSrcH, tileX, bgY, bgW, bgH, Math.abs(bgK % 2) === 1);
         }
         bgLayerCtx.globalAlpha = 1;
-        bgLayerCtx.globalCompositeOperation = "destination-in";
-        var bgMask = bgLayerCtx.createLinearGradient(0, bgY, 0, bgY + Math.max(280, VH * 0.42));
-        bgMask.addColorStop(0, "rgba(0,0,0,0)");
-        bgMask.addColorStop(0.30, "rgba(0,0,0,0.18)");
-        bgMask.addColorStop(0.52, "rgba(0,0,0,0.66)");
-        bgMask.addColorStop(0.78, "rgba(0,0,0,0.95)");
-        bgMask.addColorStop(1, "rgba(0,0,0,1)");
-        bgLayerCtx.fillStyle = bgMask;
-        bgLayerCtx.fillRect(0, bgY, VW, VH - bgY);
         bgLayerCtx.globalCompositeOperation = "source-over";
       }
       if (mountainLayerAlpha > 0.01) g.drawImage(bgLayer, 0, 0);
-      var edgeSky = skyAt(day.sky, clamp01(bgY / VH));
-      var mountainBandAlpha = Math.round(clamp01(mountainLayerAlpha / 0.62) * 40) / 40;
-      g.fillStyle = lgrad(g, 0, bgY, 0, bgY + Math.max(220, VH * 0.36), [
-        [0, css(edgeSky, 0)],
-        [0.30, css(edgeSky, 0.03 * mountainBandAlpha)],
-        [0.62, css(edgeSky, 0.015 * mountainBandAlpha)],
-        [1, css(edgeSky, 0)]
-      ]);
-      g.fillRect(0, bgY, VW, Math.max(240, VH * 0.44));
+      // How much the warm start scene owns the frame — used to hold back the grey
+      // atmosphere tints below so they don't desaturate it at low altitude.
+      var startWarmKeep = 1 - 0.82 * clamp01(mountainLayerAlpha);
       // The generated backdrop already has a full mountain range. Keeping the
       // extra procedural ridge out prevents faint boxed shapes during gameplay.
       drawBackdropBaseMist(day);
@@ -9985,16 +9972,16 @@
       var galaxySkyT = day.galaxy || 0;
       var aboveCloudsSkyT = day.aboveClouds || 0;
       var realmSkyT = Math.max(galaxySkyT * 0.68, aboveCloudsSkyT * 0.36, (day.valleys || 0) * 0.56, (day.canyon || 0) * 0.28, (day.greek || 0) * 0.32);
-      g.fillStyle = "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + "," + (0.14 * (1 - realmSkyT)) + ")";
+      g.fillStyle = "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + "," + (0.14 * (1 - realmSkyT) * startWarmKeep) + ")";
       g.fillRect(0, 0, VW, VH);
       g.fillStyle = lgrad(g, 0, HORIZON - 78, 0, ANCHOR_Y + 86, [
         [0, "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + ",0)"],
-        [0.55, "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + ",0.06)"],
-        [1, "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + ",0.16)"]
+        [0.55, "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + "," + (0.06 * startWarmKeep) + ")"],
+        [1, "rgba(" + skyC[0] + "," + skyC[1] + "," + skyC[2] + "," + (0.16 * startWarmKeep) + ")"]
       ]);
       g.fillRect(0, HORIZON - 78, VW, ANCHOR_Y - HORIZON + 164);
       if (day.tintA > 0) {
-        g.fillStyle = "rgba(" + day.tint[0] + "," + day.tint[1] + "," + day.tint[2] + "," + day.tintA + ")";
+        g.fillStyle = "rgba(" + day.tint[0] + "," + day.tint[1] + "," + day.tint[2] + "," + (day.tintA * (1 - 0.5 * clamp01(mountainLayerAlpha))) + ")";
         g.fillRect(0, 0, VW, VH);
       }
     } else {
