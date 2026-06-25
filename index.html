@@ -7436,6 +7436,14 @@
   }
 
   function drawBackdropBaseMist(day) {
+    // These veils blend the GAMEPLAY horizon (where the ground + distant mountains
+    // meet). On the title there is no ground there, so the haze band floats in the
+    // sky as a faint horizontal line. Scale it right down on the title (keep a
+    // whisper so the far mountains don't show a hard edge), full strength in play.
+    var mistA = gameState === "title" ? 0.14 : 1;
+    if (mistA <= 0.001) return;
+    var prevMistGA = g.globalAlpha;
+    g.globalAlpha = mistA;
     var skyMid = day.sky[2];
     var skyLow = day.sky[3];
     g.fillStyle = lgrad(g, 0, ANCHOR_Y - 44, 0, ANCHOR_Y + 96, [
@@ -7472,6 +7480,7 @@
       [1, css(skyLow, 0)]
     ]);
     g.fillRect(0, baseVeilY - 58, VW, 150);
+    g.globalAlpha = prevMistGA;
   }
 
   function drawAtmosphereUnifier(day, openingT) {
