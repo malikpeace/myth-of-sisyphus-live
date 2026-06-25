@@ -8088,19 +8088,19 @@
   }
 
   function drawOldSelfChaseHud(day) {
-    // Sharp HTML text (not canvas): track your previous best as a crisp line
-    // tucked under the live score. Updates the #chasebest DOM element each frame.
+    // Sharp HTML text (not canvas): a persistent "best" line tucked right under the
+    // live score, showing your best for the current mode. Once you pass it this run,
+    // it tracks your new record (best = max(prior best, current).
     if (!chaseBestEl) return;
-    var show = gameState === "playing" && runStartBest >= 80 && !oldBestPassed;
-    var gap = show ? Math.round(runStartBest - scoreNow()) : 0;
-    var reveal = (show && gap > 0) ? clamp01(1 - Math.max(0, gap - 540) / 420) : 0;
-    if (reveal <= 0.02) {
+    var best = Math.max(Math.round(runStartBest || 0), Math.round(scoreNow()));
+    var show = gameState === "playing" && modePhase === "play" && best >= 1;
+    if (!show) {
       if (chaseBestEl.style.display !== "none") chaseBestEl.style.display = "none";
       return;
     }
-    var txt = "best " + String(Math.round(runStartBest)).padStart(4, "0") + "m";
+    var txt = "best " + String(best).padStart(4, "0") + "m";
     if (chaseBestEl.textContent !== txt) chaseBestEl.textContent = txt;
-    chaseBestEl.style.opacity = (0.55 + reveal * 0.30).toFixed(3);
+    chaseBestEl.style.opacity = "0.7";
     if (chaseBestEl.style.display !== "block") chaseBestEl.style.display = "block";
     if (distEl) {  // pin it directly under the live score on every device
       chaseBestEl.style.top = Math.round(distEl.getBoundingClientRect().bottom + 2) + "px";
