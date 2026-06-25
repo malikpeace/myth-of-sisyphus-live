@@ -2408,6 +2408,12 @@
   var snowPeaksImg = new Image(), snowPeaksReady = false;
   snowPeaksImg.onload = function () { snowPeaksReady = true; };
   snowPeaksImg.src = "assets/snow-peaks-realm.png";
+  // Foreground depth tree (transparent PNG) — scattered + parallaxed in front of
+  // the action so trees sweep past the camera as you climb.
+  var foregroundTreeImg = new Image(), foregroundTreeReady = false;
+  foregroundTreeImg.onload = function () { foregroundTreeReady = true; };
+  foregroundTreeImg.src = "assets/foreground-tree.png";
+  var fgTreeC = document.createElement("canvas"), fgTreeCtx = fgTreeC.getContext("2d");
   var canyonImg = new Image(), canyonReady = false;
   canyonImg.onload = function () { canyonReady = true; };
   canyonImg.src = "assets/canyon-river-realm.png";
@@ -7851,6 +7857,58 @@
     }
   }
 
+  // Foreground depth: scattered conifers drawn IN FRONT of the action, parallaxing
+  // faster than the ground (closer = faster) so they sweep across the camera as you
+  // climb. Rendered to an offscreen buffer so the whole layer can be darkened (it's
+  // a foreground in shadow) + tinted to the realm light in one source-atop pass.
+  function drawForegroundTrees(day) {
+    if (!foregroundTreeReady || (gameState !== "playing" && gameState !== "intro")) return;
+    if (fgTreeC.width !== VW || fgTreeC.height !== VH) { fgTreeC.width = VW; fgTreeC.height = VH; }
+    var fg = fgTreeCtx;
+    fg.setTransform(1, 0, 0, 1, 0, 0);
+    fg.clearRect(0, 0, VW, VH);
+    fg.imageSmoothingEnabled = false;
+    var iw = foregroundTreeImg.naturalWidth || 290, ih = foregroundTreeImg.naturalHeight || 482;
+    var par = 1.8;                                   // parallax: faster than ground = closer
+    var scroll = visualMeters() * GROUND_SCROLL * par + 140;
+    var spacing = 720;                               // world px between tree slots
+    var baseY = VH + Math.round(VH * 0.05);          // trunks sit just below the screen bottom
+    var treeH = VH * 0.62;                            // tall-ish, but leaves the upper sky + center open
+    var baseScale = treeH / ih;
+    var drew = 0;
+    var first = Math.floor((scroll - 520) / spacing);
+    var last = Math.ceil((scroll + VW + 520) / spacing);
+    for (var i = first; i <= last; i++) {
+      if (hash(i * 12.91) < 0.48) continue;          // a tree passes now and then, not a wall
+      var sc = baseScale * (0.72 + hash(i * 7.27) * 0.5);
+      var tw = Math.round(iw * sc), th = Math.round(ih * sc);
+      var sx = Math.round(i * spacing - scroll + (hash(i * 4.13) - 0.5) * 150);
+      if (sx + tw < -40 || sx > VW + 40) continue;
+      fg.save();
+      fg.translate(sx, baseY - th);
+      if (hash(i * 9.71) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
+      fg.globalAlpha = 0.9 + hash(i * 3.3) * 0.1;
+      fg.drawImage(foregroundTreeImg, 0, 0, tw, th);
+      fg.restore();
+      drew++;
+    }
+    if (!drew) return;
+    // darken (foreground shadow) + subtle realm tint — source-atop hits only tree pixels
+    fg.save();
+    fg.globalCompositeOperation = "source-atop";
+    fg.fillStyle = "rgba(0,0,0,0.5)";
+    fg.fillRect(0, 0, VW, VH);
+    var tc = day.sky[2] || [120, 130, 150];
+    fg.fillStyle = "rgba(" + Math.round(tc[0]) + "," + Math.round(tc[1]) + "," + Math.round(tc[2]) + ",0.16)";
+    fg.fillRect(0, 0, VW, VH);
+    fg.restore();
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.imageSmoothingEnabled = false;
+    g.globalAlpha = 0.84;   // slightly see-through so a passing tree never fully hides the figure
+    g.drawImage(fgTreeC, 0, 0);
+    g.restore();
+  }
   function drawSnow(day) {
     var snow = day.snow || 0;
     if (snow <= 0.002) return;
@@ -10284,6 +10342,7 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
+    drawForegroundTrees(day);   // depth: close trees sweep in front of the action
     drawRunAsh(day);
     drawRain(day);
     drawSnow(day);
