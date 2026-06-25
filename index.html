@@ -2384,6 +2384,11 @@
   var snowGroundTex = new Image(), snowGroundReady = false;
   snowGroundTex.onload = function () { snowGroundReady = true; };
   snowGroundTex.src = "assets/snow-rock-ground-atlas.png";
+  // Grass ground: the default underfoot at the very start + the forest/waterfall
+  // band; the rock atlas takes over higher up. Crossfaded on top of the rock base.
+  var grassGroundTex = new Image(), grassGroundReady = false;
+  grassGroundTex.onload = function () { grassGroundReady = true; };
+  grassGroundTex.src = "assets/grass-ground-atlas.png";
   var GROUND_SCROLL = 7.2;   // px of ground travel per metre climbed (all ground layers share this)
 
   var pathGrassImg = new Image(), pathGrassReady = false;
@@ -6543,6 +6548,15 @@
   function flowerGroundReveal() {
     return flowerGroundRevealFor(altitude);
   }
+  function grassGroundReveal() {
+    if (playMode === "run" || gameState === "title") return 0;
+    // Grass blankets the very start and the forest/waterfall band; it fades out as
+    // you climb into the higher rocky realms (the rock atlas underneath shows
+    // through). Yields to snow so cold peaks stay white.
+    var byAlt = 1 - smoother01(clamp01((Math.max(0, altitude) - 820) / 560));   // full <=820m, gone ~1380m
+    var byForest = waterfallSceneReveal() * 0.92;                               // and wherever the forest is
+    return clamp01(Math.max(byAlt, byForest)) * (1 - 0.85 * snowCoverFor(altitude));
+  }
   function valleysNearestMeters(meters) {
     if (playMode === "run" || gameState === "title") return -99999;
     var idx = Math.max(0, Math.round((Math.max(0, meters) - VALLEYS_FIRST) / VALLEYS_SPACING));
@@ -7712,6 +7726,11 @@
       }
     }
     drawAtlasTiles(groundTex, 1);
+    // Grass over the rock base at the start + forest; fades higher so rock returns.
+    var grassA = grassGroundReady ? grassGroundReveal() : 0;
+    if (grassA > 0.002) {
+      drawAtlasTiles(grassGroundTex, Math.min(0.985, grassA));
+    }
     var flowerA = flowerGroundReady ? flowerGroundReveal() : 0;
     if (flowerA > 0.002) {
       drawAtlasTiles(flowerGroundTex, Math.min(0.96, flowerA));
