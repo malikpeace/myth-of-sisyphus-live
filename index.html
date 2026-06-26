@@ -6093,12 +6093,13 @@
       t = t * t * (3 - 2 * t);
       day = blendStageDay(prev, day, t);
     }
+    var grassCeil = bandGate(meters, 0, 1550, 460);   // meadow green belongs to the low mountain; fade it out as you climb so it never tints rock/snow/deep realms
     var grassHint = clamp01((meters - 10) / 360);
-    grassHint = grassHint * grassHint * (3 - 2 * grassHint);
+    grassHint = grassHint * grassHint * (3 - 2 * grassHint) * grassCeil;
     var grass = clamp01((meters - 45) / 520);
-    grass = grass * grass * (3 - 2 * grass);
+    grass = grass * grass * (3 - 2 * grass) * grassCeil;
     var grassMat = clamp01((meters - 85) / 430);
-    grassMat = grassMat * grassMat * (3 - 2 * grassMat);
+    grassMat = grassMat * grassMat * (3 - 2 * grassMat) * grassCeil;
     day.ground = mix(day.ground, [106, 132, 84], (grassHint * 0.18) + (grass * 0.44));
     day.grass = grass;
     day.grassMat = grassMat;
@@ -6399,6 +6400,16 @@
     }
     return ANCHOR_Y - acc * dir;
   }
+  // Altitude band window: ~1 inside [lo,hi], crossfading over `fade` at each edge.
+  // Makes a biome EXCLUSIVE to its altitude range so the modulo bells below can no
+  // longer recycle the early biomes up into the deep mountain (the core "it doesn't
+  // feel like a journey" bug). lo<=0 means "no low edge" (keep the natural bell).
+  function bandGate(m, lo, hi, fade) {
+    fade = fade || 260;
+    var up = lo <= 0 ? 1 : smoother01(clamp01((m - lo) / fade));
+    var down = (hi >= 1e8) ? 1 : (1 - smoother01(clamp01((m - (hi - fade)) / fade)));
+    return up * down;
+  }
   function waterfallNearestMeters(meters) {
     if (playMode === "run" || gameState === "title") return -99999;
     var idx = Math.max(0, Math.round((Math.max(0, meters) - WATERFALL_FIRST) / WATERFALL_SPACING));
@@ -6420,7 +6431,7 @@
     var d = Math.abs(altitude - at);
     var t = clamp01(1 - d / WATERFALL_VIEW);
     var valleyHold = valleysScenePresenceFor(altitude);
-    return t * t * (3 - 2 * t) * (1 - voidRevealFor(altitude)) * (1 - 0.78 * valleyHold);   // nothing crosses into the void
+    return t * t * (3 - 2 * t) * (1 - voidRevealFor(altitude)) * (1 - 0.78 * valleyHold) * bandGate(altitude, 0, 1450, 320);   // forest/waterfall lives low; never recycle it up high
   }
   function waterfallPathFeatureReveal(mark, featureLeft, featureRight, wxL, wxR) {
     if (gameState === "title" || playMode === "run") return 0;
@@ -6430,7 +6441,7 @@
     var leaving = smoother01(clamp01((featureRight - wxL + fadePad) / fadeSpan));
     var distance = Math.abs(altitude - mark);
     var near = clamp01(1 - Math.max(0, distance - WATERFALL_VIEW * 0.82) / 430);
-    return smoother01(entering * leaving * near) * (1 - voidRevealFor(altitude));
+    return smoother01(entering * leaving * near) * (1 - voidRevealFor(altitude)) * bandGate(altitude, 0, 2800, 360);   // bridges belong to the low gorges only
   }
   function aboveCloudsNearestMeters(meters) {
     if (playMode === "run" || gameState === "title") return -99999;
@@ -6442,7 +6453,7 @@
     var at = aboveCloudsNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
     var t = clamp01(1 - d / ABOVE_CLOUDS_VIEW);
-    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.72 * valleysScenePresenceFor(meters));   // v4: yield to the new realms
+    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.72 * valleysScenePresenceFor(meters)) * bandGate(meters, 0, 2250, 320);   // exclusive band
   }
   function aboveCloudsSceneReveal() {
     return aboveCloudsSceneRevealFor(altitude);
@@ -6503,7 +6514,7 @@
     var at = galaxyNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
     var t = clamp01(1 - d / GALAXY_VIEW);
-    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.92 * valleysScenePresenceFor(meters));   // v4: yield to the new realms
+    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.92 * valleysScenePresenceFor(meters)) * bandGate(meters, 0, 3050, 340);   // exclusive band
   }
   function galaxySceneReveal() {
     return galaxySceneRevealFor(altitude);
@@ -6518,7 +6529,7 @@
     var at = canyonNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
     var t = clamp01(1 - d / CANYON_VIEW);
-    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.86 * valleysScenePresenceFor(meters));   // v4: yield to the new realms
+    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.86 * valleysScenePresenceFor(meters)) * bandGate(meters, 0, 3450, 320);   // exclusive band
   }
   function canyonSceneReveal() {
     return canyonSceneRevealFor(altitude);
@@ -6533,7 +6544,7 @@
     var at = greekNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
     var t = clamp01(1 - d / GREEK_VIEW);
-    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.82 * valleysScenePresenceFor(meters));   // v4: yield to the new realms
+    return smoother01(t) * (1 - 0.85 * realm4Max(meters)) * (1 - 0.82 * valleysScenePresenceFor(meters)) * bandGate(meters, 0, 4250, 340);   // exclusive band (greek hands off to storm)
   }
   function greekSceneReveal() {
     return greekSceneRevealFor(altitude);
@@ -6571,7 +6582,7 @@
     if (playMode === "run" || gameState === "title") return 0;
     var at = valleysNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
-    return smoother01(clamp01(1 - d / VALLEYS_VIEW));
+    return smoother01(clamp01(1 - d / VALLEYS_VIEW)) * bandGate(meters, 0, 4200, 340);   // exclusive band
   }
   function valleysSceneRevealFor(meters) {
     return valleysScenePresenceFor(meters) * (1 - 0.74 * snowCoverFor(meters));
@@ -6588,7 +6599,7 @@
     if (playMode === "run" || gameState === "title") return 0;
     var at = snowNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
-    return smoother01(clamp01(1 - d / SNOW_VIEW)) * (1 - 0.85 * realm4Max(meters));   // v4: yield to the new realms
+    return smoother01(clamp01(1 - d / SNOW_VIEW)) * (1 - 0.85 * realm4Max(meters)) * bandGate(meters, 0, 5200, 420);   // exclusive snow band (no recycle up high)
   }
   function snowCoverFor(meters) {
     if (playMode === "run" || gameState === "title") return 0;
@@ -6609,24 +6620,29 @@
   // Firsts sit at the midpoints between gorge crossings (waterfall marks repeat
   // at 5200, 6700, 8200... every 1500m) so a new land is never fighting a
   // bridge for the same skyline.
+  // CONTIGUOUS bands (no longer cyclic bells): each deep realm OWNS an exclusive
+  // altitude range and crossfades into the next, so above ~4150m there is always
+  // exactly one deep realm — the upper mountain stops recycling the early biomes
+  // and each realm becomes a distinct, sequential world. Edges are the midpoints
+  // between the original 1500m-spaced firsts; `first` is kept (centre of the band)
+  // for the scene painters' parallax phase + the arrive message.
   var REALM4_DEFS = [
-    { id: "storm",    first: 4450,  spacing: 5200, view: 700,  arrive: "the wind has opinions. push through them." },
-    { id: "ruins",    first: 5950,  spacing: 5600, view: 700,  arrive: "whoever built this also thought it would last." },
-    { id: "volcanic", first: 7450,  spacing: 5800, view: 700,  arrive: "the mountain seethes. only one of you is calm." },
-    { id: "aurora",   first: 8950,  spacing: 6000, view: 700,  arrive: "the sky puts on its colors. the stone weighs the same." },
-    { id: "bones",    first: 10450, spacing: 6400, view: 700,  arrive: "everyone here put the boulder down once." },
-    { id: "obsidian", first: 11950, spacing: 6800, view: 700,  arrive: "nothing grows here but distance." },
-    { id: "elysium",  first: 13450, spacing: 7200, view: 700,  arrive: "paradise, they said. the slope continues." },
-    { id: "thevoid",  first: 15000, spacing: 9000, view: 1400, arrive: "no gods left out here. push anyway." }
+    { id: "storm",    first: 4450,  lo: 4150,  hi: 5200,  view: 700, arrive: "the wind has opinions. push through them." },
+    { id: "ruins",    first: 5950,  lo: 5200,  hi: 6700,  view: 700, arrive: "whoever built this also thought it would last." },
+    { id: "volcanic", first: 7450,  lo: 6700,  hi: 8200,  view: 700, arrive: "the mountain seethes. only one of you is calm." },
+    { id: "aurora",   first: 8950,  lo: 8200,  hi: 9700,  view: 700, arrive: "the sky puts on its colors. the stone weighs the same." },
+    { id: "bones",    first: 10450, lo: 9700,  hi: 11200, view: 700, arrive: "everyone here put the boulder down once." },
+    { id: "obsidian", first: 11950, lo: 11200, hi: 12700, view: 700, arrive: "nothing grows here but distance." },
+    { id: "elysium",  first: 13450, lo: 12700, hi: 14225, view: 700, arrive: "paradise, they said. the slope continues." },
+    { id: "thevoid",  first: 15000, lo: 14225, hi: 1e9,   view: 1400, arrive: "no gods left out here. push anyway." }
   ];
   function realm4RevealFor(meters, def) {
     if (playMode === "run" || gameState === "title") return 0;
     var m = Math.max(0, meters);
-    if (m < def.first - def.view) return 0;
-    var idx = Math.max(0, Math.round((m - def.first) / def.spacing));
-    var at = def.first + idx * def.spacing;
-    var t = clamp01(1 - Math.abs(m - at) / def.view);
-    return smoother01(t);
+    var fade = 300;
+    var up = smoother01(clamp01((m - def.lo) / fade));
+    var down = (def.hi >= 1e8) ? 1 : (1 - smoother01(clamp01((m - (def.hi - fade)) / fade)));
+    return up * down;
   }
   function realm4Max(meters) {
     var mx = 0;
@@ -6641,44 +6657,53 @@
   }
   function realm4SkyTint(day, id, t) {
     var s = day.sky;
-    if (id === "storm") {
-      s[0] = mix(s[0], [38, 42, 52], 0.55 * t); s[1] = mix(s[1], [58, 64, 76], 0.45 * t);
-      s[2] = mix(s[2], [58, 64, 76], 0.35 * t); s[3] = mix(s[3], [96, 102, 114], 0.30 * t);
-    } else if (id === "ruins") {
-      s[1] = mix(s[1], [144, 136, 124], 0.16 * t); s[2] = mix(s[2], [170, 158, 140], 0.14 * t);
-      s[3] = mix(s[3], [182, 170, 150], 0.12 * t);
-    } else if (id === "volcanic") {
-      s[0] = mix(s[0], [44, 30, 30], 0.62 * t); s[1] = mix(s[1], [62, 42, 38], 0.52 * t);
-      s[2] = mix(s[2], [98, 54, 42], 0.42 * t); s[3] = mix(s[3], [150, 84, 58], 0.46 * t);
-      day.ground = mix(day.ground, [64, 48, 44], 0.22 * t);
-    } else if (id === "aurora") {
-      s[0] = mix(s[0], [24, 30, 44], 0.60 * t); s[1] = mix(s[1], [30, 36, 50], 0.50 * t);
-      s[2] = mix(s[2], [54, 66, 88], 0.40 * t); s[3] = mix(s[3], [76, 92, 114], 0.30 * t);
-    } else if (id === "bones") {
-      s[1] = mix(s[1], [110, 108, 112], 0.22 * t); s[2] = mix(s[2], [142, 142, 148], 0.20 * t);
-      s[3] = mix(s[3], [158, 156, 158], 0.16 * t);
-      day.ground = mix(day.ground, [120, 116, 112], 0.14 * t);
-    } else if (id === "obsidian") {
-      s[0] = mix(s[0], [14, 14, 20], 0.70 * t); s[1] = mix(s[1], [26, 26, 34], 0.60 * t);
-      s[2] = mix(s[2], [34, 34, 42], 0.45 * t); s[3] = mix(s[3], [48, 48, 58], 0.35 * t);
-      day.ground = mix(day.ground, [38, 38, 46], 0.30 * t);
-      day.sun.a *= (1 - 0.8 * t);
-    } else if (id === "elysium") {
-      s[1] = mix(s[1], [200, 200, 194], 0.20 * t); s[2] = mix(s[2], [212, 206, 188], 0.20 * t);
-      s[3] = mix(s[3], [222, 212, 184], 0.18 * t);
-      day.ground = mix(day.ground, [142, 128, 96], 0.14 * t);
-    } else if (id === "thevoid") {
-      for (var vi = 0; vi < 4; vi++) s[vi] = mix(s[vi], [10, 10, 12], 0.92 * t);
-      day.ground = mix(day.ground, [22, 22, 26], 0.85 * t);
-      day.far = mix(day.far, [22, 22, 26], 0.85 * t);
-      day.mid = mix(day.mid, [22, 22, 26], 0.85 * t);
-      day.near = mix(day.near, [22, 22, 26], 0.85 * t);
+    // Each deep realm now stamps its OWN sky + GROUND + distant-layer palette (the
+    // ground material change is what makes a realm read as a different world, per
+    // the visual sweep). Mood is carried by colour + light, NOT by the blocky
+    // object silhouettes that were removed by request. Deep realms also kill the
+    // meadow green so no grass bleeds into the high mountain.
+    function gt(c, k) { day.ground = mix(day.ground, c, k * t); }
+    function dt(c, k) { day.far = mix(day.far, c, k * t); day.mid = mix(day.mid, c, k * t); day.near = mix(day.near, c, k * t); }
+    day.grass = (day.grass || 0) * (1 - 0.92 * t);
+    if (id === "storm") {            // bruised blue-grey, rain + lightning
+      s[0] = mix(s[0], [32, 36, 48], 0.66 * t); s[1] = mix(s[1], [46, 52, 68], 0.58 * t);
+      s[2] = mix(s[2], [58, 66, 84], 0.48 * t); s[3] = mix(s[3], [82, 92, 110], 0.42 * t);
+      gt([52, 56, 70], 0.40); dt([58, 66, 86], 0.38);
+    } else if (id === "ruins") {     // dusty, warm ancient stone — a lighter beat
+      s[0] = mix(s[0], [92, 78, 62], 0.66 * t); s[1] = mix(s[1], [168, 142, 110], 0.62 * t);
+      s[2] = mix(s[2], [208, 176, 134], 0.58 * t); s[3] = mix(s[3], [226, 196, 152], 0.54 * t);
+      gt([158, 136, 106], 0.52); dt([162, 138, 106], 0.46);
+    } else if (id === "volcanic") {  // ash sky + ember-red ground
+      s[0] = mix(s[0], [36, 18, 18], 0.76 * t); s[1] = mix(s[1], [80, 32, 26], 0.62 * t);
+      s[2] = mix(s[2], [142, 54, 34], 0.52 * t); s[3] = mix(s[3], [200, 98, 48], 0.52 * t);
+      gt([66, 34, 30], 0.54); dt([94, 42, 34], 0.44);
+    } else if (id === "aurora") {    // deep teal-blue night
+      s[0] = mix(s[0], [12, 26, 38], 0.74 * t); s[1] = mix(s[1], [18, 40, 50], 0.62 * t);
+      s[2] = mix(s[2], [26, 60, 66], 0.50 * t); s[3] = mix(s[3], [40, 88, 88], 0.42 * t);
+      gt([32, 54, 58], 0.44); dt([30, 58, 62], 0.42);
+    } else if (id === "bones") {     // sickly pale grey-green, bone-pale ground
+      s[0] = mix(s[0], [56, 62, 56], 0.58 * t); s[1] = mix(s[1], [110, 118, 106], 0.46 * t);
+      s[2] = mix(s[2], [150, 156, 138], 0.40 * t); s[3] = mix(s[3], [176, 180, 160], 0.36 * t);
+      gt([156, 154, 140], 0.50); dt([142, 146, 130], 0.42);
+    } else if (id === "obsidian") {  // near-black violet glass
+      s[0] = mix(s[0], [12, 10, 18], 0.82 * t); s[1] = mix(s[1], [22, 18, 32], 0.70 * t);
+      s[2] = mix(s[2], [34, 26, 48], 0.56 * t); s[3] = mix(s[3], [50, 38, 68], 0.46 * t);
+      gt([30, 24, 42], 0.58); dt([34, 26, 48], 0.52);
+      day.sun.a *= (1 - 0.85 * t);
+    } else if (id === "elysium") {   // pale gold paradise — the bright false summit
+      s[0] = mix(s[0], [150, 130, 92], 0.74 * t); s[1] = mix(s[1], [226, 198, 138], 0.70 * t);
+      s[2] = mix(s[2], [244, 222, 166], 0.66 * t); s[3] = mix(s[3], [252, 238, 192], 0.60 * t);
+      gt([210, 188, 136], 0.56); dt([216, 194, 142], 0.50);
+      day.sun.a = Math.max(day.sun.a, 0.6 * t);   // a soft warm sun returns for the false paradise
+    } else if (id === "thevoid") {   // true black, nothing left
+      for (var vi = 0; vi < 4; vi++) s[vi] = mix(s[vi], [8, 8, 11], 0.94 * t);
+      gt([18, 18, 22], 0.90); dt([18, 18, 22], 0.90);
       day.grass = (day.grass || 0) * (1 - t);
       day.grassMat = (day.grassMat || 0) * (1 - t);
       day.sun.a *= (1 - t);
       day.rain = (day.rain || 0) * (1 - t);
       day.snow = (day.snow || 0) * (1 - t);
-      day.cloud = mix(day.cloud, [16, 16, 20], 0.9 * t);
+      day.cloud = mix(day.cloud, [14, 14, 18], 0.92 * t);
       day.tintA = (day.tintA || 0) * (1 - t);
     }
   }
@@ -8715,7 +8740,7 @@
     for (var x = wxL; x <= wxR; x += 2) {
       var worldM = Math.max(0, (x + scroll) / GROUND_SCROLL);
       var sceneGrassMask = 1 - Math.max((day.snow || 0) * 0.82, (day.galaxy || 0) * 0.54);
-      var greenT = Math.max(day.grassMat || 0, clamp01((worldM - 55) / 430));
+      var greenT = (day.grassMat || 0);   // respects the altitude ceiling — tufts die out above the forest band
       greenT = greenT * greenT * (3 - 2 * greenT);
       greenT *= clamp01(sceneGrassMask);
       if (greenT < 0.025) continue;
@@ -8734,7 +8759,7 @@
     for (var bx = wxL; bx <= wxR; bx += 3) {
       var seed = hash(Math.floor((bx + scroll) / 3) * 5.3);
       var bladeM = Math.max(0, (bx + scroll) / GROUND_SCROLL);
-      var bladeT = Math.max(day.grassMat || 0, clamp01((bladeM - 45) / 410));
+      var bladeT = (day.grassMat || 0);
       bladeT = bladeT * bladeT * (3 - 2 * bladeT);
       if (bladeT < 0.025 || seed < 0.5 - bladeT * 0.15) continue;
       var by = Math.round(terrainLipAt(bx));
@@ -8756,7 +8781,7 @@
     for (var c = c0; c <= c1; c++) {
       var clumpM = Math.max(0, (c * cell) / GROUND_SCROLL);
       var sceneGrassMask = 1 - Math.max((day.snow || 0) * 0.86, (day.galaxy || 0) * 0.58);
-      var greenT = Math.max(day.grassMat || 0, clamp01((clumpM - 45) / 390));
+      var greenT = (day.grassMat || 0);   // ceiling-bounded
       greenT = greenT * greenT * (3 - 2 * greenT);
       greenT *= clamp01(sceneGrassMask);
       if (greenT < 0.025) continue;
@@ -9005,9 +9030,11 @@
       var angle = Math.atan2(dy, dx);
       var a = reveal * (0.86 + reveal * 0.14);
 
-      // Every other gorge (deterministic per mark) uses the rock arch instead of
-      // the plank bridge — a variety of crossings on the way up.
-      if (rockBridgeReady && hash(mark * 1.73) > 0.5) {
+      // Rock arch ONLY where the ground is actually rock. On the grassy/forest
+      // lower mountain its stone ends met GRASS, which looked wrong — grass fades
+      // out by ~1400m, so gate the rock variant above that. Lower forest gorges
+      // keep the plank bridge (which suits grass). Deterministic per mark.
+      if (rockBridgeReady && mark >= 1600 && hash(mark * 1.73) > 0.5) {
         drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark);
         continue;
       }
@@ -9277,7 +9304,10 @@
     }
 
     // neck + head (sits on top of the shoulders, clear size)
-    var neckX = shX - 0.1 * s, neckY = shY - 1.2 * s;
+    // A real neck lifts the head clear of the arm line. With the old 1.2s neck the
+    // head bottom sat right on the horizontal push-arm, so the arm read as a "long
+    // nose" poking from the face when idle. Raising the head separates the two.
+    var neckX = shX - 0.1 * s, neckY = shY - 2.6 * s;
     limb(shX, shY, neckX, neckY, Math.max(1, Math.round(2.0 * s)), figInk);
     var headR = Math.max(4, Math.round(5.8 * s));
     var headX = neckX - 0.5 * s, headY = neckY - headR - 0.1 * s;
@@ -9972,7 +10002,10 @@
         canyonDominance * 0.84,
         greekDominance * 0.86
       );
-      var mountainLayerAlpha = 1.0 * bgMountainFade * mountainWaterfallFade;
+      // The start-mountain backdrop belongs to the LOW mountain. Fade it out as you
+      // climb so it stops leaking the same warm vista into every deep realm (each
+      // deep realm owns its own sky/ground above this).
+      var mountainLayerAlpha = 1.0 * bgMountainFade * mountainWaterfallFade * bandGate(altitude, 0, 1750, 520);
       // Recomposite the far-mountain layer only when its inputs actually move:
       // the parallax shift advances <0.3px per frame, so most frames can reuse
       // the previous composite untouched.
