@@ -9312,14 +9312,29 @@
     var shX = hipX + (9 + brace * 4 + stumble * 2.0) * s, shY = hipY - (13 - brace * 1.5) * s + bob * 0.5 + stumble * 0.8 * s;   // torso digs into the rock
 
     if (brace > 0.08) {
-      // A single scrape line keeps the rollback readable without messy dirt clumps.
-      var dirtA = 0.35 + brace * 0.45;
-      r(hipX - 31 * s, floorY - 2 * s, 36 * s, 4 * s, "rgba(70,50,34," + dirtA + ")");
-
       var backFootX = hipX - (19 + brace * 3) * s, backFootY = floorY;
       var frontFootX = hipX - (7 + brace * 2) * s, frontFootY = floorY;
       var backKneeX = hipX - 12 * s, backKneeY = hipY + 6 * s;
       var frontKneeX = hipX - 1 * s, frontKneeY = hipY + 7 * s;
+
+      // PLOWED DIRT: the stone is forcing him back DOWN the slope, so his dug-in
+      // BACK heel shoves up earth — the dirt piles BEHIND/under that heel and trails
+      // DOWNHILL (left), not in a blob under his centre. Mound + furrow + flecks.
+      var dA = 0.42 + brace * 0.5;
+      var dCol = "rgba(82,58,40,", dDk = "rgba(52,38,26,";
+      r(backFootX - 30 * s, floorY - 1 * s, 28 * s, 2 * s, dDk + (dA * 0.55).toFixed(3) + ")");   // furrow scraped down-slope behind the heel
+      r(backFootX - 15 * s, floorY - 3 * s, 14 * s, 4 * s, dCol + dA.toFixed(3) + ")");            // plowed pile, base
+      r(backFootX - 12 * s, floorY - 5 * s, 9 * s, 3 * s, dCol + (dA * 0.92).toFixed(3) + ")");     // pile mid
+      r(backFootX - 9 * s, floorY - 7 * s, 5 * s, 2 * s, dDk + (dA * 0.82).toFixed(3) + ")");       // top clump
+      if (!REDUCED) for (var dk = 0; dk < 6; dk++) {
+        if (hash(dk * 3.1 + Math.floor(tSec * 4)) < 0.4) continue;
+        var dph = (tSec * 2.4 + dk * 0.61) % 1;
+        var fx = backFootX - (3 + dk * 3) * s - dph * 13 * s;                                       // flung down-left (behind him), arcing up off the heel
+        var fy = floorY - (2 + Math.sin(dph * Math.PI) * (6 + brace * 5)) * s;
+        var fs = Math.max(1, Math.round(1.5 * s));
+        r(Math.round(fx), Math.round(fy), fs, fs, dCol + (dA * (1 - dph) * 0.85).toFixed(3) + ")");
+      }
+
       limb(hipX, hipY, backKneeX, backKneeY, lw, figInk);
       limb(backKneeX, backKneeY, backFootX, backFootY, lw, figInk);
       limb(hipX, hipY, frontKneeX, frontKneeY, lw, figInk);
