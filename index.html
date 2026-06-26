@@ -6107,6 +6107,7 @@
     day.aboveClouds = aboveCloudsT > 0.002 ? aboveCloudsT : 0;
     var galaxyT = Math.max(galaxySceneRevealFor(meters), galaxySceneReveal());
     day.galaxy = galaxyT > 0.002 ? galaxyT : 0;
+    if (day.galaxy > 0.04) day.rain = (day.rain || 0) * (1 - 0.92 * day.galaxy);   // a clear starfield shouldn't be raining
     var valleysT = Math.max(valleysSceneRevealFor(meters), valleysSceneReveal());
     day.valleys = valleysT > 0.002 ? valleysT : 0;
     if (day.valleys) {
