@@ -10270,9 +10270,12 @@
       // During the summit approach, keep Sisyphus and the boulder in the same
       // rigid push frame. Letting the boulder chase the curved terrain here makes
       // his arm stretch upward before the stone has actually slipped.
-      var light = lum(day.ground);
-      var rockBase = mix([64, 66, 74], [128, 130, 138], light);
-      if ((day.galaxy || 0) > 0.02) rockBase = mix(rockBase, [78, 72, 104], 0.24 * (day.galaxy || 0));
+      // Hero boulder keeps a CONSTANT dark-granite value so it never washes out or
+      // camouflages against pale biomes (snow, bones, elysium). Only a small slice
+      // of the biome tone bleeds in as ambient — the stone stays the dark anchor of
+      // every frame.
+      var rockBase = mix([58, 60, 68], day.ground, 0.16);
+      if ((day.galaxy || 0) > 0.02) rockBase = mix(rockBase, [78, 72, 104], 0.20 * (day.galaxy || 0));
       var skin = boulderSkin(rockBase);
       var PX = Math.max(1, Math.round(LOW_PX * BASE_SCALE));
       // During THE FALL the stone rolls far to the LEFT (~1180*BASE_SCALE px); the
