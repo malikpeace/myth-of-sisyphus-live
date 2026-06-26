@@ -7836,16 +7836,17 @@
     // luminance + texture (no pale wash); day.tint adds the overall value grade.
     if (day) {
       var atmoCast = mix(day.far || day.sky[2], day.sky[3] || day.sky[2], 0.45);
-      // Grass is the only vividly-coloured ground; the hue-transfer cast greys it
-      // out. Weaken it in proportion to how much grass is showing so the green
-      // survives, while rock/snow still take the full atmosphere hue.
-      var castA = 0.6 * (1 - 0.72 * grassA);
+      // Atmosphere hue-transfer onto the ground so it shifts with the scene. The
+      // full cast greys the grass out, so grass takes a MODERATE share (~0.30 — a
+      // bit of scene colour without losing the green) while rock/snow take a touch
+      // more. Tuned down from the original 0.6 which was too strong.
+      var castA = 0.55 * (1 - 0.45 * grassA);
       g.globalCompositeOperation = "color";
       g.fillStyle = css(atmoCast, castA);
       g.fillRect(x0, 0, x1 - x0, h);
       g.globalCompositeOperation = "source-over";
       if (day.tintA > 0) {
-        g.fillStyle = css(day.tint, day.tintA * 0.5 * (1 - 0.5 * grassA));
+        g.fillStyle = css(day.tint, day.tintA * 0.5 * (1 - 0.35 * grassA));
         g.fillRect(x0, 0, x1 - x0, h);
       }
     }
