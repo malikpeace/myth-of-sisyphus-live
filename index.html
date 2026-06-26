@@ -7434,8 +7434,11 @@
       var daylight = Math.sin(clamp01(0.18 + sunPhase * 0.82) * Math.PI);
       var sp = sunArcPoint(sunPhase);
       var sunAlpha = clamp01(daylight * 1.18 - 0.08) * rainDim * sunGate * galaxyDim * (customize.look === "noir" ? 0 : customize.look === "void" ? 0.32 : 1);
-      var sunSize = 24 + sp.lift * 7;
-      if (gameState === "title") { sunSize *= 0.52; sunAlpha *= 0.82; }   // smaller, subtler sun on the title/menu
+      // Consistent sun: keep the gentle menu-sized sun in gameplay too, so it never
+      // pops bigger/brighter the moment you hit START — it stays the same size it is
+      // on the title/background.
+      var sunSize = (24 + sp.lift * 7) * 0.52;
+      sunAlpha *= 0.82;
       if (sunAlpha > 0.02) drawMinimalSun(sp.x, sp.y, sunSize, sunAlpha);
     } else if (moonGate > 0.02) {
       var moonPhase = cycle >= 0.72 ? (cycle - 0.72) / 0.46 : (cycle + 0.28) / 0.46;
