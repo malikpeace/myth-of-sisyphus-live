@@ -7966,7 +7966,7 @@
   // Each renders to an offscreen buffer so it can be darkened + realm-tinted in one
   // source-atop pass; trees are opaque.
   function drawTreeLayer(day, cfg) {
-    if (!foregroundTreeReady || (gameState !== "playing" && gameState !== "intro")) return;
+    if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
     var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
     if (wfa <= 0.02) return;
     // OPAQUE trees: solid wherever they show. Only a hair of fade right at the very
@@ -7980,9 +7980,8 @@
     fg.clearRect(0, 0, VW, VH);
     fg.imageSmoothingEnabled = false;
     var iw = foregroundTreeImg.naturalWidth || 290, ih = foregroundTreeImg.naturalHeight || 482;
-    var scroll = visualMeters() * GROUND_SCROLL * cfg.par + cfg.seed;
+    var scroll = altitude * GROUND_SCROLL * cfg.par + cfg.seed;   // locked to the ground scroll so trees stay put on the hillside
     var spacing = cfg.spacing;
-    var baseY = Math.round(VH * cfg.baseYFrac);
     var baseScale = (VH * cfg.treeH) / ih;
     var drew = 0;
     var first = Math.floor((scroll - 560) / spacing);
@@ -7993,6 +7992,11 @@
       var tw = Math.round(iw * sc), th = Math.round(ih * sc);
       var sx = Math.round(i * spacing - scroll + (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter);
       if (sx + tw < -40 || sx > VW + 40) continue;
+      // Sit the trunk ON the actual hillside surface (the slope line through the
+      // figure's feet), tucked a few px under the lip so the ground roots it. This
+      // replaces the old fixed screen line that made trees FLOAT over the background
+      // on the downhill side.
+      var baseY = Math.round(ANCHOR_Y - leanSlope * (sx + tw * 0.5 - ANCHOR_X)) + 10;
       fg.save();
       fg.translate(sx, baseY - th);
       if (hash(i * 9.71 + cfg.seed) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
@@ -8017,9 +8021,12 @@
     g.restore();
   }
   // distant line behind the figure (he walks past it) — small, slow, hazy
-  var TREES_BG = { par: 0.9, spacing: 300, skip: 0.18, baseYFrac: 0.58, treeH: 0.32, scaleLo: 0.72, scaleHi: 1.06, jitter: 80, darken: 0.3, tint: 0.12, seed: 333 };
-  // close trees in front of the action — tall, fast, occasional, in deep shadow
-  var TREES_FG = { par: 1.8, spacing: 720, skip: 0.48, baseYFrac: 1.05, treeH: 0.62, scaleLo: 0.72, scaleHi: 1.22, jitter: 150, darken: 0.5, tint: 0.16, seed: 0 };
+  // Both layers are now GROUND-LOCKED (par 1.0) and sit on the hillside surface
+  // (baseYFrac is unused — kept for reference). Small/hazy trees + larger near trees
+  // give depth without parallax drift (which is what made them float).
+  var TREES_BG = { par: 1.0, spacing: 300, skip: 0.20, baseYFrac: 0.58, treeH: 0.30, scaleLo: 0.66, scaleHi: 0.98, jitter: 80, darken: 0.34, tint: 0.16, seed: 333 };
+  // nearer, larger hillside trees the figure passes
+  var TREES_FG = { par: 1.0, spacing: 560, skip: 0.46, baseYFrac: 1.05, treeH: 0.5, scaleLo: 0.8, scaleHi: 1.18, jitter: 150, darken: 0.46, tint: 0.14, seed: 0 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_FG); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
@@ -9302,9 +9309,9 @@
       r(frontFootX - 5 * s, frontFootY - 1 * s, 9 * s, 3 * s, figInk);
     } else {
       // legs, striding with movement
-      var stepReach = 8 * s;
+      var stepReach = 5 * s;     // tighter stance — feet stay under the body so the back leg never splays flat on a slope
       var stepLift = 4 * s;
-      var kneeBend = 2 * s;
+      var kneeBend = 3 * s;      // more knee bend reads as braced/planted, not a straight-legged sprawl
       for (var leg = 0; leg < 2; leg++) {
         var ph = (wp + leg * 0.5) * 6.2832;
         var fwd = Math.cos(ph);
@@ -9339,11 +9346,12 @@
       disc(chestX, chestY, Math.max(2, Math.round(bw * 0.36 + idleBreath * 0.21 * s)), figInk);
     }
 
-    // neck + head (sits on top of the shoulders, clear size)
-    // A real neck lifts the head clear of the arm line. With the old 1.2s neck the
-    // head bottom sat right on the horizontal push-arm, so the arm read as a "long
-    // nose" poking from the face when idle. Raising the head separates the two.
-    var neckX = shX - 0.1 * s, neckY = shY - 2.6 * s;
+    // neck + head. A raised neck lifts the head clear of the horizontal push-arm
+    // (which otherwise reads as a "long nose"). But a HIGH head on a steep slope
+    // push reads as "leaning back / sitting", so only raise it when IDLE; while
+    // actively pushing the head tucks low into the effort (the original push look).
+    var idleHeadT = 1 - smoother01(clamp01(activity / 0.06));
+    var neckX = shX - 0.1 * s, neckY = shY - (1.35 + 1.25 * idleHeadT) * s;
     limb(shX, shY, neckX, neckY, Math.max(1, Math.round(2.0 * s)), figInk);
     var headR = Math.max(4, Math.round(5.8 * s));
     var headX = neckX - 0.5 * s, headY = neckY - headR - 0.1 * s;
