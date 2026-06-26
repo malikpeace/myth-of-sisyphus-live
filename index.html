@@ -7631,6 +7631,41 @@
     g.restore();
   }
 
+  // Solid distant ranges for the DEEP realms only. The start-mountain backdrop is
+  // gone up high (it was leaking the same warm vista everywhere), which left the
+  // deep realms with empty sky. These ranges auto-tint from day.far/mid — which
+  // each realm recolours — so every deep realm gets its own distant horizon and the
+  // dead sky is filled. Drawn behind the realm particles + the foreground slope.
+  // The void stays empty: its far/mid are near-black so the ranges vanish into it.
+  function drawDeepRidges(day) {
+    if (gameState === "title" || playMode === "run") return;
+    var deep = realm4Max(Math.max(0, altitude));
+    if (deep <= 0.02) return;
+    var move = REDUCED ? 0 : altitude * 0.05 + mountainIndex * 53;
+    var ranges = [
+      { col: mix(day.far, day.sky[2], 0.30), baseY: HORIZON - 12, amp: 26, f1: 0.012, f2: 0.030, sp: 0.42, al: 0.48 },
+      { col: mix(day.far, [0, 0, 0], 0.12),  baseY: HORIZON + 4,  amp: 40, f1: 0.009, f2: 0.022, sp: 0.78, al: 0.70 },
+      { col: mix(day.mid, [0, 0, 0], 0.30),  baseY: HORIZON + 24, amp: 54, f1: 0.007, f2: 0.017, sp: 1.18, al: 0.88 }
+    ];
+    g.save();
+    for (var r = 0; r < ranges.length; r++) {
+      var R = ranges[r];
+      var ph = move * R.sp + r * 137;
+      g.fillStyle = css(R.col, R.al * deep);
+      g.beginPath();
+      g.moveTo(0, VH);
+      g.lineTo(0, Math.round(R.baseY));
+      for (var x = 0; x <= VW; x += 4) {
+        var n = Math.sin((x + ph) * R.f1) * 0.62 + Math.sin((x + ph) * R.f2 + r * 1.3) * 0.38;
+        g.lineTo(Math.round(x), Math.round(R.baseY - n * R.amp));
+      }
+      g.lineTo(VW, VH);
+      g.closePath();
+      g.fill();
+    }
+    g.restore();
+  }
+
   function drawRealmSky(day, openingT) {
     if (openingT <= 0.02) return;
     if (customize.look !== "ember" && customize.look !== "void") return;
@@ -10038,6 +10073,7 @@
       drawAboveCloudsScene(day, openingT);
       drawGalaxyNightScene(day, openingT);
       drawSnowPeaksScene(day, openingT);
+      drawDeepRidges(day);             // distant ranges fill the deep-realm sky (per-realm tint)
       drawRealm4Scenes(day, openingT);
       // Subtle day/night tint over the whole backdrop. A hard cutoff here shows up
       // as a horizontal band, so keep every overlay softly blended.
