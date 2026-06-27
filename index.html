@@ -6244,15 +6244,19 @@
       day.sun.a = Math.max(day.sun.a, 0.58);
       day.sun.c = mix(day.sun.c, [255, 160, 86], 0.55);
     } else if (customize.look === "void") {
-      for (var vs = 0; vs < day.sky.length; vs++) day.sky[vs] = mix(day.sky[vs], [14, 10, 28], vs < 2 ? 0.82 : 0.68);
-      day.ground = mix(day.ground, [38, 34, 54], 0.64);
-      day.far = mix(day.far, [34, 30, 56], 0.70);
-      day.mid = mix(day.mid, [26, 23, 44], 0.72);
-      day.near = mix(day.near, [18, 16, 32], 0.72);
-      day.cloud = mix(day.cloud, [122, 116, 176], 0.52);
-      day.tint = [46, 34, 92];
-      day.tintA = Math.max(day.tintA || 0, 0.22);
-      day.sun.a *= 0.18;
+      // TRUE VOID: near-pure-black everywhere — he is pushing the stone in nothing.
+      // Kill the grass so the ground darkens to rock-in-shadow, no sun.
+      for (var vs = 0; vs < day.sky.length; vs++) day.sky[vs] = mix(day.sky[vs], [3, 3, 7], 0.96);
+      day.ground = mix(day.ground, [6, 6, 9], 0.93);
+      day.far = mix(day.far, [6, 6, 10], 0.93);
+      day.mid = mix(day.mid, [4, 5, 8], 0.93);
+      day.near = mix(day.near, [3, 3, 6], 0.93);
+      day.cloud = mix(day.cloud, [12, 12, 20], 0.88);
+      day.tint = [2, 2, 6];
+      day.tintA = Math.max(day.tintA || 0, 0.34);
+      day.sun.a = 0;
+      day.grass *= 0.08;
+      day.grassMat *= 0.08;
     }
     if (day.aboveClouds > 0.002) {
       var act = day.aboveClouds;
@@ -7491,7 +7495,7 @@
       moonPhase = clamp01(moonPhase);
       var night = Math.sin(moonPhase * Math.PI);
       var mp = arcPoint(moonPhase);
-      var moonAlpha = clamp01(night * 1.18 - 0.08) * moonGate * galaxyDim * (customize.look === "noir" ? 1 : customize.look === "ember" ? 0.45 : 0.92) * (1 - (day.rain || 0) * 0.30);
+      var moonAlpha = clamp01(night * 1.18 - 0.08) * moonGate * galaxyDim * (customize.look === "noir" ? 1 : customize.look === "void" ? 0 : 0.92) * (1 - (day.rain || 0) * 0.30);
       if (moonAlpha > 0.02) drawMinimalMoon(mp.x, mp.y, (18 + mp.lift * 6) * (customize.look === "noir" ? 1.3 : 1), moonAlpha);
     }
   }
@@ -7860,6 +7864,7 @@
     var nightGround = customize.look === "noir" && nightGroundReady;
     var grassTex = nightGround ? nightGroundTex : grassGroundTex;
     var grassA = (nightGround || grassGroundReady) ? grassGroundReveal() : 0;
+    if (customize.look === "void") grassA = 0;   // void: no grass — just dark rock-in-shadow
     if (grassA > 0.002) {
       drawAtlasTiles(grassTex, Math.min(0.985, grassA));
     }
@@ -10134,6 +10139,7 @@
       // climb so it stops leaking the same warm vista into every deep realm (each
       // deep realm owns its own sky/ground above this).
       var mountainLayerAlpha = 1.0 * bgMountainFade * mountainWaterfallFade * bandGate(altitude, 0, 1750, 520);
+      if (customize.look === "void") mountainLayerAlpha *= 0.06;   // void theme: no mountains, just the dark
       // Recomposite the far-mountain layer only when its inputs actually move:
       // the parallax shift advances <0.3px per frame, so most frames can reuse
       // the previous composite untouched.
