@@ -1917,9 +1917,7 @@
         <strong>THEME</strong>
         <div class="choice-row">
           <button class="choice active" data-custom="look" data-value="classic">classic</button>
-          <button class="choice" data-custom="look" data-value="verdant">green</button>
           <button class="choice" data-custom="look" data-value="noir">night</button>
-          <button class="choice" data-custom="look" data-value="ember">ember</button>
           <button class="choice" data-custom="look" data-value="void">void</button>
         </div>
       </div>
@@ -2249,7 +2247,7 @@
   // always written on click, but only sound was read back on load before, so
   // night/green/ember/void reset to classic every visit. Now they persist.
   var savedLook = storageGet("sisyphus.look", "");
-  if (/^(classic|verdant|noir|ember|void)$/.test(savedLook)) customize.look = savedLook;
+  if (/^(classic|noir|void)$/.test(savedLook)) customize.look = savedLook;   // green/ember removed — old saves fall back to classic
   // FX picker retired — the game is locked to "calm" (the minimal effect level).
   customize.fx = "calm";
   storageRemove("sisyphus.stone");
@@ -2368,6 +2366,11 @@
   var mtBg = new Image(), mtBgReady = false;
   mtBg.onload = function () { mtBgReady = true; };
   mtBg.src = "assets/start-mountain-backdrop.png";
+  // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
+  // when the "night" (noir) theme is on.
+  var nightBg = new Image(), nightBgReady = false;
+  nightBg.onload = function () { nightBgReady = true; };
+  nightBg.src = "assets/night-mountain-backdrop.png";
   // Rock arch bridge — an alternate bridge variant over the gorge crossings
   // (transparent PNG; its arch lets the see-through gorge show through).
   var rockBridgeImg = new Image(), rockBridgeReady = false;
@@ -6208,17 +6211,23 @@
       day.tint = mix(day.tint || [210, 220, 228], [84, 158, 88], 0.42);
       day.tintA = Math.max(day.tintA || 0, 0.13);
     } else if (customize.look === "noir") {
-      for (var ns = 0; ns < day.sky.length; ns++) day.sky[ns] = mix(day.sky[ns], [1, 2, 6], 0.92);
-      day.ground = mix(day.ground, [8, 9, 12], 0.82);
-      day.far = mix(day.far, [3, 5, 10], 0.86);
-      day.mid = mix(day.mid, [2, 4, 8], 0.88);
-      day.near = mix(day.near, [1, 2, 5], 0.88);
-      day.cloud = mix(day.cloud, [28, 32, 42], 0.70);
-      day.tint = [0, 1, 5];
-      day.tintA = Math.max(day.tintA || 0, 0.42);
+      // Deep MOONLIT night — a navy sky (NOT flat black), bright moon (drawn in
+      // drawCelestials), dark blue-grey ground + mountains, with the night-mountain
+      // backdrop. Reads as a real night, not the void.
+      day.sky[0] = mix(day.sky[0], [10, 14, 34], 0.90);
+      day.sky[1] = mix(day.sky[1], [16, 22, 46], 0.88);
+      day.sky[2] = mix(day.sky[2], [24, 32, 58], 0.84);
+      day.sky[3] = mix(day.sky[3], [34, 44, 74], 0.80);
+      day.ground = mix(day.ground, [13, 17, 32], 0.80);
+      day.far = mix(day.far, [18, 24, 46], 0.82);
+      day.mid = mix(day.mid, [12, 17, 36], 0.84);
+      day.near = mix(day.near, [8, 12, 25], 0.86);
+      day.cloud = mix(day.cloud, [40, 48, 72], 0.64);
+      day.tint = [10, 16, 38];
+      day.tintA = Math.max(day.tintA || 0, 0.26);
       day.sun.a = 0;
-      day.grass *= 0.45;
-      day.grassMat *= 0.45;
+      day.grass *= 0.5;
+      day.grassMat *= 0.5;
     } else if (customize.look === "ember") {
       for (var es = 0; es < day.sky.length; es++) day.sky[es] = mix(day.sky[es], [92, 52, 42], es < 2 ? 0.42 : 0.28);
       day.ground = mix(day.ground, [120, 86, 68], 0.48);
@@ -6696,9 +6705,9 @@
       s[2] = mix(s[2], [244, 222, 166], 0.66 * t); s[3] = mix(s[3], [252, 238, 192], 0.60 * t);
       gt([210, 188, 136], 0.56); dt([216, 194, 142], 0.50);
       day.sun.a = Math.max(day.sun.a, 0.6 * t);   // a soft warm sun returns for the false paradise
-    } else if (id === "thevoid") {   // true black, nothing left
-      for (var vi = 0; vi < 4; vi++) s[vi] = mix(s[vi], [8, 8, 11], 0.94 * t);
-      gt([18, 18, 22], 0.90); dt([18, 18, 22], 0.90);
+    } else if (id === "thevoid") {   // true black — he is pushing the stone in nothing
+      for (var vi = 0; vi < 4; vi++) s[vi] = mix(s[vi], [2, 2, 4], 0.985 * t);
+      gt([4, 4, 6], 0.95); dt([4, 4, 6], 0.95);
       day.grass = (day.grass || 0) * (1 - t);
       day.grassMat = (day.grassMat || 0) * (1 - t);
       day.sun.a *= (1 - t);
@@ -7409,6 +7418,16 @@
     alpha = clamp01(alpha);
     if (alpha <= 0.01) return;
     cx = Math.round(cx); cy = Math.round(cy); size = Math.round(size);
+    // Soft cool moon glow so it reads luminous against the night sky.
+    if (!REDUCED) {
+      var mglowR = Math.round(size * 2.8);
+      var mglow = g.createRadialGradient(cx, cy, Math.max(1, Math.round(size * 0.3)), cx, cy, mglowR);
+      mglow.addColorStop(0, "rgba(196,206,238," + (0.34 * alpha).toFixed(3) + ")");
+      mglow.addColorStop(0.4, "rgba(168,180,224," + (0.16 * alpha).toFixed(3) + ")");
+      mglow.addColorStop(1, "rgba(150,164,214,0)");
+      g.fillStyle = mglow;
+      g.beginPath(); g.arc(cx, cy, mglowR, 0, Math.PI * 2); g.fill();
+    }
     if (moonAssetReady) {
       var moonH = Math.round(size * 2.72);
       var moonW = Math.round(moonH * ((moonAssetImg.naturalWidth || 494) / (moonAssetImg.naturalHeight || 573)));
@@ -7439,7 +7458,15 @@
     var brightSky = Math.max(lum(day.sky[1]), lum(day.sky[2]), lum(day.sky[3]));
     var sunGate = clamp01((((day.sun && day.sun.a) || 0) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
     var moonGate = clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20);
-    if (sunGate > 0.02) {
+    if (customize.look === "noir") {
+      // NIGHT theme: a moon takes the sun's arc — always up, sweeping from the
+      // top-left across the sky as you climb. (The day cycle reads "dawn" at the
+      // start, which would otherwise leave the moon below the horizon.)
+      var nMoonPhase = clamp01(cycle / 0.72);
+      var nmp = sunArcPoint(nMoonPhase);
+      var nMoonA = clamp01(rainDim * (1 - (day.galaxy || 0) * 0.7));
+      if (nMoonA > 0.02) drawMinimalMoon(nmp.x, nmp.y, (24 + nmp.lift * 7) * 0.82, nMoonA);
+    } else if (sunGate > 0.02) {
       var sunPhase = clamp01(cycle / 0.72);
       // Bias the brightness so the sun is already lit when it starts in the
       // top-left corner (phase 0), instead of fading up from the horizon.
@@ -7460,8 +7487,8 @@
       moonPhase = clamp01(moonPhase);
       var night = Math.sin(moonPhase * Math.PI);
       var mp = arcPoint(moonPhase);
-      var moonAlpha = clamp01(night * 1.18 - 0.08) * moonGate * galaxyDim * (customize.look === "noir" ? 0 : customize.look === "ember" ? 0.45 : 0.92) * (1 - (day.rain || 0) * 0.30);
-      if (moonAlpha > 0.02) drawMinimalMoon(mp.x, mp.y, 18 + mp.lift * 6, moonAlpha);
+      var moonAlpha = clamp01(night * 1.18 - 0.08) * moonGate * galaxyDim * (customize.look === "noir" ? 1 : customize.look === "ember" ? 0.45 : 0.92) * (1 - (day.rain || 0) * 0.30);
+      if (moonAlpha > 0.02) drawMinimalMoon(mp.x, mp.y, (18 + mp.lift * 6) * (customize.look === "noir" ? 1.3 : 1), moonAlpha);
     }
   }
   function limb(x0, y0, x1, y1, w, color) {
@@ -10060,10 +10087,11 @@
       // cropping out a mountain band. It fades out as the realm scenes take over,
       // and the procedural sky shows through once it's gone.
       g.imageSmoothingEnabled = true;
+      var bgImg = (customize.look === "noir" && nightBgReady) ? nightBg : mtBg;   // night theme uses the dark night mountains
       var bgSrcY = 0;
-      var bgSrcH = mtBg.naturalHeight;
-      var bgScale = Math.max(VW / mtBg.naturalWidth, VH / mtBg.naturalHeight);
-      var bgW = Math.round(mtBg.naturalWidth * bgScale);
+      var bgSrcH = bgImg.naturalHeight;
+      var bgScale = Math.max(VW / bgImg.naturalWidth, VH / bgImg.naturalHeight);
+      var bgW = Math.round(bgImg.naturalWidth * bgScale);
       var bgH = Math.round(bgSrcH * bgScale);
       var bgBaseX = Math.round((VW - bgW) / 2);
       var bgMode = activeVisualMode();
@@ -10103,7 +10131,7 @@
       // the parallax shift advances <0.3px per frame, so most frames can reuse
       // the previous composite untouched.
       var bgLayerK = VW + "x" + VH + "|" + Math.round(bgShift * 2) + "|" + bgY + "|" +
-        Math.round(mountainLayerAlpha * 60) + "|" + Math.round(bgScale * 200);
+        Math.round(mountainLayerAlpha * 60) + "|" + Math.round(bgScale * 200) + "|" + (bgImg === nightBg ? "n" : "d");
       if (bgLayerK !== bgLayerLastKey) {
         bgLayerLastKey = bgLayerK;
         bgLayerCtx.clearRect(0, 0, VW, VH);
@@ -10112,7 +10140,7 @@
         bgLayerCtx.globalCompositeOperation = "source-over";
         for (var bgK = bgK0; bgK <= bgK1; bgK++) {
           var tileX = bgBaseX + bgK * bgW - bgShift;
-          drawMirroredImageCropTo(bgLayerCtx, mtBg, 0, bgSrcY, mtBg.naturalWidth, bgSrcH, tileX, bgY, bgW, bgH, Math.abs(bgK % 2) === 1);
+          drawMirroredImageCropTo(bgLayerCtx, bgImg, 0, bgSrcY, bgImg.naturalWidth, bgSrcH, tileX, bgY, bgW, bgH, Math.abs(bgK % 2) === 1);
         }
         bgLayerCtx.globalAlpha = 1;
         bgLayerCtx.globalCompositeOperation = "source-over";
