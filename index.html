@@ -7984,6 +7984,18 @@
   // and a close FOREGROUND pass (in front, faster parallax — sweeps the camera).
   // Each renders to an offscreen buffer so it can be darkened + realm-tinted in one
   // source-atop pass; trees are opaque.
+  // True if screen-x `sx` sits over a bridge / gorge crossing (so no tree grows on it).
+  function treeOnBridge(sx) {
+    var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
+    for (var wi = 0; wi < 4; wi++) {
+      var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
+      if (mark < WATERFALL_FIRST) continue;
+      var center = waterfallSceneX(mark);
+      var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
+      if (sx > center - gorgeW * 0.78 - 48 && sx < center + gorgeW * 0.82 + 48) return true;
+    }
+    return false;
+  }
   function drawTreeLayer(day, cfg) {
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
     var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
@@ -8011,11 +8023,14 @@
       var tw = Math.round(iw * sc), th = Math.round(ih * sc);
       var sx = Math.round(i * spacing - scroll + (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter);
       if (sx + tw < -40 || sx > VW + 40) continue;
-      // Sit the trunk ON the actual hillside surface (the slope line through the
-      // figure's feet), tucked a few px under the lip so the ground roots it. This
-      // replaces the old fixed screen line that made trees FLOAT over the background
-      // on the downhill side.
-      var baseY = Math.round(ANCHOR_Y - leanSlope * (sx + tw * 0.5 - ANCHOR_X)) + 10;
+      if (treeOnBridge(sx + tw * 0.5)) continue;     // ZERO trees on a bridge / over a gorge
+      var baseY;
+      if (cfg.anchor === "screen") {
+        baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
+      } else {
+        // ground-anchored: trunk sits on the actual hillside surface (no floating)
+        baseY = Math.round(ANCHOR_Y - leanSlope * (sx + tw * 0.5 - ANCHOR_X)) + 10;
+      }
       fg.save();
       fg.translate(sx, baseY - th);
       if (hash(i * 9.71 + cfg.seed) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
@@ -8039,14 +8054,14 @@
     g.drawImage(fgTreeC, 0, 0);
     g.restore();
   }
-  // distant line behind the figure (he walks past it) — small, slow, hazy
-  // Both layers are now GROUND-LOCKED (par 1.0) and sit on the hillside surface
-  // (baseYFrac is unused — kept for reference). Small/hazy trees + larger near trees
-  // give depth without parallax drift (which is what made them float).
-  var TREES_BG = { par: 1.0, spacing: 300, skip: 0.20, baseYFrac: 0.58, treeH: 0.30, scaleLo: 0.66, scaleHi: 0.98, jitter: 80, darken: 0.34, tint: 0.16, seed: 333 };
-  // nearer, larger hillside trees the figure passes
-  var TREES_FG = { par: 1.0, spacing: 560, skip: 0.46, baseYFrac: 1.05, treeH: 0.5, scaleLo: 0.8, scaleHi: 1.18, jitter: 150, darken: 0.46, tint: 0.14, seed: 0 };
-  function drawForegroundTrees(day) { drawTreeLayer(day, TREES_FG); }
+  // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
+  // (~4x the old count) with wide scale/jitter variance so it reads as a real,
+  // random forest the figure climbs through — not a sparse line. Drawn behind him.
+  var TREES_BG = { anchor: "ground", par: 1.0, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333 };
+  // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
+  // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
+  var TREES_NEAR = { anchor: "screen", par: 1.7, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0 };
+  function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
     var snow = day.snow || 0;
@@ -10189,11 +10204,10 @@
     }
     if ((day.galaxy || 0) < 0.55) drawBirds(day);
     drawWindVeil(day);
-    // Trees are scenery BEHIND the ground — drawn before the foreground slope so
-    // the ground occludes their bases (they read as growing down the hillside,
-    // not floating on top of the slope). Distant line first, nearer trees over it.
+    // Background forest is scenery BEHIND the ground — drawn before the foreground
+    // slope so the ground occludes the tree bases (they grow down the hillside).
+    // The FOREGROUND sweep trees are drawn later, after the actor, to pass in front.
     drawBackgroundTrees(day);
-    drawForegroundTrees(day);
 
     // zoom offset: everything scales uniformly around the anchor point
     var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX;
@@ -10549,6 +10563,7 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
+    drawForegroundTrees(day);   // close conifers sweeping IN FRONT of the figure (depth)
     drawRunAsh(day);
     drawRain(day);
     drawSnow(day);
@@ -10760,7 +10775,7 @@
     // the frame instead of leaving 60% dead sky. Desktop is untouched.
     var aspect = winW / winH;
     var aT = smoother01(clamp01((aspect - 0.5) / 0.8));   // 0 at very tall, 1 by ~1.3:1
-    var anchorRatio = lerp(0.51, 0.60, aT);
+    var anchorRatio = lerp(0.60, 0.68, aT);   // figure sits lower -> more sky above (render-style framing)
     ANCHOR_Y = Math.round(VH * anchorRatio);
     HORIZON = Math.round(VH * (anchorRatio - 0.04));
     snapStartMenuTop();
