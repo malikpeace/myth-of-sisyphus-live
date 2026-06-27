@@ -2397,6 +2397,10 @@
   var grassGroundTex = new Image(), grassGroundReady = false;
   grassGroundTex.onload = function () { grassGroundReady = true; };
   grassGroundTex.src = "assets/grass-ground-atlas.png";
+  // Dark moonlit version of the grass ground, used when the "night" (noir) theme is on.
+  var nightGroundTex = new Image(), nightGroundReady = false;
+  nightGroundTex.onload = function () { nightGroundReady = true; };
+  nightGroundTex.src = "assets/night-ground-atlas.png";
   var GROUND_SCROLL = 7.2;   // px of ground travel per metre climbed (all ground layers share this)
 
   var pathGrassImg = new Image(), pathGrassReady = false;
@@ -7852,9 +7856,12 @@
     }
     drawAtlasTiles(groundTex, 1);
     // Grass over the rock base at the start + forest; fades higher so rock returns.
-    var grassA = grassGroundReady ? grassGroundReveal() : 0;
+    // The night (noir) theme swaps in the dark moonlit ground atlas.
+    var nightGround = customize.look === "noir" && nightGroundReady;
+    var grassTex = nightGround ? nightGroundTex : grassGroundTex;
+    var grassA = (nightGround || grassGroundReady) ? grassGroundReveal() : 0;
     if (grassA > 0.002) {
-      drawAtlasTiles(grassGroundTex, Math.min(0.985, grassA));
+      drawAtlasTiles(grassTex, Math.min(0.985, grassA));
     }
     var flowerA = flowerGroundReady ? flowerGroundReveal() : 0;
     if (flowerA > 0.002) {
