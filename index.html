@@ -6346,6 +6346,9 @@
 
   var INK = "#000000";
   var HEAD_INK = "#000000";
+  // current biome ground colour, published each frame so functions outside the draw
+  // loop's scope (e.g. sisyphus() plow dirt) can tint to match the biome.
+  var curGroundCol = null;
 
   // ---- geometry / camera ----
   var ANCHOR_X = 188, ANCHOR_Y = 156, HORIZON = 120;
@@ -9388,7 +9391,15 @@
       // BACK heel shoves up earth — the dirt piles BEHIND/under that heel and trails
       // DOWNHILL (left), not in a blob under his centre. Mound + furrow + flecks.
       var dA = 0.42 + brace * 0.5;
-      var dCol = "rgba(82,58,40,", dDk = "rgba(52,38,26,";
+      // Debris colour follows the BIOME ground, not hardcoded soil-brown — otherwise
+      // a warm earth clump appears in the galaxy/snow/rock biomes where everything is
+      // cool grey, reading as a glitch. Mostly biome-tinted with a hint of earth, then
+      // darkened (freshly-turned ground is darker than the surface).
+      var soil = [82, 58, 40];
+      var gnd = curGroundCol || soil;
+      var dB = mix(soil, gnd, 0.7), dD = mix(dB, [0, 0, 0], 0.38);
+      var dCol = "rgba(" + Math.round(dB[0]) + "," + Math.round(dB[1]) + "," + Math.round(dB[2]) + ",";
+      var dDk = "rgba(" + Math.round(dD[0]) + "," + Math.round(dD[1]) + "," + Math.round(dD[2]) + ",";
       r(backFootX - 30 * s, floorY - 1 * s, 28 * s, 2 * s, dDk + (dA * 0.55).toFixed(3) + ")");   // furrow scraped down-slope behind the heel
       r(backFootX - 15 * s, floorY - 3 * s, 14 * s, 4 * s, dCol + dA.toFixed(3) + ")");            // plowed pile, base
       r(backFootX - 12 * s, floorY - 5 * s, 9 * s, 3 * s, dCol + (dA * 0.92).toFixed(3) + ")");     // pile mid
@@ -10083,6 +10094,7 @@
     g.textAlign = "start";
     g.textBaseline = "alphabetic";
     var day = sampleStage(visualMeters());
+    curGroundCol = day.ground;
     if (snowAccum > 0.02) {
       // settled snow whitens the world progressively the longer it falls
       day.ground = mix(day.ground, [236, 240, 246], snowAccum * 0.5);
