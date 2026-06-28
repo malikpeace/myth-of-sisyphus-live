@@ -8036,15 +8036,22 @@
   // and a close FOREGROUND pass (in front, faster parallax — sweeps the camera).
   // Each renders to an offscreen buffer so it can be darkened + realm-tinted in one
   // source-atop pass; trees are opaque.
-  // True if screen-x `sx` sits over a bridge / gorge crossing (so no tree grows on it).
-  function treeOnBridge(sx) {
+  // True if a tree spanning screen-x [exL, exR] overlaps ANY bridge / gorge crossing,
+  // so it's culled. We test the tree's FULL horizontal extent (not just its centre)
+  // against the full deck span — deck is drawn out to ±(12+anchorE=48) past the
+  // endpoints, so we mask left-70..right+70 — guaranteeing no trunk or canopy ever
+  // sits on a bridge (the user's hard rule: NEVER a tree on the bridge).
+  function treeOnBridge(exL, exR) {
+    if (exR == null) exR = exL;   // back-compat: a single x = a zero-width point
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
     for (var wi = 0; wi < 4; wi++) {
       var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
       if (mark < WATERFALL_FIRST) continue;
       var center = waterfallSceneX(mark);
       var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
-      if (sx > center - gorgeW * 0.78 - 48 && sx < center + gorgeW * 0.82 + 48) return true;
+      var bridgeL = center - gorgeW * 0.78 - 70;
+      var bridgeR = center + gorgeW * 0.82 + 70;
+      if (exR > bridgeL && exL < bridgeR) return true;   // any overlap → cull
     }
     return false;
   }
@@ -8075,7 +8082,7 @@
       var tw = Math.round(iw * sc), th = Math.round(ih * sc);
       var sx = Math.round(i * spacing - scroll + (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter);
       if (sx + tw < -40 || sx > VW + 40) continue;
-      if (treeOnBridge(sx + tw * 0.5)) continue;     // ZERO trees on a bridge / over a gorge
+      if (treeOnBridge(sx, sx + tw)) continue;     // ZERO trees on a bridge — test the whole trunk+canopy extent
       var baseY;
       if (cfg.anchor === "screen") {
         baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
