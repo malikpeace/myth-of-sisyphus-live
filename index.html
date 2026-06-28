@@ -9340,9 +9340,12 @@
 
   // the climbing figure, scaled by the camera
   function sisyphus(bx, by, brad, s, baseX, floorY) {
-    // bronze relic: the figure becomes weathered statue-bronze with a faint patina
-    var figInk = selectedCosmetic === "bronze" ? "#3f4b41" : INK;
-    var figHeadInk = selectedCosmetic === "bronze" ? "#47544b" : HEAD_INK;
+    // bronze relic: the figure becomes weathered statue-bronze with a faint patina.
+    // VOID: a pure-black silhouette vanishes against the near-black void, so lift him
+    // to a cool mid-grey — clearly readable, still darker than the bright boulder.
+    var voidLook = customize.look === "void";
+    var figInk = selectedCosmetic === "bronze" ? "#3f4b41" : (voidLook ? "#6b707a" : INK);
+    var figHeadInk = selectedCosmetic === "bronze" ? "#47544b" : (voidLook ? "#767b85" : HEAD_INK);
 
     // drawn in a local flat frame: feet stand on floorY, hip at baseX (caller rotates onto slope)
     var ax = baseX, gY = floorY;
