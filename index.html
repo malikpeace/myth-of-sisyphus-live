@@ -2431,6 +2431,7 @@
   foregroundTreeImg.onload = function () { foregroundTreeReady = true; };
   foregroundTreeImg.src = "assets/foreground-tree.png";
   var fgTreeC = document.createElement("canvas"), fgTreeCtx = fgTreeC.getContext("2d");
+  var voidReflC = document.createElement("canvas"), voidReflCtx = voidReflC.getContext("2d");
   var canyonImg = new Image(), canyonReady = false;
   canyonImg.onload = function () { canyonReady = true; };
   canyonImg.src = "assets/canyon-river-realm.png";
@@ -7899,6 +7900,15 @@
       g.fillStyle = css(atmoCast, castA);
       g.fillRect(x0, 0, x1 - x0, h);
       g.globalCompositeOperation = "source-over";
+      // VOID: "color" only shifts hue — it can't darken. To make the ground truly
+      // black-in-shadow we MULTIPLY the atlas luminance down (keeps texture, crushes
+      // brightness), then let the dark tint settle on top.
+      if (customize.look === "void") {
+        g.globalCompositeOperation = "multiply";
+        g.fillStyle = css([18, 18, 24], 0.94);
+        g.fillRect(x0, 0, x1 - x0, h);
+        g.globalCompositeOperation = "source-over";
+      }
       if (day.tintA > 0) {
         g.fillStyle = css(day.tint, day.tintA * 0.5 * (1 - 0.35 * grassA));
         g.fillRect(x0, 0, x1 - x0, h);
@@ -10516,6 +10526,42 @@
             r(atx, aty, hash(at5 * 5.1) > 0.65 ? 2 : 1, 1,
               "rgba(" + (cool ? "110,196,160" : "138,124,200") + "," + (0.55 * (1 - atp)) + ")");
           }
+        }
+        // VOID: the stone casts a faint reflection on the dark, glassy ground — a
+        // dimmed, vertically-squished echo below the contact point that fades into
+        // the black. The only light in the void, mirrored at his feet.
+        if (customize.look === "void" && !REDUCED && rockReady) {
+          var refContactY = bly + brad;
+          var refH = brad * 1.7;
+          var rw = Math.max(2, Math.round(brad * 2));
+          var rh = Math.max(2, Math.round(refH));
+          if (voidReflC.width !== rw) voidReflC.width = rw;
+          if (voidReflC.height !== rh) voidReflC.height = rh;
+          var rg = voidReflCtx;
+          rg.setTransform(1, 0, 0, 1, 0, 0);
+          rg.clearRect(0, 0, rw, rh);
+          rg.imageSmoothingEnabled = false;
+          // mirror the boulder vertically (a real reflection flips top-to-bottom)
+          rg.save();
+          rg.translate(0, rh);
+          rg.scale(1, -1);
+          rg.drawImage(boulderSprite(), 0, 0, rw, rh);
+          rg.restore();
+          // bake a top->bottom alpha falloff INTO the echo so it dissolves into the
+          // black — no overlay rect on the ground, so there's no visible box edge.
+          rg.globalCompositeOperation = "destination-in";
+          var fg = rg.createLinearGradient(0, 0, 0, rh);
+          fg.addColorStop(0, "rgba(0,0,0,0.62)");   // just below contact: faint echo
+          fg.addColorStop(0.55, "rgba(0,0,0,0.20)");
+          fg.addColorStop(1, "rgba(0,0,0,0)");       // fully gone into the void
+          rg.fillStyle = fg;
+          rg.fillRect(0, 0, rw, rh);
+          rg.globalCompositeOperation = "source-over";
+          g.save();
+          g.imageSmoothingEnabled = false;
+          g.globalAlpha = 0.55;
+          g.drawImage(voidReflC, blx - brad, refContactY, brad * 2, refH);
+          g.restore();
         }
         g.save();
         g.translate(blx, bly);
