@@ -7930,7 +7930,7 @@
       // full cast greys the grass out, so grass takes a MODERATE share (~0.30 — a
       // bit of scene colour without losing the green) while rock/snow take a touch
       // more. Tuned down from the original 0.6 which was too strong.
-      var castA = 0.55 * (1 - 0.45 * grassA);
+      var castA = 0.55 * (1 - 0.62 * grassA);   // grass keeps more of its own green (less atmosphere wash)
       g.globalCompositeOperation = "color";
       g.fillStyle = css(atmoCast, castA);
       g.fillRect(x0, 0, x1 - x0, h);
@@ -7947,6 +7947,22 @@
       if (day.tintA > 0) {
         g.fillStyle = css(day.tint, day.tintA * 0.5 * (1 - 0.35 * grassA));
         g.fillRect(x0, 0, x1 - x0, h);
+      }
+      // GRASS VITALITY: push the grass's saturation back up so it reads vivid + alive
+      // like the reference render (the cast + tint mute it). "saturation" blend keeps
+      // the grass's own hue + luminance, only lifting its chroma. Scaled by grassA so
+      // it touches the grassy ground only (rock/snow biomes have grassA≈0), and FADED
+      // OUT below the surface so it doesn't over-saturate the deep subsurface dirt into
+      // a blue/red band (visible on tall portrait screens, not on wide desktop).
+      if (grassA > 0.02 && customize.look !== "void") {
+        var satDepth = Math.max(60, h * 0.34);   // grass + topsoil only
+        var satGrad = g.createLinearGradient(0, 0, 0, satDepth);
+        satGrad.addColorStop(0, "rgba(0,235,40," + (grassA * 0.55).toFixed(3) + ")");
+        satGrad.addColorStop(1, "rgba(0,235,40,0)");
+        g.globalCompositeOperation = "saturation";
+        g.fillStyle = satGrad;
+        g.fillRect(x0, 0, x1 - x0, h);
+        g.globalCompositeOperation = "source-over";
       }
     }
 
