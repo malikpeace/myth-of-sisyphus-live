@@ -9268,6 +9268,33 @@
     }
   }
 
+  // Soften the hard line where the ground's top edge meets the background. Instead of
+  // a clean cut, smudge atmosphere ACROSS the boundary (atmospheric perspective at the
+  // horizon) so the far ground dissolves into the distance — matches the reference
+  // render, where the meadow hazes into the mountain bases rather than meeting on a
+  // crisp edge. A few thin bands straddling the lip, peaking at the edge, fading both ways.
+  function drawHorizonHaze(wxL, wxR, day) {
+    if (!day || REDUCED) return;
+    var hazeCol = mix(day.ground, day.sky[2] || day.ground, 0.5);
+    var bands = [
+      { o: -11, h: 5, a: 0.09 },
+      { o: -6, h: 5, a: 0.15 },
+      { o: -1, h: 5, a: 0.18 },
+      { o: 4, h: 5, a: 0.12 },
+      { o: 9, h: 6, a: 0.06 }
+    ];
+    for (var b = 0; b < bands.length; b++) {
+      var bd = bands[b];
+      g.fillStyle = css(hazeCol, bd.a);
+      g.beginPath();
+      g.moveTo(wxL, Math.round(terrainLipAt(wxL)) + bd.o);
+      for (var x = wxL; x <= wxR; x += 4) g.lineTo(x, Math.round(terrainLipAt(x)) + bd.o);
+      for (var bx = wxR; bx >= wxL; bx -= 4) g.lineTo(bx, Math.round(terrainLipAt(bx)) + bd.o + bd.h);
+      g.closePath();
+      g.fill();
+    }
+  }
+
   function drawTerrainDetails(wxL, wxR, worldBottom, day) {
     var topFace = mix(day.ground, [0, 0, 0], day.grass > 0.35 ? 0.30 : 0.24);
     var topFaceLow = mix(day.ground, [0, 0, 0], day.grass > 0.35 ? 0.42 : 0.36);
@@ -10350,6 +10377,7 @@
     drawTerrainDetails(wxL, wxR, worldBottom, day);
     drawGrassSurface(wxL, wxR, day);
     drawPathGrass(wxL, wxR, day);
+    drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
     drawSnowSurface(wxL, wxR, day);
     if ((day.galaxy || 0) > 0.02) {
       var galaxyGroundA = 0.10 * (day.galaxy || 0);
@@ -10635,6 +10663,22 @@
         }
         g.imageSmoothingEnabled = false;
         g.drawImage(boulderSprite(), -brad, -brad, brad * 2, brad * 2);
+        // The boulder sprite has a FIXED bright value (baked from render.png), so on
+        // the dark night theme it never dims with the scene and reads as a glowing
+        // orb. Multiply it down toward a cool night value so it sits IN the theme
+        // (clipped to the stone's circle; keeps all the veining/texture). Skipped in
+        // the void, where the pale stone is intentionally the one lit anchor.
+        var bDark = 0;
+        if (customize.look === "noir") bDark = 0.55;
+        else if (customize.look !== "void") bDark = clamp01((0.34 - lum(day.sky[2])) / 0.26) * 0.42;
+        if (bDark > 0.01) {
+          g.save();
+          g.beginPath(); g.arc(0, 0, brad, 0, Math.PI * 2); g.clip();
+          g.globalCompositeOperation = "multiply";
+          g.fillStyle = css(mix([255, 255, 255], [58, 64, 92], bDark));
+          g.fillRect(-brad, -brad, brad * 2, brad * 2);
+          g.restore();
+        }
         g.restore();
 	      } else {
 	        boulderRock(blx, bly, brad, skin.base);
