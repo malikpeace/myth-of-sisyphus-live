@@ -9362,24 +9362,16 @@
     g.clip();
     var c0 = L.col[0], c1 = L.col[1], c2 = L.col[2];
     var rad = span * 0.95;
-    // 1) broad warm wash pooling under the sun (overlay = punchy without greying grass).
-    //    Kept very subtle (~1/5 strength) — a gentle warmth, not a glare.
-    var a = Math.min(0.17, 0.21 * L.strength);
+    // A single soft-light warm pool under the sun. soft-light gently warms + lifts the
+    // ground WITHOUT washing it toward white (overlay + additive 'lighter' did, which
+    // desaturated the grass). Subtle — a hint of sun on the ground, not a glare.
+    var a = Math.min(0.30, 0.38 * L.strength);
     var grad = g.createRadialGradient(worldSunX, sy + 6, 8, worldSunX, sy + 6, rad);
     grad.addColorStop(0, "rgba(" + c0 + "," + c1 + "," + c2 + "," + a.toFixed(3) + ")");
-    grad.addColorStop(0.4, "rgba(" + c0 + "," + c1 + "," + c2 + "," + (a * 0.45).toFixed(3) + ")");
+    grad.addColorStop(0.45, "rgba(" + c0 + "," + c1 + "," + c2 + "," + (a * 0.45).toFixed(3) + ")");
     grad.addColorStop(1, "rgba(" + c0 + "," + c1 + "," + c2 + ",0)");
-    g.globalCompositeOperation = "overlay";
+    g.globalCompositeOperation = "soft-light";
     g.fillStyle = grad;
-    g.fillRect(wxL, sy - rad, wxR - wxL, rad + 4000);
-    // 2) faint grazing sheen right at the surface under the sun (additive), also dialed
-    //    back ~80% so it reads as a hint of light, not an intense hotspot.
-    var ga = Math.min(0.068, 0.08 * L.strength);
-    var gz = g.createRadialGradient(worldSunX, sy + 4, 6, worldSunX, sy + 4, span * 0.55);
-    gz.addColorStop(0, "rgba(" + c0 + "," + c1 + "," + c2 + "," + ga.toFixed(3) + ")");
-    gz.addColorStop(1, "rgba(" + c0 + "," + c1 + "," + c2 + ",0)");
-    g.globalCompositeOperation = "lighter";
-    g.fillStyle = gz;
     g.fillRect(wxL, sy - rad, wxR - wxL, rad + 4000);
     g.globalCompositeOperation = "source-over";
     g.restore();
