@@ -9336,6 +9336,54 @@
     }
   }
 
+  // Sunlight on the GROUND: the same directional light that hits the stone also pools
+  // on the ground, brightest beneath the sun and grazing toward the horizon, fading
+  // into the foreground. soft-light warms + brightens the grass without washing it out,
+  // so the ground reads as actually catching the sky's light.
+  function drawGroundSunlight(wxL, wxR, day) {
+    if (REDUCED) return;
+    var L = currentSunLight(day);
+    if (!L || L.strength < 0.05) return;
+    // This runs INSIDE the ground's zoom transform, so everything is in world (scaled)
+    // space — NOT screen space. Map the sun's screen-x into world-x (wxL..wxR span the
+    // screen), and centre the light on the ground point directly under the sun.
+    var span = Math.max(1, wxR - wxL - 8);
+    var zoom = VW / span;
+    var worldSunX = L.x / zoom + (wxL + 4);
+    var sy = Math.round(terrainLipAt(worldSunX));   // ground under the sun = grazing point
+    var bottom = sy + 4000;
+    g.save();
+    g.beginPath();
+    g.moveTo(wxL, Math.round(terrainLipAt(wxL)));
+    for (var x = wxL; x <= wxR; x += 6) g.lineTo(x, Math.round(terrainLipAt(x)));
+    g.lineTo(wxR, bottom);
+    g.lineTo(wxL, bottom);
+    g.closePath();
+    g.clip();
+    var c0 = L.col[0], c1 = L.col[1], c2 = L.col[2];
+    var rad = span * 0.95;
+    // 1) broad warm wash pooling under the sun (overlay = punchy without greying grass).
+    var a = Math.min(0.85, 1.05 * L.strength);
+    var grad = g.createRadialGradient(worldSunX, sy + 6, 8, worldSunX, sy + 6, rad);
+    grad.addColorStop(0, "rgba(" + c0 + "," + c1 + "," + c2 + "," + a.toFixed(3) + ")");
+    grad.addColorStop(0.4, "rgba(" + c0 + "," + c1 + "," + c2 + "," + (a * 0.45).toFixed(3) + ")");
+    grad.addColorStop(1, "rgba(" + c0 + "," + c1 + "," + c2 + ",0)");
+    g.globalCompositeOperation = "overlay";
+    g.fillStyle = grad;
+    g.fillRect(wxL, sy - rad, wxR - wxL, rad + 4000);
+    // 2) bright grazing sheen right at the surface under the sun (additive) — low light
+    //    rakes the ground there, the brightest strip.
+    var ga = Math.min(0.34, 0.4 * L.strength);
+    var gz = g.createRadialGradient(worldSunX, sy + 4, 6, worldSunX, sy + 4, span * 0.55);
+    gz.addColorStop(0, "rgba(" + c0 + "," + c1 + "," + c2 + "," + ga.toFixed(3) + ")");
+    gz.addColorStop(1, "rgba(" + c0 + "," + c1 + "," + c2 + ",0)");
+    g.globalCompositeOperation = "lighter";
+    g.fillStyle = gz;
+    g.fillRect(wxL, sy - rad, wxR - wxL, rad + 4000);
+    g.globalCompositeOperation = "source-over";
+    g.restore();
+  }
+
   function drawTerrainDetails(wxL, wxR, worldBottom, day) {
     var topFace = mix(day.ground, [0, 0, 0], day.grass > 0.35 ? 0.30 : 0.24);
     var topFaceLow = mix(day.ground, [0, 0, 0], day.grass > 0.35 ? 0.42 : 0.36);
@@ -10420,6 +10468,7 @@
     drawGrassSurface(wxL, wxR, day);
     drawPathGrass(wxL, wxR, day);
     drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
+    drawGroundSunlight(wxL, wxR, day);   // directional sun/moon light pooling on the ground
     drawSnowSurface(wxL, wxR, day);
     if ((day.galaxy || 0) > 0.02) {
       var galaxyGroundA = 0.10 * (day.galaxy || 0);
@@ -10592,16 +10641,16 @@
       // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast
       // shadow (the sun pushes it to the far side), grounding them with depth.
       if (!REDUCED && gameState !== "title") {
-        var shadowShift = -lx * brad * 0.6;           // cast away from the light
+        var shadowShift = -lx * brad * 0.7;           // cast away from the light
         var csCx = blx - brad * 0.4 + shadowShift;
-        var csW = brad * 1.95, csH = Math.max(4, brad * 0.26);
+        var csW = brad * 2.4, csH = Math.max(5, brad * 0.32);
         g.save();
         g.translate(csCx, 5);
         g.scale(1, csH / csW);                          // squash the circle into a ground ellipse
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(4,4,8,0.66)");
-        cgrad.addColorStop(0.5, "rgba(4,4,8,0.42)");
-        cgrad.addColorStop(1, "rgba(4,4,8,0)");
+        cgrad.addColorStop(0, "rgba(2,2,6,0.82)");     // bigger + darker = clearly grounded
+        cgrad.addColorStop(0.5, "rgba(2,2,6,0.55)");
+        cgrad.addColorStop(1, "rgba(2,2,6,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
         g.restore();
