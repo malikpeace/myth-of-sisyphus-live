@@ -6355,6 +6355,10 @@
   // current far-mountain (mtBg) layer opacity, published so the gorge see-through
   // cutout can replay the same backdrop and not leave a seam where it's omitted.
   var curMtAlpha = 0;
+  // current camera transform (ground zoom-space), published so the trees — drawn in
+  // screen space — can anchor to the ACTUAL drawn ground instead of a screen-space
+  // slope guess (which floated them on mobile, where zoom/offset differ).
+  var curCamZtx = 0, curCamZty = 0, curCamZoom = 1;
 
   // ---- geometry / camera ----
   var ANCHOR_X = 188, ANCHOR_Y = 156, HORIZON = 120;
@@ -8135,8 +8139,12 @@
       if (cfg.anchor === "screen") {
         baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
       } else {
-        // ground-anchored: trunk sits on the actual hillside surface (no floating)
-        baseY = Math.round(ANCHOR_Y - leanSlope * (sx + tw * 0.5 - ANCHOR_X)) + 10;
+        // ground-anchored: trunk sits on the ACTUAL drawn ground. The ground is drawn
+        // in the camera's zoom space, so map this tree's screen-x back to world-x, look
+        // up the real surface there, and map it back to screen. (A screen-space slope
+        // guess floated the trees on mobile, where the zoom/offset differ.)
+        var treeWorldX = (sx + tw * 0.5 - curCamZtx) / curCamZoom;
+        baseY = Math.round(curCamZty + terrainLipAt(treeWorldX) * curCamZoom) + 6;
       }
       fg.save();
       fg.translate(sx, baseY - th);
@@ -10424,6 +10432,12 @@
       focusX -= Math.round(camDX * zoom * 0.9);
       focusY -= Math.round(camDY * zoom * 0.9);
     }
+    // Camera transform computed EARLY (before clouds/trees) so the trees can anchor to
+    // the real drawn ground. (focusX/focusY are final here — the summit-launch block
+    // above already adjusted them.)
+    var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX;
+    var zty = Math.round(focusY - ANCHOR_Y * zoom) + shakeY + openingDrop;
+    curCamZtx = ztx; curCamZty = zty; curCamZoom = zoom;
     // clouds (in front of background)
     var drift = REDUCED ? 0 : (tSec * 4 + altitude * 0.2 + mountainIndex * 43);
     var galaxyCloudDim = 1 - (day.galaxy || 0) * 0.88;
@@ -10443,9 +10457,8 @@
     // The FOREGROUND sweep trees are drawn later, after the actor, to pass in front.
     drawBackgroundTrees(day);
 
-    // zoom offset: everything scales uniformly around the anchor point
-    var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX;
-    var zty = Math.round(focusY - ANCHOR_Y * zoom) + shakeY + openingDrop;
+    // zoom offset: everything scales uniformly around the anchor point (computed above,
+    // curCamZtx/Zty/Zoom — reused here for the ground transform).
 
     // foreground slope — drawn in zoom-transform space so it always fills the screen
     g.save();
