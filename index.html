@@ -7468,6 +7468,32 @@
     g.fillRect(cx - Math.round(r0 * 0.12), cy + Math.round(r0 * 0.22), 1, 1);
     g.restore();
   }
+  // The dominant light source this frame, in SCREEN space: sun by day, moon by night.
+  // Used to drive directional lighting on the actor (lit side + cast-shadow direction)
+  // so the stone reads as actually lit by the sky's light, not flatly shaded.
+  function currentSunLight(day) {
+    if (customize.look === "void") return null;   // the void has no light
+    var cycle = continuousSkyCycle();
+    var brightSky = Math.max(lum(day.sky[1]), lum(day.sky[2]), lum(day.sky[3]));
+    var topLum = lum(day.sky[0]);
+    var rainDim = 1 - (day.rain || 0) * 0.55;
+    if (customize.look === "noir") {
+      var nmp = sunArcPoint(clamp01(cycle / 0.72));
+      return { x: nmp.x, y: nmp.y, strength: 0.42 * rainDim * clamp01(1 - (day.galaxy || 0) * 0.7), col: [150, 172, 224] };
+    }
+    var sunGate = clamp01(((((day.sun && day.sun.a) || 0)) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
+    if (sunGate > 0.02) {
+      var sp = sunArcPoint(clamp01(cycle / 0.72));
+      return { x: sp.x, y: sp.y, strength: clamp01(sunGate * 2.2) * rainDim * (0.55 + 0.45 * sp.lift), col: [255, 238, 198] };
+    }
+    var moonGate = clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20);
+    if (moonGate > 0.02) {
+      var moonPhase = cycle >= 0.72 ? (cycle - 0.72) / 0.46 : (cycle + 0.28) / 0.46;
+      var mp = arcPoint(clamp01(moonPhase));
+      return { x: mp.x, y: mp.y, strength: 0.34 * moonGate * rainDim, col: [150, 172, 224] };
+    }
+    return null;
+  }
   function drawCelestials(day) {
     var cycle = continuousSkyCycle();
     var rainDim = 1 - (day.rain || 0) * 0.55;
@@ -10549,19 +10575,33 @@
       g.translate(ANCHOR_X, ANCHOR_Y);     // surfaceAt(ANCHOR_X) === ANCHOR_Y
       g.rotate(-theta);
 
-      // Soft contact shadow on the ground so the boulder + figure feel planted and
-      // the scene gains depth (was flat). A flattened radial blob on the surface
-      // (local y~0) spanning the figure through the stone. Fades, no hard edge.
+      // Directional light: unit vector toward the sun/moon, expressed in this local
+      // (slope-rotated) frame. Drives the cast-shadow direction and the lit side of
+      // the stone so the scene reads as actually lit, not flat.
+      var sunL = currentSunLight(day);
+      var lx = 0, ly = -1;   // default: light from straight overhead
+      if (sunL) {
+        var dsx = sunL.x - boulderSX, dsy = sunL.y - boulderSY, dl = Math.hypot(dsx, dsy) || 1;
+        dsx /= dl; dsy /= dl;
+        var ct = Math.cos(theta), st = Math.sin(theta);
+        lx = dsx * ct - dsy * st;
+        ly = dsx * st + dsy * ct;
+      }
+
+      // Cast contact shadow on the ground: a flattened blob under the stone + figure,
+      // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast
+      // shadow (the sun pushes it to the far side), grounding them with depth.
       if (!REDUCED && gameState !== "title") {
-        var csCx = blx - brad * 0.5;                  // bias left so it also sits under the figure
-        var csW = brad * 1.55, csH = Math.max(3, brad * 0.22);
+        var shadowShift = -lx * brad * 0.6;           // cast away from the light
+        var csCx = blx - brad * 0.4 + shadowShift;
+        var csW = brad * 1.95, csH = Math.max(4, brad * 0.26);
         g.save();
-        g.translate(csCx, 4);
+        g.translate(csCx, 5);
         g.scale(1, csH / csW);                          // squash the circle into a ground ellipse
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(6,6,10,0.52)");    // darker + more present: real grounding under the stone + figure
-        cgrad.addColorStop(0.5, "rgba(6,6,10,0.32)");
-        cgrad.addColorStop(1, "rgba(6,6,10,0)");
+        cgrad.addColorStop(0, "rgba(4,4,8,0.66)");
+        cgrad.addColorStop(0.5, "rgba(4,4,8,0.42)");
+        cgrad.addColorStop(1, "rgba(4,4,8,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
         g.restore();
@@ -10707,6 +10747,31 @@
         }
         g.drawImage(spr, -brad, -brad, brad * 2, brad * 2);
         g.restore();
+        // SUNLIGHT on the stone: a soft warm wash on the sun-facing hemisphere + a
+        // darker terminator opposite it. Drawn AFTER the (rotating) texture in the
+        // non-rotating frame, clipped to the stone, so the lit side stays toward the
+        // sun while the texture spins underneath — reads as real directional light.
+        if (sunL && sunL.strength > 0.04 && customize.look !== "void") {
+          var hx = blx + lx * brad * 0.5, hy = bly + ly * brad * 0.5;
+          g.save();
+          g.beginPath(); g.arc(blx, bly, brad - 1, 0, Math.PI * 2); g.clip();
+          var hl = Math.min(0.5, 0.46 * sunL.strength);
+          var hgr = g.createRadialGradient(hx, hy, brad * 0.08, hx, hy, brad * 1.18);
+          hgr.addColorStop(0, "rgba(" + sunL.col[0] + "," + sunL.col[1] + "," + sunL.col[2] + "," + hl.toFixed(3) + ")");
+          hgr.addColorStop(0.5, "rgba(" + sunL.col[0] + "," + sunL.col[1] + "," + sunL.col[2] + "," + (hl * 0.32).toFixed(3) + ")");
+          hgr.addColorStop(1, "rgba(" + sunL.col[0] + "," + sunL.col[1] + "," + sunL.col[2] + ",0)");
+          g.fillStyle = hgr;
+          g.fillRect(blx - brad, bly - brad, brad * 2, brad * 2);
+          var tx = blx - lx * brad * 0.75, ty = bly - ly * brad * 0.75;
+          var tda = Math.min(0.42, 0.26 * sunL.strength + 0.12);
+          var tgr = g.createRadialGradient(tx, ty, brad * 0.15, tx, ty, brad * 1.25);
+          tgr.addColorStop(0, "rgba(6,8,16," + tda.toFixed(3) + ")");
+          tgr.addColorStop(0.6, "rgba(6,8,16," + (tda * 0.4).toFixed(3) + ")");
+          tgr.addColorStop(1, "rgba(6,8,16,0)");
+          g.fillStyle = tgr;
+          g.fillRect(blx - brad, bly - brad, brad * 2, brad * 2);
+          g.restore();
+        }
 	      } else {
 	        boulderRock(blx, bly, brad, skin.base);
 	      }
