@@ -8107,6 +8107,21 @@
     }
     return false;
   }
+  // True when the stone's screen position sits over a gorge-crossing bridge deck — used
+  // to swap the big ground cast-shadow for a small deck shadow (no ground below a bridge).
+  function boulderOverBridge() {
+    if (gameState === "title" || playMode === "run") return false;
+    if (bandGate(altitude, 0, 2800, 360) < 0.4) return false;   // bridges live only in the low gorge band
+    var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
+    for (var wi = 0; wi < 4; wi++) {
+      var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
+      if (mark < WATERFALL_FIRST) continue;
+      var center = waterfallSceneX(mark);
+      var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
+      if (boulderSX > center - gorgeW * 0.78 && boulderSX < center + gorgeW * 0.82) return true;
+    }
+    return false;
+  }
   function drawTreeLayer(day, cfg) {
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
     var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
@@ -10670,7 +10685,22 @@
       // Cast contact shadow on the ground: a flattened blob under the stone + figure,
       // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast
       // shadow (the sun pushes it to the far side), grounding them with depth.
-      if (!REDUCED && gameState !== "title") {
+      if (!REDUCED && gameState !== "title" && boulderOverBridge()) {
+        // ON A BRIDGE: the deck is a thin plank over a see-through gorge — there's no
+        // ground to catch a cast shadow, so the big raking ellipse just hangs in the
+        // void. Draw a small, tight shadow hugging the deck right under the stone.
+        var dW = brad * 1.05;
+        g.save();
+        g.translate(blx - brad * 0.12, 5);
+        g.scale(1, 0.14);                                  // very flat — sits on the planks
+        var dgrad = g.createRadialGradient(0, 0, 1, 0, 0, dW);
+        dgrad.addColorStop(0, "rgba(2,2,6,0.5)");
+        dgrad.addColorStop(0.6, "rgba(2,2,6,0.22)");
+        dgrad.addColorStop(1, "rgba(2,2,6,0)");
+        g.fillStyle = dgrad;
+        g.beginPath(); g.arc(0, 0, dW, 0, Math.PI * 2); g.fill();
+        g.restore();
+      } else if (!REDUCED && gameState !== "title") {
         // Cast shadow that RAKES diagonally along the ground away from the sun (and
         // lengthens as the sun lowers), instead of a symmetric blob straight down.
         // Length / lean / offset all derive from the light direction (lx,ly).
