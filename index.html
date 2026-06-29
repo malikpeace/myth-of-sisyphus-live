@@ -10540,15 +10540,15 @@
       // the scene gains depth (was flat). A flattened radial blob on the surface
       // (local y~0) spanning the figure through the stone. Fades, no hard edge.
       if (!REDUCED && gameState !== "title") {
-        var csCx = blx - brad * 0.55;                 // bias left so it also sits under the figure
-        var csW = brad * 1.45, csH = Math.max(3, brad * 0.20);
+        var csCx = blx - brad * 0.5;                  // bias left so it also sits under the figure
+        var csW = brad * 1.55, csH = Math.max(3, brad * 0.22);
         g.save();
-        g.translate(csCx, 3);
+        g.translate(csCx, 4);
         g.scale(1, csH / csW);                          // squash the circle into a ground ellipse
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(16,14,12,0.32)");
-        cgrad.addColorStop(0.62, "rgba(16,14,12,0.15)");
-        cgrad.addColorStop(1, "rgba(16,14,12,0)");
+        cgrad.addColorStop(0, "rgba(6,6,10,0.52)");    // darker + more present: real grounding under the stone + figure
+        cgrad.addColorStop(0.5, "rgba(6,6,10,0.32)");
+        cgrad.addColorStop(1, "rgba(6,6,10,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
         g.restore();
