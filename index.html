@@ -2434,6 +2434,7 @@
   foregroundTreeImg.src = "assets/foreground-tree.png";
   var fgTreeC = document.createElement("canvas"), fgTreeCtx = fgTreeC.getContext("2d");
   var voidReflC = document.createElement("canvas"), voidReflCtx = voidReflC.getContext("2d");
+  var darkRockC = document.createElement("canvas"), darkRockG = darkRockC.getContext("2d");   // isolated night-darkened boulder copy
   var canyonImg = new Image(), canyonReady = false;
   canyonImg.onload = function () { canyonReady = true; };
   canyonImg.src = "assets/canyon-river-realm.png";
@@ -10664,26 +10665,34 @@
           g.scale(1 + rsq, 1 - rsq);
         }
         g.imageSmoothingEnabled = false;
-        g.drawImage(boulderSprite(), -brad, -brad, brad * 2, brad * 2);
-        // The boulder sprite has a FIXED bright value (baked from render.png), so on
-        // the dark night theme it never dims with the scene and reads as a glowing
-        // orb. Multiply it down toward a cool night value so it sits IN the theme
-        // (clipped to the stone's circle; keeps all the veining/texture). Skipped in
-        // the void, where the pale stone is intentionally the one lit anchor.
+        // Night-darken the stone so it sits in the dark theme. CRITICAL: do it on an
+        // ISOLATED copy that holds ONLY the sprite — never on the shared actor buffer.
+        // A source-atop fillRect on the live buffer darkened whatever opaque pixels it
+        // overlapped (the contact shadow) and, being a rotated square, dragged a faint
+        // spinning box along with the stone. On the isolated copy source-atop touches
+        // the boulder alone; we then draw that copy rotated. The night sprite has a
+        // FIXED bright value (baked from render.png), so without this it reads as a
+        // glowing orb against the dark sky. Skipped in the void (pale stone = anchor).
         var bDark = 0;
         if (customize.look === "noir") bDark = 0.55;
         else if (customize.look !== "void") bDark = clamp01((0.34 - lum(day.sky[2])) / 0.26) * 0.42;
+        var spr = boulderSprite();
         if (bDark > 0.01) {
-          // "source-atop" draws ONLY over pixels the boulder already occupies — it
-          // follows the sprite's exact alpha, so there's no clip-vs-staircase mismatch
-          // (which left light corners) and no square (multiply on transparent pixels
-          // paints the fill colour). A translucent night-blue blends the stone darker.
-          g.save();
-          g.globalCompositeOperation = "source-atop";
-          g.fillStyle = css([16, 20, 38], bDark * 0.8);
-          g.fillRect(-brad - 2, -brad - 2, brad * 2 + 4, brad * 2 + 4);
-          g.restore();
+          var sw2 = spr.width, sh2 = spr.height;
+          if (darkRockC.width !== sw2) darkRockC.width = sw2;
+          if (darkRockC.height !== sh2) darkRockC.height = sh2;
+          darkRockG.setTransform(1, 0, 0, 1, 0, 0);
+          darkRockG.imageSmoothingEnabled = false;
+          darkRockG.globalCompositeOperation = "source-over";
+          darkRockG.clearRect(0, 0, sw2, sh2);
+          darkRockG.drawImage(spr, 0, 0);
+          darkRockG.globalCompositeOperation = "source-atop";
+          darkRockG.fillStyle = css([16, 20, 38], bDark * 0.8);
+          darkRockG.fillRect(0, 0, sw2, sh2);
+          darkRockG.globalCompositeOperation = "source-over";
+          spr = darkRockC;
         }
+        g.drawImage(spr, -brad, -brad, brad * 2, brad * 2);
         g.restore();
 	      } else {
 	        boulderRock(blx, bly, brad, skin.base);
