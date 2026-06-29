@@ -10636,14 +10636,14 @@
       if (!REDUCED && gameState !== "title") {
         var shadowShift = -lx * brad * 0.7;           // cast away from the light
         var csCx = blx - brad * 0.4 + shadowShift;
-        var csW = brad * 2.4, csH = Math.max(5, brad * 0.32);
+        var csW = brad * 2.2, csH = Math.max(8, brad * 0.7);   // much taller ellipse = real depth/projection
         g.save();
-        g.translate(csCx, 5);
+        g.translate(csCx, brad * 0.2 + 4);             // sit just under the contact, project down into the ground
         g.scale(1, csH / csW);                          // squash the circle into a ground ellipse
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(2,2,6,0.82)");     // bigger + darker = clearly grounded
-        cgrad.addColorStop(0.5, "rgba(2,2,6,0.55)");
-        cgrad.addColorStop(1, "rgba(2,2,6,0)");
+        cgrad.addColorStop(0, "rgba(1,1,4,0.92)");     // deeper, near-black core
+        cgrad.addColorStop(0.45, "rgba(1,1,4,0.66)");
+        cgrad.addColorStop(1, "rgba(1,1,4,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
         g.restore();
