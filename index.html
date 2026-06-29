@@ -1970,28 +1970,28 @@
       var dd = rx.getImageData(0, 0, sz, sz), pp = dd.data;
       for (var yy = 0; yy < sz; yy++) for (var xx = 0; xx < sz; xx++) {
         var ii = (yy * sz + xx) * 4, ex = xx - sz / 2 + 0.5, ey = yy - sz / 2 + 0.5;
+        var dist = Math.sqrt(ex * ex + ey * ey);
         var L = (pp[ii] + pp[ii + 1] + pp[ii + 2]) / 3;
-        if (ex * ex + ey * ey > R * R) {
+        if (dist > R) {
           pp[ii + 3] = 0;
-        } else if (L > 158) {
-          var shade = 96 + Math.round((1 - Math.min(1, Math.sqrt(ex * ex + ey * ey) / R)) * 18);
-          pp[ii] = shade; pp[ii + 1] = shade + 3; pp[ii + 2] = shade + 7; pp[ii + 3] = 255;
         } else {
+          // SOFT spherical edge: smoothly darken toward the perimeter instead of a hard
+          // outline ring. A hard rim on a pixel-circle alternates dark-outline / bright-
+          // body at the staircase corners, which read as a "speckled border" once the
+          // boulder is upscaled large. A monotonic darkening reads as a clean shaded edge.
+          var t2 = (dist - R * 0.62) / (R * 0.38);
+          if (t2 < 0) t2 = 0; else if (t2 > 1) t2 = 1;
+          var k = 1 - 0.62 * t2 * t2;
+          if (L > 158) {
+            var shade = 96 + Math.round((1 - Math.min(1, dist / R)) * 18);
+            pp[ii] = Math.round(shade * k); pp[ii + 1] = Math.round((shade + 3) * k); pp[ii + 2] = Math.round((shade + 7) * k);
+          } else {
+            pp[ii] = Math.round(pp[ii] * k); pp[ii + 1] = Math.round(pp[ii + 1] * k); pp[ii + 2] = Math.round(pp[ii + 2] * k);
+          }
           pp[ii + 3] = 255;
         }
       }
       rx.putImageData(dd, 0, 0);
-      var bpx = Math.max(3, Math.round(R * 0.065));
-      var steps = Math.round(R * 5.8);
-      var ringR = R - bpx / 2;
-      rx.fillStyle = "rgba(18,20,26,0.82)";
-      for (var bi = 0; bi < steps; bi++) {
-        var ba = (bi / steps) * Math.PI * 2;
-        var bpx2 = bpx / 2;
-        var brx = Math.round(sz / 2 + Math.cos(ba) * ringR) - bpx2;
-        var bry = Math.round(sz / 2 + Math.sin(ba) * ringR) - bpx2;
-        rx.fillRect(brx, bry, bpx, bpx);
-      }
       rockReady = true;
       buildBoulderVariants();
     };
@@ -10672,11 +10672,14 @@
         if (customize.look === "noir") bDark = 0.55;
         else if (customize.look !== "void") bDark = clamp01((0.34 - lum(day.sky[2])) / 0.26) * 0.42;
         if (bDark > 0.01) {
+          // "source-atop" draws ONLY over pixels the boulder already occupies — it
+          // follows the sprite's exact alpha, so there's no clip-vs-staircase mismatch
+          // (which left light corners) and no square (multiply on transparent pixels
+          // paints the fill colour). A translucent night-blue blends the stone darker.
           g.save();
-          g.beginPath(); g.arc(0, 0, brad, 0, Math.PI * 2); g.clip();
-          g.globalCompositeOperation = "multiply";
-          g.fillStyle = css(mix([255, 255, 255], [58, 64, 92], bDark));
-          g.fillRect(-brad, -brad, brad * 2, brad * 2);
+          g.globalCompositeOperation = "source-atop";
+          g.fillStyle = css([16, 20, 38], bDark * 0.8);
+          g.fillRect(-brad - 2, -brad - 2, brad * 2 + 4, brad * 2 + 4);
           g.restore();
         }
         g.restore();
