@@ -10650,19 +10650,23 @@
       // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast
       // shadow (the sun pushes it to the far side), grounding them with depth.
       if (!REDUCED && gameState !== "title") {
-        var shadowShift = -lx * brad * 0.7;           // cast away from the light
-        var csCx = blx - brad * 0.4 + shadowShift;
-        var csW = brad * 2.2, csH = Math.max(8, brad * 0.7);   // much taller ellipse = real depth/projection
+        // Cast shadow that RAKES diagonally along the ground away from the sun (and
+        // lengthens as the sun lowers), instead of a symmetric blob straight down.
+        // Length / lean / offset all derive from the light direction (lx,ly).
+        var low = clamp01(1 + ly);                       // 0 = sun overhead, 1 = sun near the horizon
+        var awayx = -lx;                                  // ground direction away from the sun
+        var elong = 1 + low * 1.8;                        // shadow stretches longer as the sun lowers
+        var leanShear = awayx * (1.1 + low * 1.3);        // horizontal rake (diagonal lean) away from the sun
+        var cxoff = awayx * brad * (0.5 + low * 1.7);     // pool shifts away from the sun
+        var csW = brad * 1.5, csH = Math.max(8, brad * 0.58);
         g.save();
-        // Clip to the GROUND side only. In this frame local y=0 is the surface line
-        // (rotated to the slope), so the tall ellipse's upper half would otherwise poke
-        // ABOVE the ground into the air. Clip at y>=0 so the shadow lies only ON the ground.
-        g.beginPath(); g.rect(csCx - csW - 4, 0, csW * 2 + 8, csH + brad * 2 + 12); g.clip();
-        g.translate(csCx, brad * 0.2 + 4);             // sit just under the contact, project down into the ground
-        g.scale(1, csH / csW);                          // squash the circle into a ground ellipse
+        g.beginPath(); g.rect(-100000, 0, 200000, 200000); g.clip();   // ground side only (local y>=0)
+        g.translate(blx - brad * 0.3 + cxoff, brad * 0.2 + 4);
+        g.transform(1, 0, leanShear, 1, 0, 0);            // shear x with depth -> diagonal rake
+        g.scale(elong, csH / csW);                         // stretch along the shadow, flatten onto the ground
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(1,1,4,0.92)");     // deeper, near-black core
-        cgrad.addColorStop(0.45, "rgba(1,1,4,0.66)");
+        cgrad.addColorStop(0, "rgba(1,1,4,0.9)");
+        cgrad.addColorStop(0.45, "rgba(1,1,4,0.6)");
         cgrad.addColorStop(1, "rgba(1,1,4,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
