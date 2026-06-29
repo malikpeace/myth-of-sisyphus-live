@@ -8115,6 +8115,14 @@
     // fringe of the waterfall zone (so they don't hard-pop) — reaches full opacity
     // almost immediately, never a see-through tree in the play area.
     var layerA = smoother01(clamp01((wfa - 0.03) / 0.1));
+    // SUMMIT (Absurd): the forest must clear well before the crest so it never crowds
+    // the summit reveal, the celebration, or the rolling-stone fall. Fade out as the top
+    // approaches, and drop entirely once he's at the top / the stone is falling.
+    if (activeSummitM() > 0) {
+      var sm = activeSummitM();
+      layerA *= 1 - smoother01(clamp01((altitude - (sm - 460)) / 300));   // gone ~150m below the top
+      if (modePhase === "summitRest" || modePhase === "summitLaunch") layerA = 0;
+    }
     if (layerA <= 0.02) return;
     if (fgTreeC.width !== VW || fgTreeC.height !== VH) { fgTreeC.width = VW; fgTreeC.height = VH; }
     var fg = fgTreeCtx;
