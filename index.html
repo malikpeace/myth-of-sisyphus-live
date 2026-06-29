@@ -10654,6 +10654,10 @@
         var csCx = blx - brad * 0.4 + shadowShift;
         var csW = brad * 2.2, csH = Math.max(8, brad * 0.7);   // much taller ellipse = real depth/projection
         g.save();
+        // Clip to the GROUND side only. In this frame local y=0 is the surface line
+        // (rotated to the slope), so the tall ellipse's upper half would otherwise poke
+        // ABOVE the ground into the air. Clip at y>=0 so the shadow lies only ON the ground.
+        g.beginPath(); g.rect(csCx - csW - 4, 0, csW * 2 + 8, csH + brad * 2 + 12); g.clip();
         g.translate(csCx, brad * 0.2 + 4);             // sit just under the contact, project down into the ground
         g.scale(1, csH / csW);                          // squash the circle into a ground ellipse
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
