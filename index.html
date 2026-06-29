@@ -6352,6 +6352,9 @@
   // current biome ground colour, published each frame so functions outside the draw
   // loop's scope (e.g. sisyphus() plow dirt) can tint to match the biome.
   var curGroundCol = null;
+  // current far-mountain (mtBg) layer opacity, published so the gorge see-through
+  // cutout can replay the same backdrop and not leave a seam where it's omitted.
+  var curMtAlpha = 0;
 
   // ---- geometry / camera ----
   var ANCHOR_X = 188, ANCHOR_Y = 156, HORIZON = 120;
@@ -9103,6 +9106,10 @@
       g.save();
       g.setTransform(1, 0, 0, 1, 0, 0);
       drawSkyStrip(g, day.sky, VH, VW);
+      // Replay the far-mountain backdrop INSIDE the hole too — the main scene paints it
+      // between the sky and the scenes, so omitting it here left the see-through gap
+      // lighter than its surroundings and showed a seam at the cutout's edge.
+      if (curMtAlpha > 0.01 && mtBgReady) g.drawImage(bgLayer, 0, 0);
       drawBackdropBaseMist(day);
       drawBackgroundWaterfallScene(day, reveal);
       drawValleysScene(day, 1, reveal);
@@ -9136,6 +9143,11 @@
         g.fillStyle = "rgba(" + day.tint[0] + "," + day.tint[1] + "," + day.tint[2] + "," + day.tintA + ")";
         g.fillRect(0, 0, VW, VH);
       }
+      // The sun/moon are part of the backdrop, so they must be repainted inside the
+      // see-through hole too — otherwise the disc was erased wherever it overlapped the
+      // gorge, leaving it sliced off at the bridge line. The opaque bridge deck/posts
+      // (drawn after this) still occlude it correctly, so it reads as passing behind.
+      drawCelestials(day);
       g.restore();
 
       // Re-apply the IDENTICAL bottom fade the surrounding ground already got
@@ -10256,6 +10268,7 @@
         bgLayerCtx.globalCompositeOperation = "source-over";
       }
       if (mountainLayerAlpha > 0.01) g.drawImage(bgLayer, 0, 0);
+      curMtAlpha = mountainLayerAlpha;   // publish for the gorge cutout repaint
       // How much the warm start scene owns the frame — used to hold back the grey
       // atmosphere tints below so they don't desaturate it at low altitude.
       var startWarmKeep = 1 - 0.82 * clamp01(mountainLayerAlpha);
