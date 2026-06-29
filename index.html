@@ -2228,21 +2228,22 @@
     return currentBurden || "the stone";
   }
   var savedSoundPref = storageGet("sisyphus.sound", "");
-  var soundDefaultMigrated = storageGet("sisyphus.sound.default.v2", "");
+  var soundOffMigrated = storageGet("sisyphus.sound.off.v3", "");
   var customize = {
     look: "classic",
     fx: "calm",
-    sound: "on"
+    sound: "off"
   };
-  // v4: default ON, but a saved preference actually wins now (it was read and
-  // then ignored before, so muting never survived a reload).
-  if (savedSoundPref === "on" || savedSoundPref === "off") {
+  // Sound is now OPT-IN: the game starts MUTED and only plays once the player
+  // manually toggles it on. The old build defaulted ON and auto-saved "on", so the
+  // first time this version loads we force-reset to off (once, via the v3 flag),
+  // wiping that stale auto-on. After that, the player's own toggle persists normally.
+  if (soundOffMigrated !== "1") {
+    customize.sound = "off";
+    storageSet("sisyphus.sound", "off");
+    storageSet("sisyphus.sound.off.v3", "1");
+  } else if (savedSoundPref === "on" || savedSoundPref === "off") {
     customize.sound = savedSoundPref;
-    storageSet("sisyphus.sound.default.v2", "1");
-  } else if (!params.has("sound") && soundDefaultMigrated !== "1") {
-    customize.sound = "on";
-    storageSet("sisyphus.sound", "on");
-    storageSet("sisyphus.sound.default.v2", "1");
   }
   // Restore the saved visual style (look) + fx across sessions — the choice was
   // always written on click, but only sound was read back on load before, so
