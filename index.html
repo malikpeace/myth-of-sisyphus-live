@@ -1976,12 +1976,13 @@
           pp[ii + 3] = 0;
         } else {
           // SOFT spherical edge: smoothly darken toward the perimeter instead of a hard
-          // outline ring. A hard rim on a pixel-circle alternates dark-outline / bright-
-          // body at the staircase corners, which read as a "speckled border" once the
-          // boulder is upscaled large. A monotonic darkening reads as a clean shaded edge.
-          var t2 = (dist - R * 0.62) / (R * 0.38);
+          // outline ring (a hard rim on a pixel-circle speckled at the staircase corners
+          // when upscaled). Darken the outer edge HARD so the boulder's anti-aliased edge
+          // fringe (from rotation) samples near-black pixels — otherwise that fringe was a
+          // light grey, and over the dark night sky it bled into a faint "glow" halo.
+          var t2 = (dist - R * 0.5) / (R * 0.5);
           if (t2 < 0) t2 = 0; else if (t2 > 1) t2 = 1;
-          var k = 1 - 0.62 * t2 * t2;
+          var k = 1 - 0.86 * t2 * t2;
           if (L > 158) {
             var shade = 96 + Math.round((1 - Math.min(1, dist / R)) * 18);
             pp[ii] = Math.round(shade * k); pp[ii + 1] = Math.round((shade + 3) * k); pp[ii + 2] = Math.round((shade + 7) * k);
