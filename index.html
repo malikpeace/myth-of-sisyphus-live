@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Sisyphus">
 <meta name="theme-color" content="#000000">
 <title>Myth of Sisyphus</title>
+<!-- Start fetching the mountain backdrop the instant the page parses (before the
+     script runs), so it's decoded before first paint — no cold-blue sky flash. -->
+<link rel="preload" as="image" href="assets/mountain-backdrop-day.jpg">
 <style>
   :root { color-scheme: dark; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2376,14 +2379,18 @@
   var SPRITE_CELLS = [[0, 0, 120, 100], [120, 0, 120, 100], [240, 0, 120, 100], [360, 0, 120, 100], [480, 0, 120, 100], [600, 0, 120, 100], [720, 0, 120, 100], [840, 0, 120, 100]];
   var spriteFrames = [], spritesReady = false, spriteClock = 0;
 
-  var mtBg = new Image(), mtBgReady = false;
+  var mtBg = new Image(), mtBgReady = false, mtBgFailed = false;
   mtBg.onload = function () { mtBgReady = true; };
-  mtBg.src = "assets/mountain-backdrop-day.png";
+  mtBg.onerror = function () { mtBgFailed = true; };
+  // JPEG (q92) instead of a 1.7MB PNG: photographic mountain scene compresses ~7x
+  // smaller with no visible loss, so it loads before first paint and the cold-blue
+  // procedural sky never flashes in while the PNG downloads. Preloaded in <head>.
+  mtBg.src = "assets/mountain-backdrop-day.jpg";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
   nightBg.onload = function () { nightBgReady = true; };
-  nightBg.src = "assets/mountain-backdrop-night.png";
+  nightBg.src = "assets/mountain-backdrop-night.jpg";
   // Rock arch bridge — an alternate bridge variant over the gorge crossings
   // (transparent PNG; its arch lets the see-through gorge show through).
   var rockBridgeImg = new Image(), rockBridgeReady = false;
@@ -10454,8 +10461,19 @@
         g.fillStyle = "rgba(" + day.tint[0] + "," + day.tint[1] + "," + day.tint[2] + "," + (day.tintA * (1 - 0.5 * clamp01(mountainLayerAlpha))) + ")";
         g.fillRect(0, 0, VW, VH);
       }
+    } else if (mtBgFailed) {
+      drawSkyStrip(g, day.sky, VH, VW);   // genuine load failure: graceful procedural sky
     } else {
-      drawSkyStrip(g, day.sky, VH, VW);
+      // Backdrop still downloading (rare now that it's a small JPEG + preloaded):
+      // paint a warm dusk that MATCHES the painted scene's sky (colours sampled from
+      // it) so the cold-blue procedural sky never flashes in before the mountains.
+      g.fillStyle = lgrad(g, 0, 0, 0, VH, [
+        [0, "rgb(176,138,133)"],
+        [0.34, "rgb(223,151,122)"],
+        [0.62, "rgb(150,122,118)"],
+        [1, "rgb(58,58,76)"]
+      ]);
+      g.fillRect(0, 0, VW, VH);
     }
     drawAtmosphereUnifier(day, openingT);
     if (SHOW_ATMOSPHERE_HAZE) drawParallaxAtmosphere(day, openingT);
