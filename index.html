@@ -8118,12 +8118,13 @@
     if (gameState === "title" || playMode === "run") return false;
     if (bandGate(altitude, 0, 2800, 360) < 0.4) return false;   // bridges live only in the low gorge band
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
+    var bWorldX = (boulderSX - curCamZtx) / curCamZoom;   // stone screen-x -> world/zoom space (where the spans live)
     for (var wi = 0; wi < 4; wi++) {
       var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
       if (mark < WATERFALL_FIRST) continue;
       var center = waterfallSceneX(mark);
       var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
-      if (boulderSX > center - gorgeW * 0.78 && boulderSX < center + gorgeW * 0.82) return true;
+      if (bWorldX > center - gorgeW * 0.78 && bWorldX < center + gorgeW * 0.82) return true;
     }
     return false;
   }
@@ -8162,7 +8163,11 @@
       var tw = Math.round(iw * sc), th = Math.round(ih * sc);
       var sx = Math.round(i * spacing - scroll + (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter);
       if (sx + tw < -40 || sx > VW + 40) continue;
-      if (treeOnBridge(sx, sx + tw)) continue;     // ZERO trees on a bridge — test the whole trunk+canopy extent
+      // ZERO trees on a bridge — test the whole trunk+canopy extent. The bridge span
+      // (treeOnBridge / waterfallSceneX) is in WORLD/zoom space, but trees draw in screen
+      // space, so convert this tree's screen-x extent to world-x before the test —
+      // otherwise the cull masks the wrong region when zoomed (trees crept onto bridges).
+      if (treeOnBridge((sx - curCamZtx) / curCamZoom, (sx + tw - curCamZtx) / curCamZoom)) continue;
       var baseY;
       if (cfg.anchor === "screen") {
         baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
