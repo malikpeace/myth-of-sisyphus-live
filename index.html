@@ -7251,12 +7251,15 @@
     // re-drawing the REAL procedural sky (the same cached strip drawn behind everything)
     // over the right edge with a left feather — so the edge matches the adjacent sky
     // exactly, no flat patch, no rectangular boundary. Only the sky band is touched; the
-    // ground is drawn later and covers the lower part.
+    // ground is drawn later and covers the lower part. CRITICAL: scale the feather by
+    // the scene's own alpha — at low altitude the waterfall is only faintly revealed, so
+    // a full-opacity sky redraw here would wipe the MOUNTAIN BACKDROP behind it and leave
+    // a hard grey wall on the right. Only dissolve as much as the waterfall is present.
     var feL = Math.round(VW * 0.70), feW = VW - feL, feFeather = Math.max(1, VW * 0.16);
     var prevGA = g.globalAlpha, prevSm = g.imageSmoothingEnabled;
     g.imageSmoothingEnabled = false;
     for (var fex = feL; fex < VW; fex++) {
-      g.globalAlpha = clamp01((fex - feL) / feFeather);
+      g.globalAlpha = clamp01((fex - feL) / feFeather) * alpha;
       g.drawImage(skyStripC, 0, 0, 4, VH, fex, 0, 1, VH);
     }
     g.globalAlpha = prevGA;
