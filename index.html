@@ -10737,7 +10737,10 @@
       var LEAN = 0.92;
       var theta = actorTheta;
       g.save();
-      g.translate(ANCHOR_X, ANCHOR_Y);     // surfaceAt(ANCHOR_X) === ANCHOR_Y
+      // Sit the figure + stone slightly INTO the ground (not perched on top) for depth:
+      // drop the whole actor frame a few px below the surface contact line.
+      var ACTOR_SINK = 10;
+      g.translate(ANCHOR_X, ANCHOR_Y + ACTOR_SINK);     // surfaceAt(ANCHOR_X) === ANCHOR_Y (+ sink)
       g.rotate(-theta);
 
       // Directional light: unit vector toward the sun/moon, expressed in this local
