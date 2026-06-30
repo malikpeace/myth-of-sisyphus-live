@@ -9180,6 +9180,37 @@
     }
   }
 
+  // Footprints: a trail of pressed marks the figure leaves DOWNHILL behind him as he
+  // climbs. World-locked to the ground scroll (so they slide away with the hillside),
+  // alternating left/right foot, fading the further they recede behind him. Skipped in
+  // the void (no real ground). Drawn ON TOP of the grass so they read clearly.
+  function drawFootprints(wxL, wxR, day) {
+    if (gameState !== "playing" || customize.look === "void") return;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
+    var stride = 20;
+    var footX = ANCHOR_X;                                   // figure's foot (same space as terrainLipAt)
+    var k0 = Math.floor((wxL + scroll) / stride);
+    var k1 = Math.floor((footX + scroll) / stride);         // only behind / at the figure, never ahead
+    var press = mix(day.ground, [0, 0, 0], 0.64);           // pressed earth: clearly darker than the surface
+    var rim = mix(day.ground, [255, 255, 255], 0.20);       // lifted rim above the print
+    var span = Math.max(1, footX - wxL);
+    for (var k = k0; k <= k1; k++) {
+      var x = k * stride - scroll;
+      if (x > footX - 8) continue;                           // not right under his current feet
+      var fade = clamp01((x - wxL) / span);                  // 1 near his feet -> 0 far downhill
+      fade = fade * fade * (3 - 2 * fade);
+      var a = 0.34 + 0.54 * fade;                            // clearly visible, fading as it recedes
+      var y = Math.round(terrainLipAt(x)) + 3;
+      var fy = y + ((k & 1) ? 2 : 0);                        // alternate L/R foot -> visible stagger
+      var fx = Math.round(x - 3);
+      if (!REDUCED) { g.fillStyle = css(rim, a * 0.5); g.fillRect(fx, fy - 1, 6, 1); }   // pressed-earth rim
+      g.fillStyle = css(press, a);                           // heel + sole
+      g.fillRect(fx, fy, 6, 2);
+      g.fillStyle = css(press, a * 0.85);                    // toe dig
+      g.fillRect(fx + 4, fy + 2, 3, 2);
+    }
+  }
+
   function drawSnowSurface(wxL, wxR, day) {
     var snow = day.snow || 0;
     if (snow <= 0.002) return;
@@ -10660,6 +10691,7 @@
     drawTerrainDetails(wxL, wxR, worldBottom, day);
     drawGrassSurface(wxL, wxR, day);
     drawPathGrass(wxL, wxR, day);
+    drawFootprints(wxL, wxR, day);   // trail of pressed footprints downhill behind the figure
     if (SHOW_HORIZON_HAZE) drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
     drawGroundSunlight(wxL, wxR, day);   // directional sun/moon light pooling on the ground
     drawSnowSurface(wxL, wxR, day);
