@@ -2409,6 +2409,14 @@
   var plankBridgeImg = new Image(), plankBridgeReady = false;
   plankBridgeImg.onload = function () { plankBridgeReady = true; };
   plankBridgeImg.src = "assets/bridge-plank-tile.png";
+  // Painted grass tufts (16-variant atlas, bottom-aligned) scattered on the ground for
+  // life + texture, replacing the procedural path-grass clumps where loaded.
+  var grassTuftImg = new Image(), grassTuftReady = false;
+  grassTuftImg.onload = function () { grassTuftReady = true; };
+  grassTuftImg.src = "assets/grass-tufts-atlas.png";
+  var GRASS_TUFT_N = 16, GRASS_TUFT_CW = 167, GRASS_TUFT_CH = 120;
+  var grassTuftTintC = document.createElement("canvas"), grassTuftTintG = grassTuftTintC.getContext("2d");
+  var grassTuftTintKey = "";
   var bgLayer = document.createElement("canvas");
   var bgLayerCtx = bgLayer.getContext("2d");
   var bgLayerLastKey = "";
@@ -9087,10 +9095,33 @@
     var grassPresent = grassGroundReveal();
     if (grassPresent < 0.02) return;
 
-    var cell = 44;
+    var useSprites = grassTuftReady;
+    // Build a biome-tinted copy of the tuft atlas once per frame (cached): a soft
+    // source-atop toward day.ground ties the painted green to the current ambient
+    // (subtle by day, darkened/blued at night) without per-tuft buffer cost.
+    if (useSprites) {
+      var aw = grassTuftImg.naturalWidth, ah = grassTuftImg.naturalHeight;
+      var darkA = 0.12 + 0.5 * (1 - dayLight);
+      var gtKey = Math.round(day.ground[0] / 6) + "," + Math.round(day.ground[1] / 6) + "," + Math.round(day.ground[2] / 6) + "|" + Math.round(darkA * 20);
+      if (gtKey !== grassTuftTintKey || grassTuftTintC.width !== aw) {
+        grassTuftTintKey = gtKey;
+        if (grassTuftTintC.width !== aw) grassTuftTintC.width = aw;
+        if (grassTuftTintC.height !== ah) grassTuftTintC.height = ah;
+        var gc = grassTuftTintG;
+        gc.setTransform(1, 0, 0, 1, 0, 0); gc.globalAlpha = 1; gc.globalCompositeOperation = "source-over"; gc.imageSmoothingEnabled = true;
+        gc.clearRect(0, 0, aw, ah);
+        gc.drawImage(grassTuftImg, 0, 0);
+        gc.globalCompositeOperation = "source-atop";
+        gc.fillStyle = css(day.ground, darkA);
+        gc.fillRect(0, 0, aw, ah);
+        gc.globalCompositeOperation = "source-over";
+      }
+    }
+    var cell = useSprites ? 46 : 44;
     var pathScroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
     var c0 = Math.floor((wxL + pathScroll) / cell) - 2;
     var c1 = Math.ceil((wxR + pathScroll) / cell) + 2;
+    var tuftAR = GRASS_TUFT_CW / GRASS_TUFT_CH;
     for (var c = c0; c <= c1; c++) {
       var clumpM = Math.max(0, (c * cell) / GROUND_SCROLL);
       var sceneGrassMask = (1 - Math.max((day.snow || 0) * 0.86, (day.galaxy || 0) * 0.58)) * grassPresent;
@@ -9099,7 +9130,31 @@
       greenT *= clamp01(sceneGrassMask);
       if (greenT < 0.025) continue;
       var density = hash(c * 3.19);
-      if (density < 0.42 - greenT * 0.10) continue;
+      if (density < 0.40 - greenT * 0.10) continue;
+      var x = c * cell - pathScroll + 8 + Math.round(hash(c * 11.7) * (cell - 16));
+      var windSway = REDUCED ? 0 : (1.1 + windGustPower * 3.4);
+      if (useSprites) {
+        // painted tuft: world-locked scatter, bottom-anchored on the surface, leaning
+        // with the wind via a subtle horizontal shear, mirrored at random for variety.
+        var baseY = Math.round(terrainLipAt(x)) + 1;
+        var ti = Math.floor(hash(c * 7.13) * GRASS_TUFT_N) % GRASS_TUFT_N;
+        var th = (15 + Math.round(hash(c * 5.7) * 11)) * (0.80 + greenT * 0.28);
+        var tw = th * tuftAR;
+        var tAlpha = (0.62 + greenT * 0.38) * (0.84 + density * 0.16);
+        var shear = REDUCED ? 0 : (0.012 + windGustPower * 0.05) * Math.sin(tSec * 1.7 + x * 0.022 + c * 0.7);
+        g.save();
+        g.translate(x, baseY);
+        g.transform(1, 0, shear, 1, 0, 0);
+        if (hash(c * 9.2) > 0.5) g.scale(-1, 1);
+        g.globalAlpha = tAlpha;
+        g.imageSmoothingEnabled = true;
+        g.drawImage(grassTuftTintC, ti * GRASS_TUFT_CW, 0, GRASS_TUFT_CW, GRASS_TUFT_CH, -tw / 2, -th, tw, th);
+        g.imageSmoothingEnabled = false;
+        g.globalAlpha = 1;
+        g.restore();
+        continue;
+      }
+      // Fallback (atlas not loaded yet): the original procedural clumps.
       var palette = {
         shadow: mix(day.ground, [14, 17, 15], 0.66),
         dark: mix(mix(day.ground, [20, 28, 22], 0.72), [30, 58, 30], greenT * 0.55),
@@ -9108,17 +9163,12 @@
       };
       palette.dark = mix(palette.dark, day.sky[3], 0.10 * dayLight);
       palette.mid = mix(palette.mid, day.sky[3], 0.08 * dayLight);
-      var x = c * cell - pathScroll + 8 + Math.round(hash(c * 11.7) * (cell - 16));
       var y = Math.round(terrainLipAt(x)) + 2;
       var big = density > 0.70;
       var scale = (big ? 1.05 : 0.84) * (0.72 + greenT * 0.28);
       var alpha = (0.16 + greenT * 0.80) * (0.78 + density * 0.22);
-      // wind sway: each tuft leans on a travelling sine (offset per clump), and
-      // leans harder when the wind hazard gusts — the meadow breathes.
-      var windSway = REDUCED ? 0 : (1.1 + windGustPower * 3.4);
       var sway = Math.round(windSway * Math.sin(tSec * 1.7 + x * 0.022 + c * 0.7));
       drawPathGrassClump(x + sway, y, c * 23.91, scale, palette, alpha);
-
       if (big && hash(c * 15.6) > 0.42) {
         var x2 = x + 13 + Math.round(hash(c * 18.4) * 9);
         var sway2 = Math.round(windSway * Math.sin(tSec * 1.9 + x2 * 0.022 + c * 1.3));
