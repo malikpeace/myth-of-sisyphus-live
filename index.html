@@ -2071,6 +2071,14 @@
   // mountains the instant you start. Turned OFF by request — flip to true to restore (the
   // drawHorizonHaze code is kept intact).
   var SHOW_HORIZON_HAZE = false;
+  // Backdrop base mist: four translucent fog veils over the horizon / distant-mountain
+  // bases (full strength in play). Reads as haze washing the mountains' feet. OFF by
+  // request — flip to true to restore (drawBackdropBaseMist kept intact).
+  var SHOW_BACKDROP_MIST = false;
+  // Atmosphere unifier: a faint full-screen gradient wash + grain that tied the
+  // procedural sky to the painted backdrop, but muted the whole scene's contrast =
+  // the global "atmospheric haze". OFF by request — flip to true to restore.
+  var SHOW_ATMOSPHERE_UNIFIER = false;
 
   var altitude = 0, effort = 0, lastKey = "";
   var curSlope = 0, wp = 0, activity = 0, tSec = 0, pushTime = 0, roll = 0, slideEffort = 0, slideVel = 0, idleRollbackTimer = 0, shakePower = 0, shakePulse = 0, strain = 0;
@@ -9221,7 +9229,7 @@
       // between the sky and the scenes, so omitting it here left the see-through gap
       // lighter than its surroundings and showed a seam at the cutout's edge.
       if (curMtAlpha > 0.01 && mtBgReady) g.drawImage(bgLayer, 0, 0);
-      drawBackdropBaseMist(day);
+      if (SHOW_BACKDROP_MIST) drawBackdropBaseMist(day);
       drawBackgroundWaterfallScene(day, reveal);
       drawValleysScene(day, 1, reveal);
       drawCanyonRiverScene(day, 1, reveal);
@@ -10433,7 +10441,7 @@
       var startWarmKeep = 1 - 0.82 * clamp01(mountainLayerAlpha);
       // The generated backdrop already has a full mountain range. Keeping the
       // extra procedural ridge out prevents faint boxed shapes during gameplay.
-      drawBackdropBaseMist(day);
+      if (SHOW_BACKDROP_MIST) drawBackdropBaseMist(day);
       drawBackgroundWaterfallScene(day);
       drawValleysScene(day, openingT);
       drawCanyonRiverScene(day, openingT);
@@ -10475,7 +10483,7 @@
       ]);
       g.fillRect(0, 0, VW, VH);
     }
-    drawAtmosphereUnifier(day, openingT);
+    if (SHOW_ATMOSPHERE_UNIFIER) drawAtmosphereUnifier(day, openingT);
     if (SHOW_ATMOSPHERE_HAZE) drawParallaxAtmosphere(day, openingT);
     drawRealmSky(day, openingT);
     drawMemoryAfterglow(day);
