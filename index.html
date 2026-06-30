@@ -10739,7 +10739,7 @@
       g.save();
       // Sit the figure + stone slightly INTO the ground (not perched on top) for depth:
       // drop the whole actor frame a few px below the surface contact line.
-      var ACTOR_SINK = 10;
+      var ACTOR_SINK = 6;
       g.translate(ANCHOR_X, ANCHOR_Y + ACTOR_SINK);     // surfaceAt(ANCHOR_X) === ANCHOR_Y (+ sink)
       g.rotate(-theta);
 
