@@ -10423,6 +10423,13 @@
     g.textBaseline = "alphabetic";
     var day = sampleStage(visualMeters());
     curGroundCol = day.ground;
+    // Defensive base fill: the rest of draw() relies on the backdrop painting over the
+    // WHOLE canvas every frame. If any layer ever falls short of full coverage (a wide
+    // aspect, a resize race, a partial scene), pixels from the PREVIOUS frame would
+    // persist as a hard "wall" — most visibly stale deep-realm (void/galaxy) content
+    // when you drop back to low altitude. Clear to the sky base so no stale frame shows.
+    g.fillStyle = css(day.sky[1] || day.sky[0] || [18, 20, 30]);
+    g.fillRect(0, 0, canvas.width, canvas.height);
     if (snowAccum > 0.02) {
       // settled snow whitens the world progressively the longer it falls
       day.ground = mix(day.ground, [236, 240, 246], snowAccum * 0.5);
