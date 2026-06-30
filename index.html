@@ -2062,6 +2062,12 @@
   // read as the mountains suddenly fogging/washing out. Turned OFF by request — flip this
   // to true to bring the haze back (the drawParallaxAtmosphere code is kept intact).
   var SHOW_ATMOSPHERE_HAZE = false;
+  // Horizon haze: soft translucent bands that dissolve the ground's top edge into the
+  // distant mountains (no hard grass/mountain line). It only exists in-game (there's no
+  // ground on the title), so it reads as a fog band appearing where the grass meets the
+  // mountains the instant you start. Turned OFF by request — flip to true to restore (the
+  // drawHorizonHaze code is kept intact).
+  var SHOW_HORIZON_HAZE = false;
 
   var altitude = 0, effort = 0, lastKey = "";
   var curSlope = 0, wp = 0, activity = 0, tSec = 0, pushTime = 0, roll = 0, slideEffort = 0, slideVel = 0, idleRollbackTimer = 0, shakePower = 0, shakePulse = 0, strain = 0;
@@ -10505,7 +10511,7 @@
     drawTerrainDetails(wxL, wxR, worldBottom, day);
     drawGrassSurface(wxL, wxR, day);
     drawPathGrass(wxL, wxR, day);
-    drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
+    if (SHOW_HORIZON_HAZE) drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
     drawGroundSunlight(wxL, wxR, day);   // directional sun/moon light pooling on the ground
     drawSnowSurface(wxL, wxR, day);
     if ((day.galaxy || 0) > 0.02) {
