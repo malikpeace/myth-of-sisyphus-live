@@ -9043,6 +9043,12 @@
       var wob = hash(Math.floor((x + scroll) / 5) * 2.7) * 4;
       var w = Math.round(thick + wob);
       var half = Math.round(w * 0.82);
+      // Opaque green cap right at the lip: covers the dark slope-lip separation line
+      // (drawTerrainDetails) so the grass→distance edge reads as a clean grassy crest,
+      // not a grey gap. Grass areas only (this whole fn early-returns on rock).
+      var capA = Math.min(0.96, 0.55 + greenT * 0.45);
+      g.fillStyle = css(top, capA);
+      g.fillRect(x, y, 2, 2 + Math.round(greenT * 2));
       g.fillStyle = css(top, a);
       g.fillRect(x, y, 2, half);
       g.fillStyle = css(deep, a * 0.20);
@@ -9505,6 +9511,10 @@
     }
 
     // Layered slope lip: dark separation without turning into a basic outline.
+    // On GRASS this dark edge reads as a grey gap against the cool faded distance
+    // (the horizon haze used to blend it), so fade it down where grass covers the
+    // crest; on rock/snow keep it full for needed edge definition.
+    var lipFade = 1 - 0.62 * clamp01(day.grass || 0);
     var lipDark = mix(day.ground, [0, 0, 0], 0.58);
     var lipMid = mix(day.ground, [0, 0, 0], 0.36);
     var lipLight = mix(day.ground, [255, 255, 255], 0.20);
@@ -9516,11 +9526,11 @@
       var ey = Math.round(terrainLipAt(ex));
       var chip = hash(ci * 8.31);
       if (chip > 0.06) {
-        g.fillStyle = css(lipDark, 0.70);
+        g.fillStyle = css(lipDark, 0.70 * lipFade);
         g.fillRect(ex, ey + 2, 6, chip > 0.74 ? 3 : 2);
       }
       if (chip > 0.22) {
-        g.fillStyle = css(lipMid, 0.50);
+        g.fillStyle = css(lipMid, 0.50 * lipFade);
         g.fillRect(ex, ey + 4, 6, chip > 0.86 ? 2 : 1);
       }
       if (chip > 0.58) {
@@ -9534,7 +9544,7 @@
       if (hash(ni * 4.7) < 0.44) continue;
       var nx = ni * 17 - lipScroll + Math.round(hash(ni * 9.2) * 8);
       var ny = Math.round(terrainLipAt(nx));
-      g.fillStyle = css(lipDark, 0.52);
+      g.fillStyle = css(lipDark, 0.52 * lipFade);
       g.fillRect(nx, ny + 5, 5 + Math.round(hash(ni * 2.3) * 7), 1);
     }
 
