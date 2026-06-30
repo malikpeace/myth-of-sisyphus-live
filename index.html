@@ -2451,6 +2451,7 @@
   var fgTreeC = document.createElement("canvas"), fgTreeCtx = fgTreeC.getContext("2d");
   var voidReflC = document.createElement("canvas"), voidReflCtx = voidReflC.getContext("2d");
   var darkRockC = document.createElement("canvas"), darkRockG = darkRockC.getContext("2d");   // isolated night-darkened boulder copy
+  var bridgeTintC = document.createElement("canvas"), bridgeTintG = bridgeTintC.getContext("2d");   // isolated biome-tinted rock-bridge copy
   var canyonImg = new Image(), canyonReady = false;
   canyonImg.onload = function () { canyonReady = true; };
   canyonImg.src = "assets/canyon-river-realm.png";
@@ -9004,13 +9005,19 @@
   // day.grass so as you climb the ground actually becomes green and walkable,
   // instead of grass only tinting the base or floating as sparse tufts.
   function drawGrassSurface(wxL, wxR, day) {
+    // The turf decoration (mat + blades) must vanish wherever the rock ground shows
+    // through — otherwise green tufts cling to bare rock. Tie it to the SAME presence
+    // as the grass GROUND texture (grassGroundReveal: low altitude / forest band, gone
+    // on rock+snow), so grass and rock never coexist. No grass-ground = pure rock.
+    var grassPresent = grassGroundReveal();
+    if (grassPresent < 0.02) return;
     var top = mix(day.ground, [104, 138, 78], 0.52);   // muted grass surface colour
     var deep = mix(day.ground, top, 0.24);             // root colour stays close to rock to avoid a seam
     var blade = mix(day.ground, [122, 158, 88], 0.68);
     var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
     for (var x = wxL; x <= wxR; x += 2) {
       var worldM = Math.max(0, (x + scroll) / GROUND_SCROLL);
-      var sceneGrassMask = 1 - Math.max((day.snow || 0) * 0.82, (day.galaxy || 0) * 0.54);
+      var sceneGrassMask = (1 - Math.max((day.snow || 0) * 0.82, (day.galaxy || 0) * 0.54)) * grassPresent;
       var greenT = (day.grassMat || 0);   // respects the altitude ceiling — tufts die out above the forest band
       greenT = greenT * greenT * (3 - 2 * greenT);
       greenT *= clamp01(sceneGrassMask);
@@ -9030,7 +9037,7 @@
     for (var bx = wxL; bx <= wxR; bx += 3) {
       var seed = hash(Math.floor((bx + scroll) / 3) * 5.3);
       var bladeM = Math.max(0, (bx + scroll) / GROUND_SCROLL);
-      var bladeT = (day.grassMat || 0);
+      var bladeT = (day.grassMat || 0) * grassPresent;
       bladeT = bladeT * bladeT * (3 - 2 * bladeT);
       if (bladeT < 0.025 || seed < 0.5 - bladeT * 0.15) continue;
       var by = Math.round(terrainLipAt(bx));
@@ -9044,6 +9051,9 @@
 
   function drawPathGrass(wxL, wxR, day) {
     var dayLight = clamp01(lum(day.sky[2]) * 1.25);
+    // grass clumps follow the grass-ground presence too — none on bare rock (see drawGrassSurface)
+    var grassPresent = grassGroundReveal();
+    if (grassPresent < 0.02) return;
 
     var cell = 44;
     var pathScroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
@@ -9051,7 +9061,7 @@
     var c1 = Math.ceil((wxR + pathScroll) / cell) + 2;
     for (var c = c0; c <= c1; c++) {
       var clumpM = Math.max(0, (c * cell) / GROUND_SCROLL);
-      var sceneGrassMask = 1 - Math.max((day.snow || 0) * 0.86, (day.galaxy || 0) * 0.58);
+      var sceneGrassMask = (1 - Math.max((day.snow || 0) * 0.86, (day.galaxy || 0) * 0.58)) * grassPresent;
       var greenT = (day.grassMat || 0);   // ceiling-bounded
       greenT = greenT * greenT * (3 - 2 * greenT);
       greenT *= clamp01(sceneGrassMask);
@@ -9263,18 +9273,47 @@
   // (walking surface) sits ~28.8% down the image; the arch + legs hang below into
   // the see-through gorge. Drawn in the bridge's rotated frame so it follows the
   // lip angle exactly, like the plank deck.
-  function drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark) {
+  function drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark, day) {
     var ov = 64;                                       // overlap onto each lip so the deck never floats
     var targetW = len + ov * 2;
     var sc = targetW / rockBridgeImg.naturalWidth;
     var drawH = Math.round(rockBridgeImg.naturalHeight * sc);
     var deckFrac = 0.288;                              // walking-surface row / image height
+    // BIOME MATCH: the painted arch is a fixed grey stone, but the ground it spans is
+    // tinted to the current realm (purple void/galaxy, blue snow, warm canyon…), so the
+    // raw grey reads as "pasted on, colours don't match." Recolour an isolated copy
+    // toward day.ground: a "color" pass imparts the realm's hue+saturation while keeping
+    // the stone's own luminance + texture, masked back to the arch's shape; then a soft
+    // source-atop pulls its lightness toward the ground in dark realms so it sits in the
+    // same value range. In plain grey rock day.ground is grey, so this is ~a no-op.
+    var grd = (day && day.ground) || [120, 120, 120];
+    var bw = Math.max(2, Math.round(targetW)), bh = Math.max(2, drawH);
+    if (bridgeTintC.width !== bw) bridgeTintC.width = bw;
+    if (bridgeTintC.height !== bh) bridgeTintC.height = bh;
+    var bg = bridgeTintG;
+    bg.globalCompositeOperation = "source-over";
+    bg.globalAlpha = 1;
+    bg.imageSmoothingEnabled = true;
+    bg.clearRect(0, 0, bw, bh);
+    bg.drawImage(rockBridgeImg, 0, 0, bw, bh);
+    bg.globalCompositeOperation = "color";            // realm hue/sat onto the stone (luma kept)
+    bg.fillStyle = css(grd, 1);
+    bg.fillRect(0, 0, bw, bh);
+    bg.globalCompositeOperation = "destination-in";   // re-mask to the arch's own alpha (color pass leaked into transparent gorge)
+    bg.drawImage(rockBridgeImg, 0, 0, bw, bh);
+    var matchA = clamp01(0.62 * (1 - lum(grd) / 0.44));   // value match: only in darker/exotic realms
+    if (matchA > 0.01) {
+      bg.globalCompositeOperation = "source-atop";
+      bg.fillStyle = css(grd, matchA);
+      bg.fillRect(0, 0, bw, bh);
+    }
+    bg.globalCompositeOperation = "source-over";
     g.save();
     g.globalAlpha = a;
     g.translate(left, yL);
     g.rotate(angle);
     g.imageSmoothingEnabled = true;
-    g.drawImage(rockBridgeImg, -ov, -Math.round(deckFrac * drawH), targetW, drawH);
+    g.drawImage(bridgeTintC, -ov, -Math.round(deckFrac * drawH), targetW, drawH);
     g.imageSmoothingEnabled = false;
     g.restore();
   }
@@ -9315,7 +9354,7 @@
       // out by ~1400m, so gate the rock variant above that. Lower forest gorges
       // keep the plank bridge (which suits grass). Deterministic per mark.
       if (rockBridgeReady && mark >= 1600 && hash(mark * 1.73) > 0.5) {
-        drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark);
+        drawRockBridgeSpan(left, right, yL, yR, len, angle, a, mark, day);
         continue;
       }
 
