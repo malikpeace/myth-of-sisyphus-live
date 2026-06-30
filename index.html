@@ -6145,11 +6145,14 @@
       day = blendStageDay(prev, day, t);
     }
     var grassCeil = bandGate(meters, 0, 1550, 460);   // meadow green belongs to the low mountain; fade it out as you climb so it never tints rock/snow/deep realms
-    var grassHint = clamp01((meters - 10) / 360);
+    // Grass is lush from the very start (a meadow at the foot of the mountain) instead
+    // of ramping in over the first few hundred metres — offsets shifted so meters 0 reads
+    // like the old ~300m. grassCeil still fades it all out into the high rock realms.
+    var grassHint = clamp01((meters + 290) / 360);
     grassHint = grassHint * grassHint * (3 - 2 * grassHint) * grassCeil;
-    var grass = clamp01((meters - 45) / 520);
+    var grass = clamp01((meters + 255) / 520);
     grass = grass * grass * (3 - 2 * grass) * grassCeil;
-    var grassMat = clamp01((meters - 85) / 430);
+    var grassMat = clamp01((meters + 215) / 430);
     grassMat = grassMat * grassMat * (3 - 2 * grassMat) * grassCeil;
     day.ground = mix(day.ground, [106, 132, 84], (grassHint * 0.18) + (grass * 0.44));
     day.grass = grass;
