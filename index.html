@@ -10824,10 +10824,12 @@
       // (slope-rotated) frame. Drives the cast-shadow direction and the lit side of
       // the stone so the scene reads as actually lit, not flat.
       var sunL = currentSunLight(day);
-      var lx = 0, ly = -1;   // default: light from straight overhead
+      var lx = 0, ly = -1;   // local-frame unit vector TOWARD the light (default: overhead)
+      var sScrX = 0, sScrY = -1, sunStr = 0;   // SCREEN-space dir toward the light + its strength
       if (sunL) {
         var dsx = sunL.x - boulderSX, dsy = sunL.y - boulderSY, dl = Math.hypot(dsx, dsy) || 1;
         dsx /= dl; dsy /= dl;
+        sScrX = dsx; sScrY = dsy; sunStr = sunL.strength || 0;
         var ct = Math.cos(theta), st = Math.sin(theta);
         lx = dsx * ct - dsy * st;
         ly = dsx * st + dsy * ct;
@@ -10852,23 +10854,32 @@
         g.beginPath(); g.arc(0, 0, dW, 0, Math.PI * 2); g.fill();
         g.restore();
       } else if (!REDUCED && gameState !== "title") {
-        // Cast shadow that RAKES diagonally along the ground away from the sun (and
-        // lengthens as the sun lowers), instead of a symmetric blob straight down.
-        // Length / lean / offset all derive from the light direction (lx,ly).
-        var low = clamp01(1 + ly);                       // 0 = sun overhead, 1 = sun near the horizon
-        var awayx = -lx;                                  // ground direction away from the sun
-        var elong = 1 + low * 1.8;                        // shadow stretches longer as the sun lowers
-        var leanShear = awayx * (1.1 + low * 1.3);        // horizontal rake (diagonal lean) away from the sun
-        var cxoff = awayx * brad * (0.5 + low * 1.7);     // pool shifts away from the sun
+        // Cast shadow drawn in SCREEN-aligned axes (undo the slope tilt) so it rakes
+        // exactly OPPOSITE the sun as it appears on screen — sun top-left -> shadow
+        // lower-right, sun overhead -> straight down — on any slope. It also GROWS IN
+        // with the sun's strength (faint ambient contact -> full cast shadow) so it
+        // never pops in when the sun rises.
+        var ct2 = Math.cos(theta), st2 = Math.sin(theta);
+        var bcx = blx * ct2 + bly * st2;                  // boulder centre, screen-aligned offset from contact
+        var bcy = -blx * st2 + bly * ct2;
+        var awayX = -sScrX;                               // SCREEN horizontal away from the sun
+        var sunHigh = clamp01(1 + sScrY);                 // 0 = sun overhead, 1 = near the horizon
+        var grow = smoother01(clamp01(sunStr / 0.5));     // 0..1 — shadow comes in WITH the sun
+        var elong = 1 + sunHigh * 1.7 * grow;             // stretches longer as the sun lowers
+        var leanShear = awayX * (0.5 + sunHigh * 2.2) * grow;   // diagonal rake away from the sun (screen-true)
+        var cxoff = awayX * brad * (0.4 + sunHigh * 1.9) * grow; // pool shifts away from the sun
+        var shA = 0.28 + 0.60 * grow;                     // faint ambient contact -> full cast shadow
         var csW = brad * 1.5, csH = Math.max(8, brad * 0.58);
+        var groundY = bcy + brad * 0.5;
         g.save();
-        g.beginPath(); g.rect(-100000, 0, 200000, 200000); g.clip();   // ground side only (local y>=0)
-        g.translate(blx - brad * 0.3 + cxoff, brad * 0.2 + 4);
-        g.transform(1, 0, leanShear, 1, 0, 0);            // shear x with depth -> diagonal rake
+        g.rotate(theta);                                  // -> screen-aligned axes at the contact point
+        g.beginPath(); g.rect(-100000, groundY, 200000, 200000); g.clip();   // ground only (below the boulder base)
+        g.translate(bcx + cxoff, groundY + 2);
+        g.transform(1, 0, leanShear, 1, 0, 0);            // shear x with screen depth -> diagonal rake
         g.scale(elong, csH / csW);                         // stretch along the shadow, flatten onto the ground
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(1,1,4,0.9)");
-        cgrad.addColorStop(0.45, "rgba(1,1,4,0.6)");
+        cgrad.addColorStop(0, "rgba(1,1,4," + shA.toFixed(3) + ")");
+        cgrad.addColorStop(0.45, "rgba(1,1,4," + (shA * 0.66).toFixed(3) + ")");
         cgrad.addColorStop(1, "rgba(1,1,4,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
