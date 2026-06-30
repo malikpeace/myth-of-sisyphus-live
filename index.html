@@ -7235,6 +7235,22 @@
     g.fillStyle = skyWash;
     g.fillRect(0, 0, VW, VH);
 
+    // The painting's right side carries a dark cliff/mountain that lands at the screen
+    // edge as a hard vertical "block" (read as a zone-edge in the sky). Dissolve it by
+    // re-drawing the REAL procedural sky (the same cached strip drawn behind everything)
+    // over the right edge with a left feather — so the edge matches the adjacent sky
+    // exactly, no flat patch, no rectangular boundary. Only the sky band is touched; the
+    // ground is drawn later and covers the lower part.
+    var feL = Math.round(VW * 0.70), feW = VW - feL, feFeather = Math.max(1, VW * 0.16);
+    var prevGA = g.globalAlpha, prevSm = g.imageSmoothingEnabled;
+    g.imageSmoothingEnabled = false;
+    for (var fex = feL; fex < VW; fex++) {
+      g.globalAlpha = clamp01((fex - feL) / feFeather);
+      g.drawImage(skyStripC, 0, 0, 4, VH, fex, 0, 1, VH);
+    }
+    g.globalAlpha = prevGA;
+    g.imageSmoothingEnabled = prevSm;
+
     if (customize.look === "noir") {
       g.fillStyle = css([0, 1, 5], 0.76);
       g.fillRect(0, 0, VW, VH);
