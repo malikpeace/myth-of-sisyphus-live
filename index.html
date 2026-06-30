@@ -6391,6 +6391,7 @@
   // screen space — can anchor to the ACTUAL drawn ground instead of a screen-space
   // slope guess (which floated them on mobile, where zoom/offset differ).
   var curCamZtx = 0, curCamZty = 0, curCamZoom = 1;
+  var curCamZtxBase = 0;   // ztx WITHOUT per-frame camera shake — for the tree bridge-cull so trees don't flicker on/off at the bridge edge while the screen shakes
 
   // ---- geometry / camera ----
   var ANCHOR_X = 188, ANCHOR_Y = 156, HORIZON = 120;
@@ -8194,7 +8195,7 @@
       // (treeOnBridge / waterfallSceneX) is in WORLD/zoom space, but trees draw in screen
       // space, so convert this tree's screen-x extent to world-x before the test —
       // otherwise the cull masks the wrong region when zoomed (trees crept onto bridges).
-      if (treeOnBridge((sx - curCamZtx) / curCamZoom, (sx + tw - curCamZtx) / curCamZoom)) continue;
+      if (treeOnBridge((sx - curCamZtxBase) / curCamZoom, (sx + tw - curCamZtxBase) / curCamZoom)) continue;
       var baseY;
       if (cfg.anchor === "screen") {
         baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
@@ -8203,7 +8204,7 @@
         // in the camera's zoom space, so map this tree's screen-x back to world-x, look
         // up the real surface there, and map it back to screen. (A screen-space slope
         // guess floated the trees on mobile, where the zoom/offset differ.)
-        var treeWorldX = (sx + tw * 0.5 - curCamZtx) / curCamZoom;
+        var treeWorldX = (sx + tw * 0.5 - curCamZtxBase) / curCamZoom;
         baseY = Math.round(curCamZty + terrainLipAt(treeWorldX) * curCamZoom) + 6;
       }
       fg.save();
@@ -8235,7 +8236,7 @@
   var TREES_BG = { anchor: "ground", par: 1.0, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333 };
   // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
   // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
-  var TREES_NEAR = { anchor: "screen", par: 1.7, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0 };
+  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
@@ -10531,7 +10532,7 @@
     // above already adjusted them.)
     var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX;
     var zty = Math.round(focusY - ANCHOR_Y * zoom) + shakeY + openingDrop;
-    curCamZtx = ztx; curCamZty = zty; curCamZoom = zoom;
+    curCamZtx = ztx; curCamZty = zty; curCamZoom = zoom; curCamZtxBase = ztx - shakeX;
     // clouds (in front of background)
     var drift = REDUCED ? 0 : (tSec * 4 + altitude * 0.2 + mountainIndex * 43);
     var galaxyCloudDim = 1 - (day.galaxy || 0) * 0.88;
