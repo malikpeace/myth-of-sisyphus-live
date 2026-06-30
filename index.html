@@ -2378,6 +2378,11 @@
   var rockBridgeImg = new Image(), rockBridgeReady = false;
   rockBridgeImg.onload = function () { rockBridgeReady = true; };
   rockBridgeImg.src = "assets/rock-bridge.png";
+  // Painted wooden plank bridge — a seamless one-period tile (post→post, deck + rope).
+  // Tiled across each gorge + rotated to the slope so it fits any length/angle.
+  var plankBridgeImg = new Image(), plankBridgeReady = false;
+  plankBridgeImg.onload = function () { plankBridgeReady = true; };
+  plankBridgeImg.src = "assets/bridge-plank-tile.png";
   var bgLayer = document.createElement("canvas");
   var bgLayerCtx = bgLayer.getContext("2d");
   var bgLayerLastKey = "";
@@ -9298,61 +9303,39 @@
         continue;
       }
 
-      g.save();
-      g.globalAlpha = a;
-      g.translate(left, yL);
-      g.rotate(angle);
-
-      // The deck must OVERLAP both cliff lips: the cutout's jittered edge can sit
-      // up to ~40px outside the bridge endpoints, and with the gorge now truly
-      // see-through any shortfall reads as the bridge floating in mid-air.
+      // The deck must OVERLAP both cliff lips so it never floats over the see-through gorge.
       var anchorE = 48;
-      g.fillStyle = css([4, 5, 6], 0.46);
-      g.fillRect(-16 - anchorE, 10, len + 32 + anchorE * 2, 8);
-      g.fillStyle = css(woodDark, 0.98);
-      g.fillRect(-14 - anchorE, 5, len + 28 + anchorE * 2, 10);
-      g.fillStyle = css(wood, 0.96);
-      g.fillRect(-12 - anchorE, 0, len + 24 + anchorE * 2, 9);
-      g.fillStyle = css(hi, 0.52);
-      g.fillRect(-10 - anchorE, 0, len + 20 + anchorE * 2, 2);
-      g.fillStyle = css(woodDark, 0.68);
-      for (var p = -8 - anchorE; p < len + 14 + anchorE; p += 10) {
-        g.fillRect(Math.round(p), -1, 3, 12);
-        if (hash(mark + p * 0.41) > 0.44) g.fillRect(Math.round(p + 5), 7, 5, 2);
+      if (plankBridgeReady) {
+        // PAINTED plank bridge: tile the seamless post→post slice across the span and
+        // rotate it to the slope, so it fits ANY gorge length + angle and meets both lips.
+        var ih = plankBridgeImg.naturalHeight, iw = plankBridgeImg.naturalWidth;   // 185x169
+        var bScale = 66 / ih;                              // ~66px tall in-world
+        var tw = Math.max(2, Math.round(iw * bScale));
+        var th = Math.round(ih * bScale);
+        var deckOff = Math.round(0.584 * th);              // walking-surface row within the tile
+        g.save();
+        g.globalAlpha = a;
+        g.translate(left, yL);
+        g.rotate(angle);
+        g.beginPath(); g.rect(-anchorE, -deckOff - 8, len + anchorE * 2, th + 16); g.clip();
+        g.imageSmoothingEnabled = true;
+        for (var bx = -anchorE; bx < len + anchorE; bx += tw) {
+          g.drawImage(plankBridgeImg, bx, -deckOff, tw, th);
+        }
+        g.imageSmoothingEnabled = false;
+        g.restore();
+      } else {
+        // Procedural fallback while the painted tile is still loading.
+        g.save();
+        g.globalAlpha = a;
+        g.translate(left, yL);
+        g.rotate(angle);
+        g.fillStyle = css(woodDark, 0.98);
+        g.fillRect(-14 - anchorE, 0, len + 28 + anchorE * 2, 10);
+        g.fillStyle = css(wood, 0.96);
+        g.fillRect(-12 - anchorE, 0, len + 24 + anchorE * 2, 6);
+        g.restore();
       }
-      g.restore();
-
-      var postStep = 48;
-      var postCount = Math.max(3, Math.round(len / postStep));
-      for (var pi = 0; pi <= postCount; pi++) {
-        var t = pi / postCount;
-        var px = Math.round(lerp(left, right, t));
-        var py = Math.round(lerp(yL, yR, t));
-        var postH = 34 + Math.round(hash(mark + pi * 3.7) * 9);
-        g.fillStyle = css(woodDark, a);
-        g.fillRect(px - 3, py - postH, 6, postH + 15);
-        g.fillStyle = css(wood, a * 0.86);
-        g.fillRect(px - 1, py - postH + 2, 2, postH + 10);
-        g.fillStyle = css(hi, a * 0.40);
-        g.fillRect(px - 3, py - postH, 6, 2);
-      }
-
-      g.save();
-      g.globalAlpha = a * 0.94;
-      g.strokeStyle = css(rope, 0.92);
-      g.lineWidth = 2.4;
-      g.beginPath();
-      g.moveTo(left - 8, yL - 22);
-      g.quadraticCurveTo(center, Math.round(terrainLipAt(center)) - 8, right + 8, yR - 22);
-      g.stroke();
-      g.globalAlpha = a * 0.40;
-      g.strokeStyle = css(hi, 0.70);
-      g.lineWidth = 1;
-      g.beginPath();
-      g.moveTo(left - 8, yL - 24);
-      g.quadraticCurveTo(center, Math.round(terrainLipAt(center)) - 10, right + 8, yR - 24);
-      g.stroke();
-      g.restore();
     }
   }
 
