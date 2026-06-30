@@ -2057,6 +2057,11 @@
   var paused = false;
   var introPan = 0;           // cinematic sky-to-ground camera move after Start
   var INTRO_PAN_TIME = 2.7;
+  // Atmospheric haze (drifting mist banks + sun shafts) over the backdrop. It's gated by
+  // openingT, so it was absent on the title and faded IN the instant you hit start, which
+  // read as the mountains suddenly fogging/washing out. Turned OFF by request — flip this
+  // to true to bring the haze back (the drawParallaxAtmosphere code is kept intact).
+  var SHOW_ATMOSPHERE_HAZE = false;
 
   var altitude = 0, effort = 0, lastKey = "";
   var curSlope = 0, wp = 0, activity = 0, tSec = 0, pushTime = 0, roll = 0, slideEffort = 0, slideVel = 0, idleRollbackTimer = 0, shakePower = 0, shakePulse = 0, strain = 0;
@@ -10408,7 +10413,7 @@
       drawSkyStrip(g, day.sky, VH, VW);
     }
     drawAtmosphereUnifier(day, openingT);
-    drawParallaxAtmosphere(day, openingT);
+    if (SHOW_ATMOSPHERE_HAZE) drawParallaxAtmosphere(day, openingT);
     drawRealmSky(day, openingT);
     drawMemoryAfterglow(day);
     drawMythicEvents(day, "sky");
