@@ -9043,12 +9043,6 @@
       var wob = hash(Math.floor((x + scroll) / 5) * 2.7) * 4;
       var w = Math.round(thick + wob);
       var half = Math.round(w * 0.82);
-      // Opaque green cap right at the lip: covers the dark slope-lip separation line
-      // (drawTerrainDetails) so the grass→distance edge reads as a clean grassy crest,
-      // not a grey gap. Grass areas only (this whole fn early-returns on rock).
-      var capA = Math.min(0.96, 0.55 + greenT * 0.45);
-      g.fillStyle = css(top, capA);
-      g.fillRect(x, y, 2, 2 + Math.round(greenT * 2));
       g.fillStyle = css(top, a);
       g.fillRect(x, y, 2, half);
       g.fillStyle = css(deep, a * 0.20);
@@ -9511,10 +9505,13 @@
     }
 
     // Layered slope lip: dark separation without turning into a basic outline.
-    // On GRASS this dark edge reads as a grey gap against the cool faded distance
-    // (the horizon haze used to blend it), so fade it down where grass covers the
-    // crest; on rock/snow keep it full for needed edge definition.
-    var lipFade = 1 - 0.62 * clamp01(day.grass || 0);
+    // On GRASS this dark edge reads as a grey seam at the crest (the horizon haze used
+    // to blend it), so kill it almost entirely where grass covers the crest; on
+    // rock/snow keep it full for needed edge definition. NB: key off the actual
+    // grass-GROUND presence (grassGroundReveal / flower meadow), NOT day.grass — the
+    // latter is ~0 at low altitude even though the grass atlas is fully present there.
+    var grassHere = Math.max(grassGroundReveal(), flowerGroundReady ? flowerGroundReveal() : 0);
+    var lipFade = 1 - 0.95 * clamp01(grassHere);
     var lipDark = mix(day.ground, [0, 0, 0], 0.58);
     var lipMid = mix(day.ground, [0, 0, 0], 0.36);
     var lipLight = mix(day.ground, [255, 255, 255], 0.20);
