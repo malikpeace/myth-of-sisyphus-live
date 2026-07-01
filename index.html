@@ -8323,9 +8323,13 @@
     fg.restore();
     g.save();
     g.setTransform(RES, 0, 0, RES, 0, 0);
-    g.imageSmoothingEnabled = false;
+    g.imageSmoothingEnabled = true;                  // smooth sampling so the blur reads clean
+    // Depth-of-field: trees sit off the focal plane (the stone/figure), so soften them a
+    // touch — the close foreground trees he sweeps past get more blur than the distant ones.
+    if (cfg.blur && !REDUCED) g.filter = "blur(" + cfg.blur + "px)";
     g.globalAlpha = layerA;
     g.drawImage(fgTreeC, 0, 0, VW, VH);   // RES buffer → logical dest
+    g.filter = "none";
     g.restore();
   }
   // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
@@ -8336,10 +8340,10 @@
   // past at full speed. The bases are occluded by the foreground slope (drawn after), and
   // baseY is re-sampled from the ground every frame, so the slower drift never floats a
   // trunk off the hillside — it just gives the forest distance.
-  var TREES_BG = { anchor: "ground", par: 0.6, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333 };
+  var TREES_BG = { anchor: "ground", par: 0.6, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333, blur: 1.2 };
   // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
   // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
-  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0 };
+  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0, blur: 3 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
