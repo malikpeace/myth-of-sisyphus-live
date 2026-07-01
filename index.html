@@ -1968,6 +1968,7 @@
   // are rasterised RES× denser (sharper) while nothing moves or reframes. RES = 1 restores
   // the original exactly (single-knob revert). RES = 2 ≈ "HD"; costs ~RES² fill per frame.
   var RES = 2;
+  var BG_BLUR = 2.5;   // slight blur on the far mountain backdrop (depth / softer). 0 = crisp.
   var canvas = document.getElementById("game");
   var g = canvas.getContext("2d");
   g.imageSmoothingEnabled = false;
@@ -10721,13 +10722,19 @@
       if (bgLayerK !== bgLayerLastKey) {
         bgLayerLastKey = bgLayerK;
         bgLayerCtx.clearRect(0, 0, VW, VH);
-        bgLayerCtx.imageSmoothingEnabled = false;   // nearest-neighbour: hard pixel edges (crisp, native), not bilinear-blurred on the portrait up-scale
+        // Slight blur on the whole mountain range → reads as further away (depth) and stops
+        // the backdrop competing with the sharp foreground. Applied here at BUILD time, so it's
+        // cached (bgLayer only rebuilds when the parallax shift/alpha change), not per-frame.
+        // Smoothing on so the blur samples cleanly.
+        bgLayerCtx.imageSmoothingEnabled = true;
+        bgLayerCtx.filter = (BG_BLUR > 0 && !REDUCED) ? ("blur(" + BG_BLUR + "px)") : "none";
         bgLayerCtx.globalAlpha = mountainLayerAlpha;
         bgLayerCtx.globalCompositeOperation = "source-over";
         for (var bgK = bgK0; bgK <= bgK1; bgK++) {
           var tileX = bgBaseX + bgK * bgW - bgShift;
           drawMirroredImageCropTo(bgLayerCtx, bgImg, 0, bgSrcY, bgImg.naturalWidth, bgSrcH, tileX, bgY, bgW, bgH, Math.abs(bgK % 2) === 1);
         }
+        bgLayerCtx.filter = "none";
         bgLayerCtx.globalAlpha = 1;
         bgLayerCtx.globalCompositeOperation = "source-over";
       }
