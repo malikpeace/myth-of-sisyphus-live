@@ -9185,6 +9185,7 @@
         var shear = REDUCED ? 0 : (0.012 + windGustPower * 0.05) * Math.sin(tSec * 1.7 + x * 0.022 + c * 0.7);
         g.save();
         g.translate(x, baseY);
+        g.rotate(Math.atan2(terrainLipAt(x + 11) - terrainLipAt(x - 11), 22) * 0.6);  // lean partway with the slope (grass still favours 'up')
         g.transform(1, 0, shear, 1, 0, 0);
         if (hash(c * 9.2) > 0.5) g.scale(-1, 1);
         g.globalAlpha = tAlpha;
@@ -9303,10 +9304,14 @@
       var th = Math.round(baseH * (0.82 + hash(c * 8.3) * 0.42));
       var tw = th * (PROP_AW[idx] / PROP_H);
       var y = Math.round(terrainLipAt(x)) + 1;
+      // Local ground slope at this prop, so it sits PLANTED in the tilted hillside
+      // (perpendicular to the surface) instead of standing dead-straight on a slope.
+      var slopeAng = Math.atan2(terrainLipAt(x + 11) - terrainLipAt(x - 11), 22);
       // soft contact shadow: grounds the prop AND separates it from the ground (crucial
-      // for a pale skull on pale rock, where it would otherwise vanish).
+      // for a pale skull on pale rock, where it would otherwise vanish). Tilts with the slope.
       g.save();
       g.translate(x, y + 1);
+      g.rotate(slopeAng);
       g.scale(1, 0.32);
       var psg = g.createRadialGradient(0, 0, 1, 0, 0, tw * 0.52);
       psg.addColorStop(0, "rgba(0,0,0,0.34)");
@@ -9316,6 +9321,7 @@
       g.restore();
       g.save();
       g.translate(x, y);
+      g.rotate(slopeAng);                                                          // stand perpendicular to the tilted ground
       if (hash(c * 9.2) > 0.5) g.scale(-1, 1);
       g.imageSmoothingEnabled = true;
       g.drawImage(groundPropTintC, PROP_AX[idx], 0, PROP_AW[idx], PROP_H, -tw / 2, -th, tw, th);
