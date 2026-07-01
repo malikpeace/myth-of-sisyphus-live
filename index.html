@@ -8205,6 +8205,31 @@
     }
     return false;
   }
+  // Smooth version of treeOnBridge: instead of snapping a tree off the instant it
+  // touches a gorge (which reads as trees "popping" in and out near a bridge), return
+  // an alpha 0..1 that DISSOLVES the tree over a margin as it nears the deck. 1 = fully
+  // clear of any gorge, 0 = over the deck (no ground there to root a tree on).
+  function treeBridgeFade(exL, exR) {
+    if (exR == null) exR = exL;
+    var margin = 170;   // ramp distance so trees fade near the gorge instead of snapping
+    var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
+    var fade = 1;
+    for (var wi = 0; wi < 4; wi++) {
+      var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
+      if (mark < WATERFALL_FIRST) continue;
+      var center = waterfallSceneX(mark);
+      var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
+      var bridgeL = center - gorgeW * 0.78 - 70;
+      var bridgeR = center + gorgeW * 0.82 + 70;
+      var gap;
+      if (exL > bridgeR) gap = exL - bridgeR;          // fully right of the deck
+      else if (exR < bridgeL) gap = bridgeL - exR;     // fully left of the deck
+      else gap = 0;                                     // overlapping the deck → hidden
+      var f = clamp01(gap / margin);
+      if (f < fade) fade = f;
+    }
+    return fade <= 0 ? 0 : (fade >= 1 ? 1 : fade * fade * (3 - 2 * fade));
+  }
   // True when the stone's screen position sits over a gorge-crossing bridge deck — used
   // to swap the big ground cast-shadow for a small deck shadow (no ground below a bridge).
   function boulderOverBridge() {
@@ -8260,7 +8285,8 @@
       // (treeOnBridge / waterfallSceneX) is in WORLD/zoom space, but trees draw in screen
       // space, so convert this tree's screen-x extent to world-x before the test —
       // otherwise the cull masks the wrong region when zoomed (trees crept onto bridges).
-      if (treeOnBridge((sx - curCamZtxBase) / curCamZoom, (sx + tw - curCamZtxBase) / curCamZoom)) continue;
+      var bridgeFade = treeBridgeFade((sx - curCamZtxBase) / curCamZoom, (sx + tw - curCamZtxBase) / curCamZoom);
+      if (bridgeFade <= 0.01) continue;                                          // fully over a gorge deck: no ground to root on
       var baseY;
       if (cfg.anchor === "screen") {
         baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
@@ -8273,6 +8299,7 @@
         baseY = Math.round(curCamZty + terrainLipAt(treeWorldX) * curCamZoom) + 6;
       }
       fg.save();
+      fg.globalAlpha = bridgeFade;                                               // dissolve near gorges instead of hard-popping
       fg.translate(sx, baseY - th);
       if (hash(i * 9.71 + cfg.seed) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
       fg.drawImage(foregroundTreeImg, 0, 0, tw, th);
@@ -8298,7 +8325,12 @@
   // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
   // (~4x the old count) with wide scale/jitter variance so it reads as a real,
   // random forest the figure climbs through — not a sparse line. Drawn behind him.
-  var TREES_BG = { anchor: "ground", par: 1.0, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333 };
+  // par < 1.0 → the background forest DRIFTS SLOWER than the ground, so it reads as a
+  // set-back, more-stationary layer (real parallax depth) instead of a flat sheet sliding
+  // past at full speed. The bases are occluded by the foreground slope (drawn after), and
+  // baseY is re-sampled from the ground every frame, so the slower drift never floats a
+  // trunk off the hillside — it just gives the forest distance.
+  var TREES_BG = { anchor: "ground", par: 0.6, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333 };
   // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
   // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
   var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0 };
