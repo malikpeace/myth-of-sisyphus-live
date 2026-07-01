@@ -2422,9 +2422,12 @@
   var groundPropsImg = new Image(), groundPropsReady = false;
   groundPropsImg.onload = function () { groundPropsReady = true; };
   groundPropsImg.src = "assets/ground-props-atlas.png";
+  // 0 flowerRed 1 flowerWhite 2 flowerYellow 3 rock 4 stump 5 bush 6 skull 7 mushroom
+  // 8 bushBig 9 bushLow 10 grassRockA 11 grassRockB 12 grassRockC
   var PROP_H = 120;
-  var PROP_AX = [0, 151, 357, 537, 757, 980, 1186, 1433];
-  var PROP_AW = [149, 204, 178, 218, 221, 204, 245, 188];
+  var PROP_AX = [0, 151, 357, 537, 757, 980, 1186, 1433, 1623, 1855, 2129, 2388, 2677];
+  var PROP_AW = [149, 204, 178, 218, 221, 204, 245, 188, 230, 272, 257, 287, 290];
+  var PROP_BASE_H = [14, 14, 14, 20, 22, 21, 19, 15, 24, 20, 20, 22, 22];   // per-prop world height
   var groundPropTintC = document.createElement("canvas"), groundPropTintG = groundPropTintC.getContext("2d");
   var groundPropTintKey = "";
   var bgLayer = document.createElement("canvas");
@@ -9270,14 +9273,19 @@
       var idx = -1;
       if (deep) { if (roll > 0.80) idx = 6; }                                     // sparse skulls on the dark void ground
       else if (meadow) {
-        // flora + a rare eerie skull + the odd boulder (both read on grass; a boulder
-        // and a bone-white skull both pop on green, unlike on the busy pale rock).
-        if (roll > 0.46) idx = pick < 0.18 ? 0 : pick < 0.34 ? 1 : pick < 0.50 ? 2 : pick < 0.66 ? 5 : pick < 0.80 ? 4 : pick < 0.90 ? 7 : pick < 0.95 ? 6 : 3;
+        // flowers + varied bushes + mossy grass-rock clusters + stump/mushroom, plus a
+        // rare eerie skull and the odd bare boulder. (Grass-rock clusters read on grass
+        // where a bare boulder would; the skull pops bone-white on green.)
+        if (roll > 0.46) idx = pick < 0.15 ? 0 : pick < 0.27 ? 1 : pick < 0.39 ? 2
+          : pick < 0.50 ? 5 : pick < 0.59 ? 8 : pick < 0.67 ? 9        // bushes
+          : pick < 0.75 ? 4 : pick < 0.82 ? 7                          // stump, mushroom
+          : pick < 0.88 ? 10 : pick < 0.93 ? 11 : pick < 0.965 ? 12    // grass-rock clusters
+          : pick < 0.99 ? 6 : 3;                                       // rare skull, rare bare boulder
       }   // bare rock band: no props (a grey boulder just camouflages against grey rock)
       if (idx < 0) continue;
       var x = c * cell - scroll + Math.round((hash(c * 6.7) - 0.5) * (cell * 0.5));
       if (treeOnBridge(x - 12, x + 12)) continue;                                 // never on a bridge deck
-      var baseH = (idx < 3) ? 14 : idx === 3 ? 20 : idx === 4 ? 22 : idx === 5 ? 21 : idx === 6 ? 19 : 15;
+      var baseH = PROP_BASE_H[idx];
       var th = Math.round(baseH * (0.82 + hash(c * 8.3) * 0.42));
       var tw = th * (PROP_AW[idx] / PROP_H);
       var y = Math.round(terrainLipAt(x)) + 1;
