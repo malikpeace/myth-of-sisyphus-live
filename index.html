@@ -11011,29 +11011,24 @@
         g.beginPath(); g.arc(0, 0, dW, 0, Math.PI * 2); g.fill();
         g.restore();
       } else if (!REDUCED && gameState !== "title") {
-        // Cast shadow drawn in SCREEN-aligned axes (undo the slope tilt) so it rakes
-        // exactly OPPOSITE the sun as it appears on screen — sun top-left -> shadow
-        // lower-right, sun overhead -> straight down — on any slope. It also GROWS IN
-        // with the sun's strength (faint ambient contact -> full cast shadow) so it
-        // never pops in when the sun rises.
-        var ct2 = Math.cos(theta), st2 = Math.sin(theta);
-        var bcx = blx * ct2 + bly * st2;                  // boulder centre, screen-aligned offset from contact
-        var bcy = -blx * st2 + bly * ct2;
-        var awayX = -sScrX;                               // SCREEN horizontal away from the sun
-        var sunHigh = clamp01(1 + sScrY);                 // 0 = sun overhead, 1 = near the horizon
-        var grow = smoother01(clamp01(sunStr / 0.5));     // 0..1 — shadow comes in WITH the sun
-        var elong = 1 + sunHigh * 1.7 * grow;             // stretches longer as the sun lowers
-        var leanShear = awayX * (0.5 + sunHigh * 2.2) * grow;   // diagonal rake away from the sun (screen-true)
-        var cxoff = awayX * brad * (0.4 + sunHigh * 1.9) * grow; // pool shifts away from the sun
+        // Cast shadow that LIES IN THE SLOPE'S PLANE — drawn in the actor's slope-aligned
+        // frame, so it tilts to match the hill and reads as cast ON the ground (not a flat
+        // straight blob). It flattens ALONG the slope surface, rakes down-slope away from
+        // the sun, lengthens as the sun grazes, and grows in with the sun's strength.
+        var low = clamp01(1 + ly);                        // 0 = sun square to the slope, 1 = grazing -> long
+        var awaySlope = -lx;                              // along-the-slope direction away from the sun
+        var grow = smoother01(clamp01(sunStr / 0.5));     // shadow comes in WITH the sun (no pop)
+        var elong = 1 + low * 1.7 * grow;                 // stretches down the slope as the sun lowers
+        var leanShear = awaySlope * (0.5 + low * 1.9) * grow;   // rake along the slope, away from the sun
+        var cxoff = awaySlope * brad * (0.35 + low * 1.7) * grow;
         var shA = 0.28 + 0.60 * grow;                     // faint ambient contact -> full cast shadow
-        var csW = brad * 1.5, csH = Math.max(8, brad * 0.58);
-        var groundY = bcy + brad * 0.92;                  // the boulder's BASE = where it meets the ground
+        var csW = brad * 1.5, csH = Math.max(8, brad * 0.5);
+        var baseY = bly + brad * 0.9;                     // the boulder's base on the slope surface
         g.save();
-        g.rotate(theta);                                  // -> screen-aligned axes at the contact point
-        g.beginPath(); g.rect(-100000, groundY, 200000, 200000); g.clip();   // ground only — nothing drawn above the base line
-        g.translate(bcx + cxoff, groundY + 1);
-        g.transform(1, 0, leanShear, 1, 0, 0);            // shear x with screen depth -> diagonal rake
-        g.scale(elong, csH / csW);                         // stretch along the shadow, flatten onto the ground
+        g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();   // ground side of the slope only (nothing above the base)
+        g.translate(blx + cxoff, baseY + 1);
+        g.transform(1, 0, leanShear, 1, 0, 0);            // shear along the slope -> diagonal rake in-plane
+        g.scale(elong, csH / csW);                         // stretch along the slope, flatten onto its surface
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
         cgrad.addColorStop(0, "rgba(1,1,4," + shA.toFixed(3) + ")");
         cgrad.addColorStop(0.45, "rgba(1,1,4," + (shA * 0.66).toFixed(3) + ")");
