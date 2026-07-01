@@ -11027,11 +11027,11 @@
         var cxoff = awayX * brad * (0.4 + sunHigh * 1.9) * grow; // pool shifts away from the sun
         var shA = 0.28 + 0.60 * grow;                     // faint ambient contact -> full cast shadow
         var csW = brad * 1.5, csH = Math.max(8, brad * 0.58);
-        var groundY = bcy + brad * 0.5;
+        var groundY = bcy + brad * 0.92;                  // the boulder's BASE = where it meets the ground
         g.save();
         g.rotate(theta);                                  // -> screen-aligned axes at the contact point
-        g.beginPath(); g.rect(-100000, groundY, 200000, 200000); g.clip();   // ground only (below the boulder base)
-        g.translate(bcx + cxoff, groundY + 2);
+        g.beginPath(); g.rect(-100000, groundY, 200000, 200000); g.clip();   // ground only — nothing drawn above the base line
+        g.translate(bcx + cxoff, groundY + 1);
         g.transform(1, 0, leanShear, 1, 0, 0);            // shear x with screen depth -> diagonal rake
         g.scale(elong, csH / csW);                         // stretch along the shadow, flatten onto the ground
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
