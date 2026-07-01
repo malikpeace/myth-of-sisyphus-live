@@ -9134,6 +9134,11 @@
     // on rock+snow), so grass and rock never coexist. No grass-ground = pure rock.
     var grassPresent = grassGroundReveal();
     if (grassPresent < 0.02) return;
+    // The painted HD grass atlas now paints the whole surface itself. This legacy
+    // procedural turf mat (a muted green strip along the lip) only added a two-tone
+    // SEAM against the vivid atlas — a visible "divide" at the crest. Skip it when the
+    // atlas is loaded; keep it purely as a fallback for the split-second before it loads.
+    if (grassGroundReady) return;
     var top = mix(day.ground, [104, 138, 78], 0.52);   // muted grass surface colour
     var deep = mix(day.ground, top, 0.24);             // root colour stays close to rock to avoid a seam
     var blade = mix(day.ground, [122, 158, 88], 0.68);
