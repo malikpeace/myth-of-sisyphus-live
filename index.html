@@ -7971,7 +7971,15 @@
         }
       }
     }
-    drawAtlasTiles(groundTex, 1);
+    // EXOTIC-REALM ROCK: the rock atlas's embossed stone lozenges, once bare + strongly
+    // hue-cast (esp. the purple galaxy/void), read as harsh repetitive dark lumps. Fade
+    // the atlas down in those realms so the smooth solid base (groundDark) dominates and
+    // the lumps blur into one uniform surface. Grass/forest/plain-grey rock keep full atlas.
+    var exoticRock = 0;
+    if (day) exoticRock = Math.max(day.galaxy || 0, (day.r4 && day.r4.thevoid) || 0, (day.r4 && day.r4.ashen) || 0,
+      (day.canyon || 0) * 0.7, (day.greek || 0) * 0.7, (day.valleys || 0) * 0.7);
+    var baseAtlasA = 1 - 0.66 * clamp01(exoticRock);
+    drawAtlasTiles(groundTex, baseAtlasA);
     // Grass over the rock base at the start + forest; fades higher so rock returns.
     // The night (noir) theme swaps in the dark moonlit ground atlas.
     var nightGround = customize.look === "noir" && nightGroundReady;
