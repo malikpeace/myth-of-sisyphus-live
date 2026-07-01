@@ -10702,7 +10702,7 @@
       if (bgLayerK !== bgLayerLastKey) {
         bgLayerLastKey = bgLayerK;
         bgLayerCtx.clearRect(0, 0, VW, VH);
-        bgLayerCtx.imageSmoothingEnabled = true;
+        bgLayerCtx.imageSmoothingEnabled = false;   // nearest-neighbour: hard pixel edges (crisp, native), not bilinear-blurred on the portrait up-scale
         bgLayerCtx.globalAlpha = mountainLayerAlpha;
         bgLayerCtx.globalCompositeOperation = "source-over";
         for (var bgK = bgK0; bgK <= bgK1; bgK++) {
