@@ -9228,8 +9228,13 @@
     var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
     var stride = 20;
     var footX = ANCHOR_X;                                   // figure's foot (same space as terrainLipAt)
-    var k0 = Math.floor((wxL + scroll) / stride);
+    // The trail can only be as long as he's actually walked: at the very start (altitude 0)
+    // there are NO prints behind him. trailBackX = the world x where his climb began.
+    var traveled = Math.max(0, altitude) * GROUND_SCROLL;   // world px he's genuinely covered
+    var trailBackX = (footX + scroll) - traveled;           // no prints before this point
+    var k0 = Math.max(Math.floor((wxL + scroll) / stride), Math.ceil(trailBackX / stride));
     var k1 = Math.floor((footX + scroll) / stride);         // only behind / at the figure, never ahead
+    if (k1 < k0) return;                                    // hasn't walked yet -> nothing to draw
     var press = mix(day.ground, [0, 0, 0], 0.64);           // pressed earth: clearly darker than the surface
     var rim = mix(day.ground, [255, 255, 255], 0.20);       // lifted rim above the print
     var span = Math.max(1, footX - wxL);
