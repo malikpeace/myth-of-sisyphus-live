@@ -1952,6 +1952,12 @@
   "use strict";
 
   var VW = 480, VH = 270;
+  // SUPERSAMPLE / internal-resolution factor. The whole game is DRAWN in 480-unit
+  // "logical" space (VW/VH/world coords) — RES only multiplies the actual pixel buffers
+  // and puts a scale(RES) base transform on every full-frame context, so images/photos
+  // are rasterised RES× denser (sharper) while nothing moves or reframes. RES = 1 restores
+  // the original exactly (single-knob revert). RES = 2 ≈ "HD"; costs ~RES² fill per frame.
+  var RES = 2;
   var canvas = document.getElementById("game");
   var g = canvas.getContext("2d");
   g.imageSmoothingEnabled = false;
@@ -7896,12 +7902,12 @@
     // bottom-black with it so nothing is exposed beneath.
     if (activeSummitM() > 0 && altitude > SUMMIT_ALT - 470 && !__groundBufferPass) {
       var m = g.getTransform();              // world transform: translate(ztx,zty)*scale(zoom)
-      if (groundBendC.width !== VW || groundBendC.height !== VH) {
-        groundBendC.width = VW; groundBendC.height = VH;
+      if (groundBendC.width !== VW * RES || groundBendC.height !== VH * RES) {
+        groundBendC.width = VW * RES; groundBendC.height = VH * RES;
       }
       var gb = groundBendCtx;
       gb.setTransform(1, 0, 0, 1, 0, 0);
-      gb.clearRect(0, 0, VW, VH);
+      gb.clearRect(0, 0, VW * RES, VH * RES);
       gb.imageSmoothingEnabled = false;
       gb.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
       var realG = g;
@@ -7922,13 +7928,13 @@
       g.setTransform(1, 0, 0, 1, 0, 0);     // clip is in device space; blit 1:1
       g.imageSmoothingEnabled = false;
       var sxL = Math.max(0, Math.floor(m.a * wxL + m.e));
-      var sxR = Math.min(VW, Math.ceil(m.a * wxR + m.e));
+      var sxR = Math.min(VW * RES, Math.ceil(m.a * wxR + m.e));
       var STRIP = 2;
       for (var sx = sxL; sx <= sxR; sx += STRIP) {
         var worldX = (sx - m.e) / m.a;
         var dWorld = surfaceAt(worldX) - (ANCHOR_Y - curSlope * (worldX - ANCHOR_X));
         var dDev = Math.round(dWorld * m.d);
-        g.drawImage(groundBendC, sx, 0, STRIP, VH, sx, dDev, STRIP, VH);
+        g.drawImage(groundBendC, sx, 0, STRIP, VH * RES, sx, dDev, STRIP, VH * RES);
       }
       g.restore();                          // back to world transform, clip popped
       g.imageSmoothingEnabled = false;
@@ -8263,9 +8269,9 @@
       if (modePhase === "summitRest" || modePhase === "summitLaunch") layerA = 0;
     }
     if (layerA <= 0.02) return;
-    if (fgTreeC.width !== VW || fgTreeC.height !== VH) { fgTreeC.width = VW; fgTreeC.height = VH; }
+    if (fgTreeC.width !== VW * RES || fgTreeC.height !== VH * RES) { fgTreeC.width = VW * RES; fgTreeC.height = VH * RES; }
     var fg = fgTreeCtx;
-    fg.setTransform(1, 0, 0, 1, 0, 0);
+    fg.setTransform(RES, 0, 0, RES, 0, 0);   // logical draws, RES× buffer (sharp trees)
     fg.clearRect(0, 0, VW, VH);
     fg.imageSmoothingEnabled = false;
     var iw = foregroundTreeImg.naturalWidth || 290, ih = foregroundTreeImg.naturalHeight || 482;
@@ -8316,10 +8322,10 @@
     fg.fillRect(0, 0, VW, VH);
     fg.restore();
     g.save();
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.setTransform(RES, 0, 0, RES, 0, 0);
     g.imageSmoothingEnabled = false;
     g.globalAlpha = layerA;
-    g.drawImage(fgTreeC, 0, 0);
+    g.drawImage(fgTreeC, 0, 0, VW, VH);   // RES buffer → logical dest
     g.restore();
   }
   // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
@@ -9477,15 +9483,15 @@
       // gated by its own reveal), then the same sky-band + day.tint washes.
       // Ambient globalAlpha (= reveal) fades the repaint in on approach; the
       // scene calls take reveal explicitly because they manage their own alpha.
-      // The clip survives setTransform — there is no DPR transform, so identity
-      // IS the screen space the backdrop functions expect.
+      // The clip survives setTransform — reset to the RES base (logical screen space,
+      // scaled by RES) so the backdrop functions paint at the same res as draw().
       g.save();
-      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.setTransform(RES, 0, 0, RES, 0, 0);   // logical screen space (RES base), matches what draw() paints
       drawSkyStrip(g, day.sky, VH, VW);
       // Replay the far-mountain backdrop INSIDE the hole too — the main scene paints it
       // between the sky and the scenes, so omitting it here left the see-through gap
       // lighter than its surroundings and showed a seam at the cutout's edge.
-      if (curMtAlpha > 0.01 && mtBgReady) g.drawImage(bgLayer, 0, 0);
+      if (curMtAlpha > 0.01 && mtBgReady) g.drawImage(bgLayer, 0, 0, VW, VH);
       if (SHOW_BACKDROP_MIST) drawBackdropBaseMist(day);
       drawBackgroundWaterfallScene(day, reveal);
       drawValleysScene(day, 1, reveal);
@@ -10616,7 +10622,7 @@
     // persist as a hard "wall" — most visibly stale deep-realm (void/galaxy) content
     // when you drop back to low altitude. Clear to the sky base so no stale frame shows.
     g.fillStyle = css(day.sky[1] || day.sky[0] || [18, 20, 30]);
-    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.fillRect(0, 0, VW, VH);   // logical space (base transform already scales by RES)
     if (snowAccum > 0.02) {
       // settled snow whitens the world progressively the longer it falls
       day.ground = mix(day.ground, [236, 240, 246], snowAccum * 0.5);
@@ -10661,9 +10667,10 @@
       var bgY = Math.round((VH - bgH) / 2 - openingT * VH * 0.16);
       var bgK0 = Math.floor((0 - bgBaseX + bgShift) / bgW) - 1;
       var bgK1 = Math.ceil((VW - bgBaseX + bgShift) / bgW) + 1;
-      if (bgLayer.width !== VW || bgLayer.height !== VH) {
-        bgLayer.width = VW;
-        bgLayer.height = VH;
+      if (bgLayer.width !== VW * RES || bgLayer.height !== VH * RES) {
+        bgLayer.width = VW * RES;
+        bgLayer.height = VH * RES;
+        bgLayerCtx.setTransform(RES, 0, 0, RES, 0, 0);   // draw logical, rasterise RES× (sharper mountains)
       }
       // The far mountains stay fully visible the instant you hit start — no
       // fade-in over the intro pan (which read as a "cover" lifting off them).
@@ -10705,7 +10712,7 @@
         bgLayerCtx.globalAlpha = 1;
         bgLayerCtx.globalCompositeOperation = "source-over";
       }
-      if (mountainLayerAlpha > 0.01) g.drawImage(bgLayer, 0, 0);
+      if (mountainLayerAlpha > 0.01) g.drawImage(bgLayer, 0, 0, VW, VH);   // RES buffer → logical dest
       // EXTEND THE MOUNTAIN BASE DOWN: the backdrop is cover-fit + lifted, so its bottom
       // edge can sit above the (pan-lowered) ground, exposing the cool procedural sky as
       // a "baby-blue line" below the mountains during the intro pan. Fill from the
@@ -11518,11 +11525,15 @@
     lastResizeW = winW; lastResizeH = winH;
     VW = 480;
     VH = Math.max(240, Math.round(VW * winH / winW));   // match window aspect -> fills, no black bars
-    canvas.width = VW;
-    canvas.height = VH;
+    canvas.width = VW * RES;
+    canvas.height = VH * RES;
     // Display size is CSS-driven (canvas{width:100%;height:100%} fills #stage),
     // so even a transient bad measurement at launch can't letterbox the canvas —
     // only VW/VH (internal resolution) is derived from the host box here.
+    // Base transform = scale(RES): all draw code keeps working in 480-unit logical
+    // space but rasterises into the RES× buffer. (Assigning canvas.width above reset
+    // the matrix to identity, so this must run after it.)
+    g.setTransform(RES, 0, 0, RES, 0, 0);
     g.imageSmoothingEnabled = false;
     ANCHOR_X = Math.round(VW * 0.42);
     // Aspect-adaptive framing: wide screens keep the classic 0.60 anchor; tall
