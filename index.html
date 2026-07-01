@@ -11,7 +11,7 @@
 <title>Myth of Sisyphus</title>
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
-<link rel="preload" as="image" href="assets/mountain-backdrop-main.png">
+<link rel="preload" as="image" href="assets/mountain-bg-noclouds.png">
 <style>
   :root { color-scheme: dark; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2413,7 +2413,16 @@
   // JPEG (q92) instead of a 1.7MB PNG: photographic mountain scene compresses ~7x
   // smaller with no visible loss, so it loads before first paint and the cold-blue
   // procedural sky never flashes in while the PNG downloads. Preloaded in <head>.
-  mtBg.src = "assets/mountain-backdrop-main.png";
+  mtBg.src = "assets/mountain-bg-noclouds.png";
+  // Painted cloud sprites (sliced from the clouds sheet) — drawn drifting across the sky
+  // IN ADDITION to the procedural puff clouds. Atlas = 16 tight-cropped clouds, top-aligned.
+  var cloudAtlasImg = new Image(), cloudAtlasReady = false;
+  cloudAtlasImg.onload = function () { cloudAtlasReady = true; };
+  cloudAtlasImg.src = "assets/cloud-atlas.png";
+  var CLOUD_N = 16;
+  var CLOUD_AX = [0, 269, 509, 750, 988, 1283, 1493, 1702, 1917, 2218, 2427, 2639, 2873, 3079, 3259, 3442];
+  var CLOUD_AW = [267, 238, 239, 236, 293, 208, 207, 213, 299, 207, 210, 232, 204, 178, 181, 332];
+  var CLOUD_AH = [83, 85, 85, 80, 88, 66, 64, 78, 56, 69, 56, 76, 40, 65, 57, 183];
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
@@ -8131,6 +8140,36 @@
     g.fillRect(Math.round(cx - 5 * s), Math.round(cy + s), Math.round(10 * s), Math.max(1, Math.round(2 * s)));
   }
 
+  // Painted cloud sprites drifting across the sky (in addition to the procedural puffs).
+  // Each of N instances is a seeded pick from the 16-cloud atlas, at its own y-band,
+  // size, and drift speed (varied speeds = parallax depth). Wrapped horizontally so the
+  // sky is never empty. Lives with the low mountain scene (fades out as realms take over).
+  function drawImageClouds(day, zoom) {
+    if (!cloudAtlasReady) return;
+    if ((day.galaxy || 0) >= 0.35) return;
+    var band = bandGate(altitude, 0, 1750, 520);            // belongs to the low mountain backdrop
+    var dim = (1 - (day.galaxy || 0) * 0.88) * (1 - (day.aboveClouds || 0) * 0.42);
+    var baseA = (gameState === "title" ? 0.55 : 1) * dim * band;
+    if (baseA <= 0.02) return;
+    var driftBase = REDUCED ? 0 : (tSec * 3 + altitude * 0.14 + mountainIndex * 57);
+    var N = 10;
+    g.imageSmoothingEnabled = false;
+    for (var i = 0; i < N; i++) {
+      var idx = Math.floor(hash(i * 3.71 + 1.3) * CLOUD_N) % CLOUD_N;
+      var tw = (66 + hash(i * 1.9) * 96) * zoom;             // target on-screen width
+      var sc = tw / CLOUD_AW[idx];
+      var th = CLOUD_AH[idx] * sc;
+      var speed = 0.55 + hash(i * 2.13) * 0.6;               // per-cloud drift rate → parallax
+      var spanX = VW + tw + 90;
+      var x0 = ((hash(i * 5.3) * spanX - driftBase * speed) % spanX + spanX) % spanX - tw - 45;
+      var y0 = VH * (0.02 + hash(i * 7.71) * 0.30);
+      g.globalAlpha = baseA * (0.66 + hash(i * 4.43) * 0.34);
+      g.drawImage(cloudAtlasImg, CLOUD_AX[idx], 0, CLOUD_AW[idx], CLOUD_AH[idx],
+        Math.round(x0), Math.round(y0), Math.round(tw), Math.round(th));
+    }
+    g.globalAlpha = 1;
+  }
+
   function pixelBird(x, y, s, colStr, wing) {
     s = Math.max(1, Math.round(s));
     x = Math.round(x); y = Math.round(y);
@@ -10825,6 +10864,7 @@
         var x0 = ((cx[c] - drift) % (VW + 80) + (VW + 80)) % (VW + 80) - 40;
         puff(x0, cy[c], cs[c] * zoom, cl);
       }
+      drawImageClouds(day, zoom);   // painted cloud sprites drifting alongside the procedural puffs
     }
     if ((day.galaxy || 0) < 0.55) drawBirds(day);
     drawWindVeil(day);
