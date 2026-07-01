@@ -2417,6 +2417,16 @@
   var GRASS_TUFT_N = 16, GRASS_TUFT_CW = 167, GRASS_TUFT_CH = 120;
   var grassTuftTintC = document.createElement("canvas"), grassTuftTintG = grassTuftTintC.getContext("2d");
   var grassTuftTintKey = "";
+  // Painted ground props scattered as occasional, biome-keyed world features.
+  // atlas order: 0 flowerRed 1 flowerWhite 2 flowerYellow 3 rock 4 stump 5 bush 6 skull 7 mushroom
+  var groundPropsImg = new Image(), groundPropsReady = false;
+  groundPropsImg.onload = function () { groundPropsReady = true; };
+  groundPropsImg.src = "assets/ground-props-atlas.png";
+  var PROP_H = 120;
+  var PROP_AX = [0, 151, 357, 537, 757, 980, 1186, 1433];
+  var PROP_AW = [149, 204, 178, 218, 221, 204, 245, 188];
+  var groundPropTintC = document.createElement("canvas"), groundPropTintG = groundPropTintC.getContext("2d");
+  var groundPropTintKey = "";
   var bgLayer = document.createElement("canvas");
   var bgLayerCtx = bgLayer.getContext("2d");
   var bgLayerLastKey = "";
@@ -9214,6 +9224,76 @@
     }
   }
 
+  // Painted ground props as occasional, biome-keyed world features: flowers/bush/stump/
+  // mushroom in the meadow + forest, boulders through the bare rock bands, sparse skulls
+  // on the deep/void approach (memento mori). World-locked + bottom-anchored to the
+  // surface, never on a bridge, colours kept (only darkened at night).
+  function drawBiomeProps(wxL, wxR, day) {
+    if (!groundPropsReady || gameState !== "playing") return;
+    var grassP = grassGroundReveal();
+    var deepP = Math.max(day.galaxy || 0, (day.r4 && day.r4.thevoid) || 0, (day.r4 && day.r4.ashen) || 0);
+    var snowP = day.snow || 0;
+    var meadow = grassP > 0.30 && snowP < 0.5;
+    var rocky = grassP <= 0.30 && deepP < 0.35 && snowP < 0.5;
+    var deep = deepP >= 0.35;
+    if (!meadow && !rocky && !deep) return;
+    // Cached darkened copy of the atlas: keep each prop's own colours, just dim at night.
+    var aw = groundPropsImg.naturalWidth, ah = groundPropsImg.naturalHeight;
+    var dayLight = clamp01(lum(day.sky[2]) * 1.25);
+    var darkA = 0.24 * (1 - dayLight);   // gentle night dim — keep a pale skull readable against the dark void
+    var key = Math.round(darkA * 24);
+    if (key !== groundPropTintKey || groundPropTintC.width !== aw) {
+      groundPropTintKey = key;
+      if (groundPropTintC.width !== aw) groundPropTintC.width = aw;
+      if (groundPropTintC.height !== ah) groundPropTintC.height = ah;
+      var gc = groundPropTintG;
+      gc.setTransform(1, 0, 0, 1, 0, 0); gc.globalAlpha = 1; gc.globalCompositeOperation = "source-over"; gc.imageSmoothingEnabled = true;
+      gc.clearRect(0, 0, aw, ah);
+      gc.drawImage(groundPropsImg, 0, 0);
+      if (darkA > 0.01) { gc.globalCompositeOperation = "source-atop"; gc.fillStyle = css([8, 10, 18], darkA); gc.fillRect(0, 0, aw, ah); gc.globalCompositeOperation = "source-over"; }
+    }
+    var cell = 132;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
+    var c0 = Math.floor((wxL + scroll) / cell) - 1;
+    var c1 = Math.ceil((wxR + scroll) / cell) + 1;
+    for (var c = c0; c <= c1; c++) {
+      var roll = hash(c * 1.93 + 7.1);
+      var pick = hash(c * 3.71 + 2.3);
+      var idx = -1;
+      if (deep) { if (roll > 0.80) idx = 6; }                                     // sparse skulls on the dark void ground
+      else if (meadow) {
+        // flora + a rare eerie skull + the odd boulder (both read on grass; a boulder
+        // and a bone-white skull both pop on green, unlike on the busy pale rock).
+        if (roll > 0.46) idx = pick < 0.18 ? 0 : pick < 0.34 ? 1 : pick < 0.50 ? 2 : pick < 0.66 ? 5 : pick < 0.80 ? 4 : pick < 0.90 ? 7 : pick < 0.95 ? 6 : 3;
+      }   // bare rock band: no props (a grey boulder just camouflages against grey rock)
+      if (idx < 0) continue;
+      var x = c * cell - scroll + Math.round((hash(c * 6.7) - 0.5) * (cell * 0.5));
+      if (treeOnBridge(x - 12, x + 12)) continue;                                 // never on a bridge deck
+      var baseH = (idx < 3) ? 14 : idx === 3 ? 20 : idx === 4 ? 22 : idx === 5 ? 21 : idx === 6 ? 19 : 15;
+      var th = Math.round(baseH * (0.82 + hash(c * 8.3) * 0.42));
+      var tw = th * (PROP_AW[idx] / PROP_H);
+      var y = Math.round(terrainLipAt(x)) + 1;
+      // soft contact shadow: grounds the prop AND separates it from the ground (crucial
+      // for a pale skull on pale rock, where it would otherwise vanish).
+      g.save();
+      g.translate(x, y + 1);
+      g.scale(1, 0.32);
+      var psg = g.createRadialGradient(0, 0, 1, 0, 0, tw * 0.52);
+      psg.addColorStop(0, "rgba(0,0,0,0.34)");
+      psg.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = psg;
+      g.beginPath(); g.arc(0, 0, tw * 0.52, 0, 6.2832); g.fill();
+      g.restore();
+      g.save();
+      g.translate(x, y);
+      if (hash(c * 9.2) > 0.5) g.scale(-1, 1);
+      g.imageSmoothingEnabled = true;
+      g.drawImage(groundPropTintC, PROP_AX[idx], 0, PROP_AW[idx], PROP_H, -tw / 2, -th, tw, th);
+      g.imageSmoothingEnabled = false;
+      g.restore();
+    }
+  }
+
   function drawSnowSurface(wxL, wxR, day) {
     var snow = day.snow || 0;
     if (snow <= 0.002) return;
@@ -10695,6 +10775,7 @@
     drawGrassSurface(wxL, wxR, day);
     drawPathGrass(wxL, wxR, day);
     drawFootprints(wxL, wxR, day);   // trail of pressed footprints downhill behind the figure
+    drawBiomeProps(wxL, wxR, day);   // occasional biome-keyed props (flora / boulders / skulls)
     if (SHOW_HORIZON_HAZE) drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
     drawGroundSunlight(wxL, wxR, day);   // directional sun/moon light pooling on the ground
     drawSnowSurface(wxL, wxR, day);
