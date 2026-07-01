@@ -11,7 +11,7 @@
 <title>Myth of Sisyphus</title>
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
-<link rel="preload" as="image" href="assets/mountain-backdrop-day-px.png">
+<link rel="preload" as="image" href="assets/mountain-backdrop-day-hd.png">
 <style>
   :root { color-scheme: dark; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2413,7 +2413,7 @@
   // JPEG (q92) instead of a 1.7MB PNG: photographic mountain scene compresses ~7x
   // smaller with no visible loss, so it loads before first paint and the cold-blue
   // procedural sky never flashes in while the PNG downloads. Preloaded in <head>.
-  mtBg.src = "assets/mountain-backdrop-day-px.png";
+  mtBg.src = "assets/mountain-backdrop-day-hd.png";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
