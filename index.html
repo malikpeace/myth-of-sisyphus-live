@@ -7381,7 +7381,7 @@
     if (qaBoulderScaleOverride > 0) return qaBoulderScaleOverride;
     var t = clamp01(altitude / BOULDER_GROW_RANGE);
     t = t * t * (3 - 2 * t);
-    return lerp(1, BOULDER_GROW_MAX, t);
+    return lerp(0.5, BOULDER_GROW_MAX, t);   // start half-size so the growth is far more noticeable; grows to the same big max
   }
   function summitDropEase(t) {
     t = clamp01(t);
@@ -11049,7 +11049,7 @@
       g.save();
       // Sit the figure + stone slightly INTO the ground (not perched on top) for depth:
       // drop the whole actor frame a few px below the surface contact line.
-      var ACTOR_SINK = 6;
+      var ACTOR_SINK = 3;
       g.translate(ANCHOR_X, ANCHOR_Y + ACTOR_SINK);     // surfaceAt(ANCHOR_X) === ANCHOR_Y (+ sink)
       g.rotate(-theta);
 
