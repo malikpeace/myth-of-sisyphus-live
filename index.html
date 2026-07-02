@@ -2347,7 +2347,7 @@
 
   var BOULDER_R = 32;          // world radius -> about 2x the man (code-drawn version)
   var BOULDER_GROW_MAX = 3.35;   // capped so the fixed rock sprite stays round at high altitude
-  var BOULDER_GROW_RANGE = 4200; // slower growth prevents high-altitude sprite magnification artifacts
+  var BOULDER_GROW_RANGE = 1000; // reaches full size by ~1000m — fast, noticeable growth early on
   var SUMMIT_ALT = 1000;
   var SUMMIT_CREST_TIME = 2.15;
   var SUMMIT_DROP_TIME = 3.55;
