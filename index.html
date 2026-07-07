@@ -11288,20 +11288,21 @@
         var low = clamp01(1 + ly);                        // 0 = sun square to the slope, 1 = grazing -> long
         var awaySlope = -lx;                              // along-the-slope direction away from the sun
         var grow = smoother01(clamp01(sunStr / 0.5));     // shadow comes in WITH the sun (no pop)
-        var elong = 1.35 + low * 3.85 * grow;             // longer cinematic cast when the sun grazes the slope
-        var leanShear = awaySlope * (0.82 + low * 3.10) * grow;   // rake along the slope, away from the sun
-        var cxoff = awaySlope * brad * (0.72 + low * 3.05) * grow;
-        var shA = 0.42 + 0.86 * grow;                     // faint ambient contact -> stronger cast shadow
-        var csW = brad * 2.05, csH = Math.max(8, brad * 0.44);
+        var elong = 1.02 + low * 1.78 * grow;             // cast length without turning into a wide black stripe
+        var leanShear = awaySlope * (0.34 + low * 1.18) * grow;   // directional rake, kept restrained
+        var cxoff = awaySlope * brad * (0.42 + low * 1.60) * grow;
+        var dropY = brad * (0.18 + low * 0.95) * grow;    // let the shadow travel down into the slope, not just sideways
+        var shA = 0.30 + 0.58 * grow;                     // less heavy than the previous wide smear
+        var csW = brad * 1.34, csH = Math.max(11, brad * (0.56 + low * 0.34));
         var baseY = bly + brad * 0.9;                     // the boulder's base on the slope surface
         g.save();
         g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();   // ground side of the slope only (nothing above the base)
-        g.translate(blx + cxoff, baseY + 1);
+        g.translate(blx + cxoff, baseY + 1 + dropY);
         g.transform(1, 0, leanShear, 1, 0, 0);            // shear along the slope -> diagonal rake in-plane
-        g.scale(elong, csH / csW);                         // stretch along the slope, flatten onto its surface
+        g.scale(elong, csH / csW);                         // narrower across the slope, deeper down the face
         var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
         cgrad.addColorStop(0, "rgba(1,1,4," + shA.toFixed(3) + ")");
-        cgrad.addColorStop(0.45, "rgba(1,1,4," + (shA * 0.66).toFixed(3) + ")");
+        cgrad.addColorStop(0.42, "rgba(1,1,4," + (shA * 0.54).toFixed(3) + ")");
         cgrad.addColorStop(1, "rgba(1,1,4,0)");
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
@@ -11312,11 +11313,11 @@
         if (sunL && sunStr > 0.035) {
           g.save();
           g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();
-          g.translate(blx + awaySlope * brad * (2.0 + low * 3.8), baseY + 2);
-          g.transform(1, 0, awaySlope * (0.65 + low * 2.2), 1, 0, 0);
-          g.scale(2.2 + low * 3.4, 0.18 + low * 0.10);
-          var tailR = brad * 1.55;
-          var tailA = Math.min(0.34, (0.16 + low * 0.20) * (0.65 + sunStr));
+          g.translate(blx + awaySlope * brad * (1.30 + low * 1.95), baseY + brad * (0.52 + low * 1.08));
+          g.transform(1, 0, awaySlope * (0.24 + low * 0.72), 1, 0, 0);
+          g.scale(1.38 + low * 1.48, 0.42 + low * 0.30);
+          var tailR = brad * 1.22;
+          var tailA = Math.min(0.22, (0.10 + low * 0.12) * (0.58 + sunStr));
           var tgrad = g.createRadialGradient(0, 0, 1, 0, 0, tailR);
           tgrad.addColorStop(0, "rgba(2,3,8," + tailA.toFixed(3) + ")");
           tgrad.addColorStop(0.48, "rgba(2,3,8," + (tailA * 0.52).toFixed(3) + ")");
