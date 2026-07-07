@@ -10023,7 +10023,7 @@
       return;
     }
     var localX = blx - brad * 0.72;
-    var localY = bly - brad * 2.05;
+    var localY = bly - brad * 3.22;
     var theta = Math.atan(curSlope) * 0.92;
     var cos = Math.cos(theta), sin = Math.sin(theta);
     var canvasX = ztx + (ANCHOR_X + localX * cos + localY * sin) * zoom;
@@ -11259,11 +11259,11 @@
         var low = clamp01(1 + ly);                        // 0 = sun square to the slope, 1 = grazing -> long
         var awaySlope = -lx;                              // along-the-slope direction away from the sun
         var grow = smoother01(clamp01(sunStr / 0.5));     // shadow comes in WITH the sun (no pop)
-        var elong = 1 + low * 1.7 * grow;                 // stretches down the slope as the sun lowers
-        var leanShear = awaySlope * (0.5 + low * 1.9) * grow;   // rake along the slope, away from the sun
-        var cxoff = awaySlope * brad * (0.35 + low * 1.7) * grow;
-        var shA = 0.28 + 0.60 * grow;                     // faint ambient contact -> full cast shadow
-        var csW = brad * 1.5, csH = Math.max(8, brad * 0.5);
+        var elong = 1.35 + low * 3.85 * grow;             // longer cinematic cast when the sun grazes the slope
+        var leanShear = awaySlope * (0.82 + low * 3.10) * grow;   // rake along the slope, away from the sun
+        var cxoff = awaySlope * brad * (0.72 + low * 3.05) * grow;
+        var shA = 0.42 + 0.86 * grow;                     // faint ambient contact -> stronger cast shadow
+        var csW = brad * 2.05, csH = Math.max(8, brad * 0.44);
         var baseY = bly + brad * 0.9;                     // the boulder's base on the slope surface
         g.save();
         g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();   // ground side of the slope only (nothing above the base)
@@ -11277,6 +11277,25 @@
         g.fillStyle = cgrad;
         g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
         g.restore();
+
+        // A longer, softer tail makes the low sun readable on grass. Separate from
+        // the contact shadow so it can fade out naturally without a box edge.
+        if (sunL && sunStr > 0.035) {
+          g.save();
+          g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();
+          g.translate(blx + awaySlope * brad * (2.0 + low * 3.8), baseY + 2);
+          g.transform(1, 0, awaySlope * (0.65 + low * 2.2), 1, 0, 0);
+          g.scale(2.2 + low * 3.4, 0.18 + low * 0.10);
+          var tailR = brad * 1.55;
+          var tailA = Math.min(0.34, (0.16 + low * 0.20) * (0.65 + sunStr));
+          var tgrad = g.createRadialGradient(0, 0, 1, 0, 0, tailR);
+          tgrad.addColorStop(0, "rgba(2,3,8," + tailA.toFixed(3) + ")");
+          tgrad.addColorStop(0.48, "rgba(2,3,8," + (tailA * 0.52).toFixed(3) + ")");
+          tgrad.addColorStop(1, "rgba(2,3,8,0)");
+          g.fillStyle = tgrad;
+          g.beginPath(); g.arc(0, 0, tailR, 0, Math.PI * 2); g.fill();
+          g.restore();
+        }
       }
 
       // boulder (local coords)
