@@ -1966,7 +1966,7 @@
   // "logical" space (VW/VH/world coords) — RES only multiplies the actual pixel buffers
   // and puts a scale(RES) base transform on every full-frame context, so images/photos
   // are rasterised RES× denser (sharper) while nothing moves or reframes. RES = 1 restores
-  // the original exactly (single-knob revert). RES = 2 ≈ "HD"; costs ~RES² fill per frame.
+  // the original exactly. Dense phone/tablet screens auto-raise to 3, capped for performance.
   var RES = 2;
   var BG_BLUR = 0;     // keep the far mountain pixel-crisp. Tree blur remains intentional.
   var canvas = document.getElementById("game");
@@ -8107,6 +8107,35 @@
       }
     }
 
+    // CRISP GRASS DETAIL: the painted atlas is still a bitmap, so at tablet/phone
+    // scale it can read a little soft. This tiny procedural pass draws pixel-native
+    // grass specks/blades in the same rotated ground space, locked to world scroll.
+    // It adds close-up sharpness without switching styles or needing vector grass.
+    if (grassA > 0.12 && customize.look !== "void") {
+      var detailA = Math.min(1, grassA * 1.15) * (1 - ((day && day.snow) || 0) * 0.8);
+      var detailDepth = Math.min(280, h * 0.34);
+      var dStep = 5;
+      var dStart = Math.floor((x0 - 10) / dStep) * dStep;
+      var dEnd = Math.ceil((x1 + 10) / dStep) * dStep;
+      for (var dxp = dStart; dxp <= dEnd; dxp += dStep) {
+        var did = Math.floor((dxp + scroll * 0.93 + mountainIndex * 57) / dStep);
+        var r0 = hash(did * 3.17);
+        if (r0 < 0.38) continue;
+        var dy = Math.round(5 + hash(did * 7.41) * detailDepth);
+        var nearTop = 1 - Math.min(0.86, dy / Math.max(1, detailDepth));
+        var a0 = detailA * (0.12 + nearTop * 0.42) * (0.72 + r0 * 0.28);
+        if (a0 <= 0.015) continue;
+        if (r0 > 0.76 && dy < detailDepth * 0.82) {
+          g.fillStyle = "rgba(178,210,86," + a0.toFixed(3) + ")";
+          g.fillRect(Math.round(dxp), dy, 2, 1);
+          if (hash(did * 9.83) > 0.72) g.fillRect(Math.round(dxp + 1), dy - 2, 1, 3);
+        } else {
+          g.fillStyle = "rgba(43,82,37," + (a0 * 0.92).toFixed(3) + ")";
+          g.fillRect(Math.round(dxp), dy, 1 + (r0 > 0.62 ? 1 : 0), 1);
+        }
+      }
+    }
+
     if (flowerA > 0.01 && flowerGroundReady) {
       var fieldA = Math.min(1, flowerA * 1.22) * (1 - ((day && day.snow) || 0) * 0.82);
       var flowerStep = 18;
@@ -11719,7 +11748,7 @@
     if (Date.now() - lastFrameWall > 520) stepFrame(performance.now());
   }, 240);
 
-  var lastResizeW = 0, lastResizeH = 0;
+  var lastResizeW = 0, lastResizeH = 0, lastResizeRES = 0;
   function resize() {
     // Size the canvas to the #stage host box (height:100lvh) rather than
     // window.innerHeight: in an iOS standalone PWA innerHeight gets inset to the
@@ -11731,11 +11760,13 @@
     // Hidden tabs, iframes, and in-app webviews can report 0x0; bail and keep
     // the last good size instead of poisoning VH with NaN for every draw.
     if (!isFinite(winW) || !isFinite(winH) || winW <= 0 || winH <= 0) return;
+    var nextRES = Math.max(2, Math.min(3, Math.ceil(((window.devicePixelRatio || 1) * winW) / VW)));
     // Skip when nothing changed: reassigning canvas.width/height WIPES the canvas,
     // so the many launch-time resize ticks (rAF/load/delays/observer) were each
     // blanking it for a frame → the flashing. Only do real work on a true change.
-    if (winW === lastResizeW && winH === lastResizeH) return;
-    lastResizeW = winW; lastResizeH = winH;
+    if (winW === lastResizeW && winH === lastResizeH && nextRES === lastResizeRES) return;
+    lastResizeW = winW; lastResizeH = winH; lastResizeRES = nextRES;
+    RES = nextRES;
     VW = 480;
     VH = Math.max(240, Math.round(VW * winH / winW));   // match window aspect -> fills, no black bars
     canvas.width = VW * RES;
