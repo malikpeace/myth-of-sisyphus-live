@@ -1965,8 +1965,8 @@
   // SUPERSAMPLE / internal-resolution factor. The whole game is DRAWN in 480-unit
   // "logical" space (VW/VH/world coords) — RES only multiplies the actual pixel buffers
   // and puts a scale(RES) base transform on every full-frame context, so images/photos
-  // are rasterised RES× denser (sharper) while nothing moves or reframes. RES = 1 restores
-  // the original exactly. Dense phone/tablet screens auto-raise to 3, capped for performance.
+  // are rasterised denser while nothing moves or reframes. resize() picks the largest
+  // integer pixel-art scale that fits the screen, avoiding browser downsampling blur.
   var RES = 2;
   var BG_BLUR = 0;     // keep the far mountain pixel-crisp. Tree blur remains intentional.
   var canvas = document.getElementById("game");
@@ -2481,7 +2481,7 @@
   // band; the rock atlas takes over higher up. Crossfaded on top of the rock base.
   var grassGroundTex = new Image(), grassGroundReady = false;
   grassGroundTex.onload = function () { grassGroundReady = true; };
-  grassGroundTex.src = "assets/wower image.png";
+  grassGroundTex.src = "assets/wower-ground-pixel-crisp.png";
   // Dark moonlit version of the grass ground, used when the "night" (noir) theme is on.
   var nightGroundTex = new Image(), nightGroundReady = false;
   nightGroundTex.onload = function () { nightGroundReady = true; };
@@ -11760,7 +11760,7 @@
     // Hidden tabs, iframes, and in-app webviews can report 0x0; bail and keep
     // the last good size instead of poisoning VH with NaN for every draw.
     if (!isFinite(winW) || !isFinite(winH) || winW <= 0 || winH <= 0) return;
-    var nextRES = Math.max(2, Math.min(3, Math.ceil(((window.devicePixelRatio || 1) * winW) / VW)));
+    var nextRES = Math.max(2, Math.min(5, Math.floor(((window.devicePixelRatio || 1) * winW) / VW)));
     // Skip when nothing changed: reassigning canvas.width/height WIPES the canvas,
     // so the many launch-time resize ticks (rAF/load/delays/observer) were each
     // blanking it for a frame → the flashing. Only do real work on a true change.
