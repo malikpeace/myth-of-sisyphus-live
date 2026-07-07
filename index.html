@@ -9511,36 +9511,47 @@
       var leftTopY = terrainLipAt(leftTop);
       var rightTopY = terrainLipAt(rightTop);
       var rimClear = 46;
-
+      var edgeGrid = 2;
+      function pix(v) { return Math.round(v / edgeGrid) * edgeGrid; }
+      function edgeX(side, topX, botX, t, idx, seed) {
+        var base = lerp(topX, botX, t);
+        var shelf = Math.round((hash(mark + seed + idx * 23.7) - 0.5) * 18 / edgeGrid) * edgeGrid;
+        var bite = hash(mark + seed + idx * 17.3) > 0.70 ? Math.round(hash(mark + seed + idx * 9.1) * 8 / edgeGrid) * edgeGrid : 0;
+        return pix(base + side * (shelf + bite));
+      }
+      function lineSteppedTo(x, y) {
+        x = pix(x); y = pix(y);
+        g.lineTo(x, y);
+      }
       g.save();
       g.globalAlpha = reveal;
       g.beginPath();
-      g.moveTo(leftBot, bottom);
-      var leftSteps = 22;
+      g.moveTo(pix(leftBot), pix(bottom));
+      var leftSteps = 28;
       for (var ls = 0; ls <= leftSteps; ls++) {
         var lt = ls / leftSteps;
         var ly = lerp(bottom, leftTopY + 34, lt);
-        var lxEdge = lerp(leftBot, leftTop - 24, lt) + (hash(mark + 90 + ls * 13.7) - 0.5) * 32;
-        g.lineTo(Math.round(lxEdge), Math.round(ly));
+        var lxEdge = edgeX(-1, leftTop - 24, leftBot, 1 - lt, ls, 90);
+        lineSteppedTo(lxEdge, ly);
       }
-      g.lineTo(leftTop - 28, terrainLipAt(leftTop - 16) - rimClear);
+      lineSteppedTo(leftTop - 28, terrainLipAt(leftTop - 16) - rimClear);
       var topSteps = Math.max(24, Math.round((rightTop - leftTop) / 7));
       for (var ts = 0; ts <= topSteps; ts++) {
         var tt = ts / topSteps;
         var x = lerp(leftTop, rightTop, tt);
         var chip = (hash(mark + 210 + ts * 7.1) - 0.5) * 5;
         var notch = hash(mark + 330 + ts * 10.9) > 0.64 ? hash(mark + 390 + ts * 8.3) * 5 : 0;
-        g.lineTo(x, terrainLipAt(x) - rimClear + chip + notch);
+        lineSteppedTo(x, terrainLipAt(x) - rimClear + chip + notch);
       }
-      g.lineTo(rightTop + 28, terrainLipAt(rightTop + 18) - rimClear);
-      var rightSteps = 22;
+      lineSteppedTo(rightTop + 28, terrainLipAt(rightTop + 18) - rimClear);
+      var rightSteps = 30;
       for (var rs = 0; rs <= rightSteps; rs++) {
         var rt = rs / rightSteps;
         var ry = lerp(rightTopY + 34, bottom, rt);
-        var rxEdge = lerp(rightTop + 24, rightBot, rt) + (hash(mark + 510 + rs * 15.1) - 0.5) * 32;
-        g.lineTo(Math.round(rxEdge), Math.round(ry));
+        var rxEdge = edgeX(1, rightTop + 24, rightBot, rt, rs, 510);
+        lineSteppedTo(rxEdge, ry);
       }
-      g.lineTo(rightBot, bottom);
+      lineSteppedTo(rightBot, bottom);
       g.closePath();
       g.clip();
 
