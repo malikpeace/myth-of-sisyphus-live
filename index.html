@@ -1968,7 +1968,7 @@
   // are rasterised RES× denser (sharper) while nothing moves or reframes. RES = 1 restores
   // the original exactly (single-knob revert). RES = 2 ≈ "HD"; costs ~RES² fill per frame.
   var RES = 2;
-  var BG_BLUR = 2.5;   // slight blur on the far mountain backdrop (depth / softer). 0 = crisp.
+  var BG_BLUR = 0;     // keep the far mountain pixel-crisp. Tree blur remains intentional.
   var canvas = document.getElementById("game");
   var g = canvas.getContext("2d");
   g.imageSmoothingEnabled = false;
@@ -2439,7 +2439,7 @@
   // Tiled across each gorge + rotated to the slope so it fits any length/angle.
   var plankBridgeImg = new Image(), plankBridgeReady = false;
   plankBridgeImg.onload = function () { plankBridgeReady = true; };
-  plankBridgeImg.src = "assets/bridge-plank-tile.png";
+  plankBridgeImg.src = "assets/bridge-plank-tile-v2.png";
   // Painted grass tufts (16-variant atlas, bottom-aligned) scattered on the ground for
   // life + texture, replacing the procedural path-grass clumps where loaded.
   var grassTuftImg = new Image(), grassTuftReady = false;
@@ -2481,7 +2481,7 @@
   // band; the rock atlas takes over higher up. Crossfaded on top of the rock base.
   var grassGroundTex = new Image(), grassGroundReady = false;
   grassGroundTex.onload = function () { grassGroundReady = true; };
-  grassGroundTex.src = "assets/grass-ground-hd.png";
+  grassGroundTex.src = "assets/wower image.png";
   // Dark moonlit version of the grass ground, used when the "night" (noir) theme is on.
   var nightGroundTex = new Image(), nightGroundReady = false;
   nightGroundTex.onload = function () { nightGroundReady = true; };
@@ -6563,6 +6563,26 @@
     var near = clamp01(1 - Math.max(0, distance - WATERFALL_VIEW * 0.82) / 430);
     return smoother01(entering * leaving * near) * (1 - voidRevealFor(altitude)) * bandGate(altitude, 0, 2800, 360);   // bridges belong to the low gorges only
   }
+  function bridgeGapRevealAt(x, pad) {
+    if (gameState === "title" || playMode === "run") return 0;
+    pad = pad == null ? 0 : pad;
+    var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
+    var hit = 0;
+    for (var wi = 0; wi < 4; wi++) {
+      var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
+      if (mark < WATERFALL_FIRST) continue;
+      var center = waterfallSceneX(mark);
+      var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
+      var leftTop = center - gorgeW * 0.78;
+      var rightTop = center + gorgeW * 0.82;
+      if (x < leftTop - pad || x > rightTop + pad) continue;
+      hit = Math.max(hit, waterfallPathFeatureReveal(mark, leftTop - 110, rightTop + 110, x - pad - 4, x + pad + 4));
+    }
+    return hit;
+  }
+  function bridgeGapActiveAt(x, pad) {
+    return bridgeGapRevealAt(x, pad) > 0.02;
+  }
   function aboveCloudsNearestMeters(meters) {
     if (playMode === "run" || gameState === "title") return -99999;
     var idx = Math.max(0, Math.round((Math.max(0, meters) - ABOVE_CLOUDS_FIRST) / ABOVE_CLOUDS_SPACING));
@@ -8045,15 +8065,16 @@
     // luminance + texture (no pale wash); day.tint adds the overall value grade.
     if (day) {
       var atmoCast = mix(day.far || day.sky[2], day.sky[3] || day.sky[2], 0.45);
-      // Atmosphere hue-transfer onto the ground so it shifts with the scene. The
-      // full cast greys the grass out, so grass takes a MODERATE share (~0.30 — a
-      // bit of scene colour without losing the green) while rock/snow take a touch
-      // more. Tuned down from the original 0.6 which was too strong.
-      var castA = 0.55 * (1 - 0.62 * grassA);   // grass keeps more of its own green (less atmosphere wash)
-      g.globalCompositeOperation = "color";
-      g.fillStyle = css(atmoCast, castA);
-      g.fillRect(x0, 0, x1 - x0, h);
-      g.globalCompositeOperation = "source-over";
+      // Atmosphere hue-transfer belongs on rock/snow, not the wower grass/dirt
+      // layer. On the low mountain it made the dirt read purple/filtered. Fade it
+      // almost completely out while grass is present, then let it return higher up.
+      var castA = 0.42 * Math.pow(1 - grassA, 1.7);
+      if (castA > 0.01) {
+        g.globalCompositeOperation = "color";
+        g.fillStyle = css(atmoCast, castA);
+        g.fillRect(x0, 0, x1 - x0, h);
+        g.globalCompositeOperation = "source-over";
+      }
       // VOID: "color" only shifts hue — it can't darken. To make the ground truly
       // black-in-shadow we MULTIPLY the atlas luminance down (keeps texture, crushes
       // brightness), then let the dark tint settle on top.
@@ -8064,7 +8085,8 @@
         g.globalCompositeOperation = "source-over";
       }
       if (day.tintA > 0) {
-        g.fillStyle = css(day.tint, day.tintA * 0.5 * (1 - 0.35 * grassA));
+        var gradeA = day.tintA * 0.38 * Math.pow(1 - grassA, 1.35);
+        g.fillStyle = css(day.tint, gradeA);
         g.fillRect(x0, 0, x1 - x0, h);
       }
       // GRASS VITALITY: push the grass's saturation back up so it reads vivid + alive
@@ -8280,10 +8302,14 @@
       if (modePhase === "summitRest" || modePhase === "summitLaunch") layerA = 0;
     }
     if (layerA <= 0.02) return;
-    if (fgTreeC.width !== VW * RES || fgTreeC.height !== VH * RES) { fgTreeC.width = VW * RES; fgTreeC.height = VH * RES; }
+    var blurPad = Math.ceil(((cfg.blur || 0) * 8 + 28) * RES);
+    var bufW = VW * RES + blurPad * 2;
+    var bufH = VH * RES + blurPad * 2;
+    if (fgTreeC.width !== bufW || fgTreeC.height !== bufH) { fgTreeC.width = bufW; fgTreeC.height = bufH; }
     var fg = fgTreeCtx;
-    fg.setTransform(RES, 0, 0, RES, 0, 0);   // logical draws, RES× buffer (sharp trees)
-    fg.clearRect(0, 0, VW, VH);
+    fg.setTransform(1, 0, 0, 1, 0, 0);
+    fg.clearRect(0, 0, bufW, bufH);
+    fg.setTransform(RES, 0, 0, RES, blurPad, blurPad);   // logical draws, padded RES× buffer (sharp trees, unclipped blur)
     fg.imageSmoothingEnabled = false;
     var iw = foregroundTreeImg.naturalWidth || 290, ih = foregroundTreeImg.naturalHeight || 482;
     var scroll = altitude * GROUND_SCROLL * cfg.par + cfg.seed;   // locked to the ground scroll so trees stay put on the hillside
@@ -8297,7 +8323,8 @@
       var sc = baseScale * (cfg.scaleLo + hash(i * 7.27 + cfg.seed) * (cfg.scaleHi - cfg.scaleLo));
       var tw = Math.round(iw * sc), th = Math.round(ih * sc);
       var sx = Math.round(i * spacing - scroll + (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter);
-      if (sx + tw < -40 || sx > VW + 40) continue;
+      var logicalPad = blurPad / RES;
+      if (sx + tw < -logicalPad - 40 || sx > VW + logicalPad + 40) continue;
       // ZERO trees on a bridge — test the whole trunk+canopy extent. The bridge span
       // (treeOnBridge / waterfallSceneX) is in WORLD/zoom space, but trees draw in screen
       // space, so convert this tree's screen-x extent to world-x before the test —
@@ -8327,10 +8354,21 @@
     fg.save();
     fg.globalCompositeOperation = "source-atop";
     fg.fillStyle = "rgba(0,0,0," + cfg.darken + ")";
-    fg.fillRect(0, 0, VW, VH);
+    fg.fillRect(-logicalPad, -logicalPad, VW + logicalPad * 2, VH + logicalPad * 2);
     var tc = day.sky[2] || [120, 130, 150];
     fg.fillStyle = "rgba(" + Math.round(tc[0]) + "," + Math.round(tc[1]) + "," + Math.round(tc[2]) + "," + cfg.tint + ")";
-    fg.fillRect(0, 0, VW, VH);
+    fg.fillRect(-logicalPad, -logicalPad, VW + logicalPad * 2, VH + logicalPad * 2);
+    if (cfg.groundFade) {
+      // Close trees pass over the playfield as depth. Fade their lower canopy into
+      // the meadow so the blur never reads like a rectangular shadow layer.
+      fg.globalCompositeOperation = "destination-in";
+      fg.fillStyle = lgrad(fg, 0, VH * 0.16, 0, VH * 0.56, [
+        [0, "rgba(0,0,0,1)"],
+        [0.62, "rgba(0,0,0,0.74)"],
+        [1, "rgba(0,0,0,0)"]
+      ]);
+      fg.fillRect(-logicalPad, -logicalPad, VW + logicalPad * 2, VH + logicalPad * 2);
+    }
     fg.restore();
     g.save();
     g.setTransform(RES, 0, 0, RES, 0, 0);
@@ -8339,8 +8377,9 @@
     // touch — the close foreground trees he sweeps past get more blur than the distant ones.
     if (cfg.blur && !REDUCED) g.filter = "blur(" + cfg.blur + "px)";
     g.globalAlpha = layerA;
-    g.drawImage(fgTreeC, 0, 0, VW, VH);   // RES buffer → logical dest
+    g.drawImage(fgTreeC, 0, 0, bufW, bufH, -logicalPad, -logicalPad, VW + logicalPad * 2, VH + logicalPad * 2);   // padded RES buffer → logical dest
     g.filter = "none";
+    g.globalAlpha = 1;
     g.restore();
   }
   // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
@@ -8354,7 +8393,7 @@
   var TREES_BG = { anchor: "ground", par: 0.6, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333, blur: 1.2 };
   // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
   // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
-  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.62, tint: 0.10, seed: 0, blur: 3 };
+  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.50, tint: 0.12, seed: 0, blur: 5, groundFade: true };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
@@ -8438,6 +8477,7 @@
 
   function drawEffortParticles(day) {
     if (REDUCED) return;
+    if (bridgeGapActiveAt(ANCHOR_X, 150)) return;
     var fx = fxAmount();
     var dirt = mix(day.ground, [86, 56, 34], 0.60);
     var smoke = mix(day.ground, day.sky[3], 0.58);
@@ -9155,6 +9195,7 @@
     var blade = mix(day.ground, [122, 158, 88], 0.68);
     var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
     for (var x = wxL; x <= wxR; x += 2) {
+      if (bridgeGapActiveAt(x, 22)) continue;
       var worldM = Math.max(0, (x + scroll) / GROUND_SCROLL);
       var sceneGrassMask = (1 - Math.max((day.snow || 0) * 0.82, (day.galaxy || 0) * 0.54)) * grassPresent;
       var greenT = (day.grassMat || 0);   // respects the altitude ceiling — tufts die out above the forest band
@@ -9174,6 +9215,7 @@
     }
     // short blades poking up along the surface line for a soft grassy edge
     for (var bx = wxL; bx <= wxR; bx += 3) {
+      if (bridgeGapActiveAt(bx, 22)) continue;
       var seed = hash(Math.floor((bx + scroll) / 3) * 5.3);
       var bladeM = Math.max(0, (bx + scroll) / GROUND_SCROLL);
       var bladeT = (day.grassMat || 0) * grassPresent;
@@ -9207,7 +9249,7 @@
         if (grassTuftTintC.width !== aw) grassTuftTintC.width = aw;
         if (grassTuftTintC.height !== ah) grassTuftTintC.height = ah;
         var gc = grassTuftTintG;
-        gc.setTransform(1, 0, 0, 1, 0, 0); gc.globalAlpha = 1; gc.globalCompositeOperation = "source-over"; gc.imageSmoothingEnabled = true;
+        gc.setTransform(1, 0, 0, 1, 0, 0); gc.globalAlpha = 1; gc.globalCompositeOperation = "source-over"; gc.imageSmoothingEnabled = false;
         gc.clearRect(0, 0, aw, ah);
         gc.drawImage(grassTuftImg, 0, 0);
         gc.globalCompositeOperation = "source-atop";
@@ -9231,6 +9273,7 @@
       var density = hash(c * 3.19);
       if (density < 0.40 - greenT * 0.10) continue;
       var x = c * cell - pathScroll + 8 + Math.round(hash(c * 11.7) * (cell - 16));
+      if (bridgeGapActiveAt(x, 34)) continue;
       var windSway = REDUCED ? 0 : (1.1 + windGustPower * 3.4);
       if (useSprites) {
         // painted tuft: world-locked scatter, bottom-anchored on the surface, leaning
@@ -9247,7 +9290,7 @@
         g.transform(1, 0, shear, 1, 0, 0);
         if (hash(c * 9.2) > 0.5) g.scale(-1, 1);
         g.globalAlpha = tAlpha;
-        g.imageSmoothingEnabled = true;
+        g.imageSmoothingEnabled = false;
         g.drawImage(grassTuftTintC, ti * GRASS_TUFT_CW, 0, GRASS_TUFT_CW, GRASS_TUFT_CH, -tw / 2, -th, tw, th);
         g.imageSmoothingEnabled = false;
         g.globalAlpha = 1;
@@ -9271,6 +9314,7 @@
       drawPathGrassClump(x + sway, y, c * 23.91, scale, palette, alpha);
       if (big && hash(c * 15.6) > 0.42) {
         var x2 = x + 13 + Math.round(hash(c * 18.4) * 9);
+        if (bridgeGapActiveAt(x2, 34)) continue;
         var sway2 = Math.round(windSway * Math.sin(tSec * 1.9 + x2 * 0.022 + c * 1.3));
         drawPathGrassClump(x2 + sway2, Math.round(terrainLipAt(x2)) + 2, c * 31.13, 0.62 + greenT * 0.14, palette, alpha * 0.84);
       }
@@ -9298,6 +9342,7 @@
     var span = Math.max(1, footX - wxL);
     for (var k = k0; k <= k1; k++) {
       var x = k * stride - scroll;
+      if (bridgeGapActiveAt(x, 18)) continue;
       if (x > footX - 8) continue;                           // not right under his current feet
       var fade = clamp01((x - wxL) / span);                  // 1 near his feet -> 0 far downhill
       fade = fade * fade * (3 - 2 * fade);
@@ -9336,7 +9381,7 @@
       if (groundPropTintC.width !== aw) groundPropTintC.width = aw;
       if (groundPropTintC.height !== ah) groundPropTintC.height = ah;
       var gc = groundPropTintG;
-      gc.setTransform(1, 0, 0, 1, 0, 0); gc.globalAlpha = 1; gc.globalCompositeOperation = "source-over"; gc.imageSmoothingEnabled = true;
+      gc.setTransform(1, 0, 0, 1, 0, 0); gc.globalAlpha = 1; gc.globalCompositeOperation = "source-over"; gc.imageSmoothingEnabled = false;
       gc.clearRect(0, 0, aw, ah);
       gc.drawImage(groundPropsImg, 0, 0);
       if (darkA > 0.01) { gc.globalCompositeOperation = "source-atop"; gc.fillStyle = css([8, 10, 18], darkA); gc.fillRect(0, 0, aw, ah); gc.globalCompositeOperation = "source-over"; }
@@ -9362,6 +9407,7 @@
       }   // bare rock band: no props (a grey boulder just camouflages against grey rock)
       if (idx < 0) continue;
       var x = c * cell - scroll + Math.round((hash(c * 6.7) - 0.5) * (cell * 0.5));
+      if (bridgeGapActiveAt(x, 46)) continue;
       if (treeOnBridge(x - 12, x + 12)) continue;                                 // never on a bridge deck
       var baseH = PROP_BASE_H[idx];
       var th = Math.round(baseH * (0.82 + hash(c * 8.3) * 0.42));
@@ -9386,7 +9432,7 @@
       g.translate(x, y);
       g.rotate(slopeAng);                                                          // stand perpendicular to the tilted ground
       if (hash(c * 9.2) > 0.5) g.scale(-1, 1);
-      g.imageSmoothingEnabled = true;
+      g.imageSmoothingEnabled = false;
       g.drawImage(groundPropTintC, PROP_AX[idx], 0, PROP_AW[idx], PROP_H, -tw / 2, -th, tw, th);
       g.imageSmoothingEnabled = false;
       g.restore();
@@ -9464,6 +9510,7 @@
       var rightBot = rightTop + 184 + Math.round(hash(mark * 0.61) * 72);
       var leftTopY = terrainLipAt(leftTop);
       var rightTopY = terrainLipAt(rightTop);
+      var rimClear = 46;
 
       g.save();
       g.globalAlpha = reveal;
@@ -9476,16 +9523,16 @@
         var lxEdge = lerp(leftBot, leftTop - 24, lt) + (hash(mark + 90 + ls * 13.7) - 0.5) * 32;
         g.lineTo(Math.round(lxEdge), Math.round(ly));
       }
-      g.lineTo(leftTop - 28, terrainLipAt(leftTop - 16) - 20);
+      g.lineTo(leftTop - 28, terrainLipAt(leftTop - 16) - rimClear);
       var topSteps = Math.max(24, Math.round((rightTop - leftTop) / 7));
       for (var ts = 0; ts <= topSteps; ts++) {
         var tt = ts / topSteps;
         var x = lerp(leftTop, rightTop, tt);
         var chip = (hash(mark + 210 + ts * 7.1) - 0.5) * 5;
         var notch = hash(mark + 330 + ts * 10.9) > 0.64 ? hash(mark + 390 + ts * 8.3) * 5 : 0;
-        g.lineTo(x, terrainLipAt(x) - 18 + chip + notch);
+        g.lineTo(x, terrainLipAt(x) - rimClear + chip + notch);
       }
-      g.lineTo(rightTop + 28, terrainLipAt(rightTop + 18) - 20);
+      g.lineTo(rightTop + 28, terrainLipAt(rightTop + 18) - rimClear);
       var rightSteps = 22;
       for (var rs = 0; rs <= rightSteps; rs++) {
         var rt = rs / rightSteps;
@@ -9591,7 +9638,7 @@
     var bg = bridgeTintG;
     bg.globalCompositeOperation = "source-over";
     bg.globalAlpha = 1;
-    bg.imageSmoothingEnabled = true;
+    bg.imageSmoothingEnabled = false;
     bg.clearRect(0, 0, bw, bh);
     bg.drawImage(rockBridgeImg, 0, 0, bw, bh);
     bg.globalCompositeOperation = "color";            // realm hue/sat onto the stone (luma kept)
@@ -9610,9 +9657,149 @@
     g.globalAlpha = a;
     g.translate(left, yL);
     g.rotate(angle);
-    g.imageSmoothingEnabled = true;
+    g.imageSmoothingEnabled = false;
     g.drawImage(bridgeTintC, -ov, -Math.round(deckFrac * drawH), targetW, drawH);
     g.imageSmoothingEnabled = false;
+    g.restore();
+  }
+
+  function drawNativeRopeBridge(left, right, yL, yR, len, angle, a, mark, day, wood, woodDark, rope, hi) {
+    var ov = 54;
+    var start = -ov, end = len + ov;
+    var span = Math.max(1, end - start);
+    var deckSag = Math.min(13, 6 + len * 0.0045);
+    var railSag = deckSag + 7;
+    var plankStep = 12;
+    var plankW = 10;
+    var deckTop = -4;
+    var deckH = 27;
+    var dark = mix(woodDark, [0, 0, 0], 0.12);
+    var edge = mix(woodDark, [0, 0, 0], 0.28);
+    var sunWarm = currentSunLight(day);
+    var light = sunWarm ? clamp01(sunWarm.strength * 0.35) : 0.12;
+    function sagAt(x, s) {
+      var t = clamp01((x - start) / span);
+      return Math.sin(t * Math.PI) * s;
+    }
+    function bridgePath(yBase, s, step) {
+      g.beginPath();
+      for (var x = start; x <= end; x += step) {
+        var y = yBase + sagAt(x, s) + (hash(mark + x * 0.021) - 0.5) * 1.2;
+        if (x === start) g.moveTo(Math.round(x), Math.round(y));
+        else g.lineTo(Math.round(x), Math.round(y));
+      }
+      g.lineTo(Math.round(end), Math.round(yBase + sagAt(end, s)));
+    }
+    function strokePixelPath(yBase, s, col, alpha, width, step) {
+      g.strokeStyle = css(col, alpha);
+      g.lineWidth = width;
+      bridgePath(yBase, s, step || 12);
+      g.stroke();
+    }
+    function ropeBeads(yBase, s, col, alpha, step, size, phase) {
+      g.fillStyle = css(col, alpha);
+      for (var x = start; x <= end; x += step) {
+        var j = (hash(mark + phase + x * 0.037) - 0.5) * 1.8;
+        var y = yBase + sagAt(x, s) + j;
+        var w = size + (hash(mark + phase + x * 0.071) > 0.72 ? 1 : 0);
+        g.fillRect(Math.round(x), Math.round(y), w, Math.max(1, size - 1));
+      }
+    }
+
+    g.save();
+    g.globalAlpha = a;
+    g.translate(left, yL);
+    g.rotate(angle);
+    g.imageSmoothingEnabled = false;
+
+    // Back support rope behind the planks, chunky instead of wire-thin. Keep it
+    // attached to the deck; a broad transparent drop-shadow reads like a visual box
+    // over the ravine background.
+    strokePixelPath(deckTop + 16, deckSag, edge, 0.68, 3, 9);
+    ropeBeads(deckTop + 13, deckSag, rope, 0.88, 7, 3, 10);
+
+    // Individual planks, each slightly different, bottom-anchored to the sag curve.
+    for (var px = start - 2, pi = 0; px < end + 2; px += plankStep, pi++) {
+      var mid = px + plankStep * 0.5;
+      var sag = sagAt(mid, deckSag);
+      var jitter = hash(mark + pi * 7.91);
+      var ph = deckH + Math.round((jitter - 0.5) * 6);
+      var pw = plankW + Math.round(hash(mark + pi * 5.23) * 2);
+      var lean = (hash(mark + pi * 11.7) - 0.5) * 1.8;
+      var x0 = Math.round(px + lean);
+      var y0 = Math.round(deckTop + sag + (hash(mark + pi * 17.3) - 0.5) * 2);
+      var col = mix(wood, hi, 0.12 + hash(mark + pi * 3.3) * 0.20 + light);
+      var side = mix(woodDark, wood, 0.12 + hash(mark + pi * 4.7) * 0.32);
+      g.fillStyle = css(edge, 0.98);
+      g.fillRect(x0 - 1, y0 - 1, pw + 2, ph + 2);
+      g.fillStyle = css(col, 0.98);
+      g.fillRect(x0, y0, pw, ph);
+      g.fillStyle = css(side, 0.68);
+      g.fillRect(x0, y0 + ph - 6, pw, 6);
+      g.fillStyle = css(hi, 0.28);
+      g.fillRect(x0 + 1, y0 + 2, Math.max(1, pw - 2), 2);
+      g.fillStyle = css(dark, 0.50);
+      if (pw > 5) {
+        var grainX = x0 + 2 + Math.floor(hash(mark + pi * 13.3) * Math.max(1, pw - 4));
+        g.fillRect(grainX, y0 + 4, 1, Math.max(4, ph - 9));
+      }
+      if (pi % 2 === 0) {
+        g.fillStyle = css([10, 10, 10], 0.72);
+        g.fillRect(x0 + 2, y0 + 3, 1, 1);
+        g.fillRect(x0 + pw - 3, y0 + ph - 5, 1, 1);
+      }
+    }
+
+    // Front rope hugging the deck edge, so the bridge does not read as a flat board.
+    strokePixelPath(deckTop + deckH + 1, deckSag, edge, 0.86, 3, 9);
+    ropeBeads(deckTop + deckH - 1, deckSag, rope, 0.9, 7, 3, 20);
+
+    // Anchor posts grow out of the terrain lips instead of repeating along the span.
+    var postXs = [start + 24, end - 24];
+    for (var p = 0; p < postXs.length; p++) {
+      var x = postXs[p];
+      var t = clamp01((x - start) / span);
+      var y = deckTop + sagAt(x, deckSag) - 6;
+      var postH = 30 + Math.round(hash(mark + p * 99.1) * 6);
+      g.fillStyle = css(edge, 0.94);
+      g.fillRect(Math.round(x - 6), Math.round(y - postH), 13, postH + deckH + 12);
+      g.fillStyle = css(mix(woodDark, wood, 0.44), 0.98);
+      g.fillRect(Math.round(x - 4), Math.round(y - postH + 2), 9, postH + deckH + 7);
+      g.fillStyle = css(hi, 0.24);
+      g.fillRect(Math.round(x - 3), Math.round(y - postH + 4), 3, postH + deckH);
+      // lashed rope rings
+      g.fillStyle = css(rope, 0.96);
+      g.fillRect(Math.round(x - 10), Math.round(y - postH + 12), 21, 4);
+      g.fillRect(Math.round(x - 10), Math.round(y - 12), 21, 4);
+      g.fillStyle = css(edge, 0.55);
+      g.fillRect(Math.round(x - 8), Math.round(y - postH + 17), 17, 1);
+      g.fillRect(Math.round(x - 8), Math.round(y - 9), 17, 1);
+      // small stake into the grass/rock lip
+      g.fillStyle = css(edge, 0.72);
+      g.fillRect(Math.round(x - 10), Math.round(y + deckH + 6), 22, 4);
+      if (p === 0 && t < 0.2) {
+        g.fillRect(Math.round(x - 22), Math.round(y + deckH + 4), 15, 3);
+      } else if (p === 1 && t > 0.8) {
+        g.fillRect(Math.round(x + 7), Math.round(y + deckH + 4), 15, 3);
+      }
+    }
+
+    // Low side ropes and sparse lashings. A tall handrail fights the giant boulder;
+    // this reads as a load-bearing causeway instead of a pedestrian rope bridge.
+    ropeBeads(deckTop + 3, deckSag, mix(rope, hi, 0.08), 0.54, 10, 2, 30);
+    ropeBeads(deckTop + deckH + 5, deckSag, rope, 0.66, 9, 2, 40);
+    for (var lx = start + 64, li = 0; lx < end - 58; lx += 72, li++) {
+      if (hash(mark + li * 19.9) < 0.36) continue;
+      var topY = deckTop + 2 + sagAt(lx, deckSag);
+      var botY = deckTop + deckH + 4 + sagAt(lx + 11, deckSag);
+      g.strokeStyle = css(rope, 0.34);
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(Math.round(lx), Math.round(topY));
+      g.lineTo(Math.round(lx + 11), Math.round(botY));
+      g.stroke();
+    }
+
     g.restore();
   }
 
@@ -9621,10 +9808,10 @@
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
     var bright = lum(day.sky[2]);
     var woodBlend = smoother01(clamp01((bright - 0.34) / 0.16));
-    var wood = mix([72, 62, 54], [92, 78, 63], woodBlend);
-    var woodDark = mix([24, 22, 22], [36, 31, 28], woodBlend);
-    var rope = mix([20, 22, 24], [26, 29, 32], woodBlend);
-    var hi = mix([126, 116, 100], [154, 142, 120], woodBlend);
+    var wood = mix([88, 58, 34], [126, 82, 44], woodBlend);
+    var woodDark = mix([30, 20, 15], [45, 30, 20], woodBlend);
+    var rope = mix([55, 40, 27], [86, 61, 36], woodBlend);
+    var hi = mix([150, 104, 60], [190, 136, 76], woodBlend);
 
     for (var wi = 0; wi < 4; wi++) {
       var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
@@ -9656,39 +9843,7 @@
         continue;
       }
 
-      // The deck must OVERLAP both cliff lips so it never floats over the see-through gorge.
-      var anchorE = 48;
-      if (plankBridgeReady) {
-        // PAINTED plank bridge: tile the seamless post→post slice across the span and
-        // rotate it to the slope, so it fits ANY gorge length + angle and meets both lips.
-        var ih = plankBridgeImg.naturalHeight, iw = plankBridgeImg.naturalWidth;   // 185x169
-        var bScale = 66 / ih;                              // ~66px tall in-world
-        var tw = Math.max(2, Math.round(iw * bScale));
-        var th = Math.round(ih * bScale);
-        var deckOff = Math.round(0.584 * th);              // walking-surface row within the tile
-        g.save();
-        g.globalAlpha = a;
-        g.translate(left, yL);
-        g.rotate(angle);
-        g.beginPath(); g.rect(-anchorE, -deckOff - 8, len + anchorE * 2, th + 16); g.clip();
-        g.imageSmoothingEnabled = true;
-        for (var bx = -anchorE; bx < len + anchorE; bx += tw) {
-          g.drawImage(plankBridgeImg, bx, -deckOff, tw, th);
-        }
-        g.imageSmoothingEnabled = false;
-        g.restore();
-      } else {
-        // Procedural fallback while the painted tile is still loading.
-        g.save();
-        g.globalAlpha = a;
-        g.translate(left, yL);
-        g.rotate(angle);
-        g.fillStyle = css(woodDark, 0.98);
-        g.fillRect(-14 - anchorE, 0, len + 28 + anchorE * 2, 10);
-        g.fillStyle = css(wood, 0.96);
-        g.fillRect(-12 - anchorE, 0, len + 24 + anchorE * 2, 6);
-        g.restore();
-      }
+      drawNativeRopeBridge(left, right, yL, yR, len, angle, a, mark, day, wood, woodDark, rope, hi);
     }
   }
 
@@ -10014,15 +10169,13 @@
 
     // arm: keep him braced into the boulder before and during play.
     var aw = Math.max(4, Math.round(5.4 * s));
-    // Hand contact: at classic sizes this is the v3 chord clamp (pixel-true).
-    // On a giant stone a shoulder-height chord lands absurdly far forward, so
-    // we blend toward the nearest point on the sphere face — hands planted
-    // up-forward at full extension, body into the stone. Effort, not glitch.
-    // Pure chord clamp at every scale: the hand sits ON the sphere surface at
-    // shoulder height, never above it. The lean-in (top of fn) guarantees the
-    // contact point is within natural reach even on a 5x stone — no vertical
-    // hand climb, no stretched pole arm.
-    var handY = shY - 1 * s;
+    // Hand contact: small stones look more believable with the grip lower on
+    // the face; otherwise his arms read like they are resting across the top.
+    // Fade back to the older shoulder-height grip as the stone grows, where a
+    // lower target would make the giant-stone pose look like he is pushing down.
+    var boulderRatio = brad / (BOULDER_R * BASE_SCALE);
+    var smallGripT = 1 - smoother01(clamp01((boulderRatio - 1.0) / 0.72));
+    var handY = shY + lerp(-1 * s, 7.0 * s, smallGripT);
     var rel = Math.max(-brad + 3, Math.min(brad - 3, handY - by));
     var halfw = Math.sqrt(Math.max(0, brad * brad - rel * rel));
     var handX = bx - halfw + 1 * s;   // sit firmly ON the stone (slight overlap) so the hand always touches at every size
@@ -10671,7 +10824,7 @@
       // range), so show it WHOLE — cover-fit over the procedural sky instead of
       // cropping out a mountain band. It fades out as the realm scenes take over,
       // and the procedural sky shows through once it's gone.
-      g.imageSmoothingEnabled = true;
+      g.imageSmoothingEnabled = false;
       var bgImg = (customize.look === "noir" && nightBgReady) ? nightBg : mtBg;   // night theme uses the dark night mountains
       var bgSrcY = 0;
       var bgSrcH = bgImg.naturalHeight;
@@ -10722,11 +10875,9 @@
       if (bgLayerK !== bgLayerLastKey) {
         bgLayerLastKey = bgLayerK;
         bgLayerCtx.clearRect(0, 0, VW, VH);
-        // Slight blur on the whole mountain range → reads as further away (depth) and stops
-        // the backdrop competing with the sharp foreground. Applied here at BUILD time, so it's
-        // cached (bgLayer only rebuilds when the parallax shift/alpha change), not per-frame.
-        // Smoothing on so the blur samples cleanly.
-        bgLayerCtx.imageSmoothingEnabled = true;
+        // Keep the whole mountain range nearest-neighbor crisp. The trees keep
+        // their intentional blur for depth; the world art should read as pixel art.
+        bgLayerCtx.imageSmoothingEnabled = false;
         bgLayerCtx.filter = (BG_BLUR > 0 && !REDUCED) ? ("blur(" + BG_BLUR + "px)") : "none";
         bgLayerCtx.globalAlpha = mountainLayerAlpha;
         bgLayerCtx.globalCompositeOperation = "source-over";
@@ -11036,6 +11187,9 @@
       if (fullC.width !== actorW || fullC.height !== actorH) {
         fullC.width = actorW; fullC.height = actorH;
       }
+      fullG.setTransform(1, 0, 0, 1, 0, 0);
+      fullG.globalAlpha = 1;
+      fullG.globalCompositeOperation = "source-over";
       fullG.imageSmoothingEnabled = false;
       fullG.clearRect(0, 0, actorW, actorH);
       var realG = g; g = fullG;
@@ -11300,7 +11454,7 @@
       // Deterministic, spawnless particles in the slope-local frame: step dust
       // kicked back behind the feet while pushing, a low churned cloud while
       // sliding, and grit flicked off the boulder's contact point at speed.
-      if (!REDUCED && gameState !== "title") {
+      if (!REDUCED && gameState !== "title" && !bridgeGapActiveAt(ANCHOR_X, 150)) {
         var spd4 = Math.abs(audioEffSpeed);
         var dustCol = mix(day.ground, [255, 255, 255], 0.22);
         var dustDark = mix(day.ground, [0, 0, 0], 0.25);
@@ -11344,6 +11498,9 @@
       if (lowC.width !== sw || lowC.height !== sh) {
         lowC.width = sw; lowC.height = sh;
       }
+      lowG.setTransform(1, 0, 0, 1, 0, 0);
+      lowG.globalAlpha = 1;
+      lowG.globalCompositeOperation = "source-over";
       lowG.imageSmoothingEnabled = false;
       lowG.clearRect(0, 0, sw, sh);
       lowG.drawImage(fullC, 0, 0, actorW, actorH, 0, 0, sw, sh);
