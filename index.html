@@ -11287,22 +11287,22 @@
         // the ground plane as the light gets lower.
         var low = clamp01(1 + ly);                        // 0 = light high, 1 = grazing/longer
         var grow = smoother01(clamp01(sunStr / 0.48));    // cast shadow appears with the sun
-        var awayX = -lx;                                  // along the slope, away from light
+        var awayX = lx;                                   // along the slope, away from light
         if (Math.abs(awayX) < 0.18) awayX = awayX < 0 ? -0.18 : 0.18;
         var awayY = (0.32 + low * 0.58) * (0.74 + grow * 0.26); // down into the slope face
         var dlen = Math.hypot(awayX, awayY) || 1;
         var dirX = awayX / dlen, dirY = awayY / dlen;
         var perpX = -dirY, perpY = dirX;
         var baseY = bly + brad * 0.94;
-        var castLen = brad * (1.85 + low * 2.35) * (0.64 + grow * 0.56);
-        var castA = Math.min(0.54, (0.20 + low * 0.20) * (0.72 + grow * 0.72));
+        var castLen = brad * (2.45 + low * 3.25) * (0.62 + grow * 0.58);
+        var castA = Math.min(0.34, (0.12 + low * 0.16) * (0.70 + grow * 0.62));
         function shadowPoly(cx0, cy0, len, w0, w1, alpha, fade0) {
           var cx1 = cx0 + dirX * len;
           var cy1 = cy0 + dirY * len;
           var sg = g.createLinearGradient(cx0, cy0, cx1, cy1);
-          sg.addColorStop(0, "rgba(1,2,4," + alpha.toFixed(3) + ")");
-          sg.addColorStop(fade0, "rgba(1,2,4," + (alpha * 0.48).toFixed(3) + ")");
-          sg.addColorStop(1, "rgba(1,2,4,0)");
+          sg.addColorStop(0, "rgba(2,9,7," + alpha.toFixed(3) + ")");
+          sg.addColorStop(fade0, "rgba(2,9,7," + (alpha * 0.42).toFixed(3) + ")");
+          sg.addColorStop(1, "rgba(2,9,7,0)");
           g.fillStyle = sg;
           g.beginPath();
           g.moveTo(cx0 + perpX * w0, cy0 + perpY * w0);
@@ -11314,8 +11314,9 @@
         }
         g.save();
         g.beginPath(); g.rect(-100000, baseY - 1, 200000, 200000); g.clip();   // only on the ground side of the slope
-        shadowPoly(blx + dirX * brad * 0.28, baseY + 2, castLen, brad * 0.78, brad * 0.34, castA, 0.46);
-        shadowPoly(manBaseX - 9 * BASE_SCALE + dirX * brad * 0.18, baseY + 2, castLen * 0.70, brad * 0.32, brad * 0.14, castA * 0.58, 0.40);
+        shadowPoly(blx + dirX * brad * 0.04, baseY + 2, castLen * 1.08, brad * 0.92, brad * 0.36, castA * 0.46, 0.34);
+        shadowPoly(blx + dirX * brad * 0.22, baseY + 2, castLen * 0.86, brad * 0.54, brad * 0.18, castA * 0.86, 0.42);
+        shadowPoly(manBaseX - 8 * BASE_SCALE + dirX * brad * 0.18, baseY + 2, castLen * 0.34, brad * 0.12, brad * 0.04, castA * 0.14, 0.30);
 
         // Grounding contacts: dark and compact where the stone and feet touch,
         // separated from the long cast body so the object still feels heavy.
@@ -11324,9 +11325,9 @@
         g.rotate(Math.atan2(dirY, dirX));
         g.scale(1.0, 0.34);
         var stoneContact = g.createRadialGradient(0, 0, 1, 0, 0, brad * 0.94);
-        stoneContact.addColorStop(0, "rgba(0,0,3,0.58)");
-        stoneContact.addColorStop(0.55, "rgba(0,0,3,0.30)");
-        stoneContact.addColorStop(1, "rgba(0,0,3,0)");
+        stoneContact.addColorStop(0, "rgba(0,5,4,0.48)");
+        stoneContact.addColorStop(0.55, "rgba(0,5,4,0.24)");
+        stoneContact.addColorStop(1, "rgba(0,5,4,0)");
         g.fillStyle = stoneContact;
         g.beginPath(); g.arc(0, 0, brad * 0.94, 0, Math.PI * 2); g.fill();
         g.restore();
@@ -11336,9 +11337,9 @@
         g.rotate(Math.atan2(dirY, dirX));
         g.scale(1.0, 0.28);
         var manContact = g.createRadialGradient(0, 0, 1, 0, 0, brad * 0.46);
-        manContact.addColorStop(0, "rgba(0,0,3,0.42)");
-        manContact.addColorStop(0.62, "rgba(0,0,3,0.20)");
-        manContact.addColorStop(1, "rgba(0,0,3,0)");
+        manContact.addColorStop(0, "rgba(0,5,4,0.26)");
+        manContact.addColorStop(0.62, "rgba(0,5,4,0.12)");
+        manContact.addColorStop(1, "rgba(0,5,4,0)");
         g.fillStyle = manContact;
         g.beginPath(); g.arc(0, 0, brad * 0.46, 0, Math.PI * 2); g.fill();
         g.restore();
