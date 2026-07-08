@@ -11323,14 +11323,13 @@
         }
 
         g.save();
-        g.beginPath(); g.rect(-100000, baseY - 2, 200000, 200000); g.clip();
 
         // Broad readable cast body. The ellipse chain below adds natural falloff,
         // but the dense grass can hide it; this soft capsule gives the shadow the
         // clear long mass seen in the render reference.
-        shadowEllipse(blx + dirX * castLen * 0.36, baseY + 2 + dirY * castLen * 0.36,
+        shadowEllipse(blx + dirX * castLen * 0.36, baseY + 5 + dirY * castLen * 0.36,
           castLen * 0.44, Math.max(7, brad * (0.52 + low * 0.10)), rot, castA * 0.66);
-        shadowEllipse(blx + dirX * castLen * 0.22, baseY + 2 + dirY * castLen * 0.22,
+        shadowEllipse(blx + dirX * castLen * 0.22, baseY + 4 + dirY * castLen * 0.22,
           castLen * 0.26, Math.max(6, brad * (0.40 + low * 0.08)), rot, castA * 0.56);
 
         // Boulder mass: broad at contact, then a chain of smaller overlapping
@@ -11339,7 +11338,7 @@
           var u = si / 10;
           var ease = 1 - Math.pow(1 - u, 1.7);
           var cxS = blx + dirX * castLen * ease;
-          var cyS = baseY + 2 + dirY * castLen * ease;
+          var cyS = baseY + 3 + dirY * castLen * ease;
           var rxS = brad * (1.10 - u * 0.56);
           var ryS = brad * (0.52 + low * 0.10 - u * 0.30);
           var aS = castA * 0.58 * Math.pow(1 - u, 1.02);
@@ -11352,7 +11351,7 @@
         var manLen = castLen * 0.46;
         for (var mi = 0; mi < 5; mi++) {
           var mu = mi / 4;
-          shadowEllipse(manRootX + dirX * manLen * mu, baseY + 2 + dirY * manLen * mu,
+          shadowEllipse(manRootX + dirX * manLen * mu, baseY + 3 + dirY * manLen * mu,
             brad * (0.30 - mu * 0.12), Math.max(2, brad * (0.095 - mu * 0.035)), rot,
             castA * 0.24 * Math.pow(1 - mu, 1.15));
         }
