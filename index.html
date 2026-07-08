@@ -11281,68 +11281,85 @@
         g.beginPath(); g.arc(0, 0, dW, 0, Math.PI * 2); g.fill();
         g.restore();
       } else if (!REDUCED && gameState !== "title") {
-        // Projected cast shadow: the old version was a stretched radial blob, which
-        // became a wide stripe. This uses a tapered body like the reference render:
-        // tight at the stone/feet, longer away from the sun, and falling deeper into
-        // the ground plane as the light gets lower.
-        var low = clamp01(1 + ly);                        // 0 = light high, 1 = grazing/longer
-        var grow = smoother01(clamp01(sunStr / 0.48));    // cast shadow appears with the sun
-        var awayX = lx;                                   // along the slope, away from light
-        if (Math.abs(awayX) < 0.18) awayX = awayX < 0 ? -0.18 : 0.18;
-        var awayY = (0.32 + low * 0.58) * (0.74 + grow * 0.26); // down into the slope face
-        var dlen = Math.hypot(awayX, awayY) || 1;
-        var dirX = awayX / dlen, dirY = awayY / dlen;
-        var perpX = -dirY, perpY = dirX;
-        var baseY = bly + brad * 0.94;
-        var castLen = brad * (2.45 + low * 3.25) * (0.62 + grow * 0.58);
-        var castA = Math.min(0.34, (0.12 + low * 0.16) * (0.70 + grow * 0.62));
-        function shadowPoly(cx0, cy0, len, w0, w1, alpha, fade0) {
-          var cx1 = cx0 + dirX * len;
-          var cy1 = cy0 + dirY * len;
-          var sg = g.createLinearGradient(cx0, cy0, cx1, cy1);
-          sg.addColorStop(0, "rgba(2,9,7," + alpha.toFixed(3) + ")");
-          sg.addColorStop(fade0, "rgba(2,9,7," + (alpha * 0.42).toFixed(3) + ")");
-          sg.addColorStop(1, "rgba(2,9,7,0)");
-          g.fillStyle = sg;
-          g.beginPath();
-          g.moveTo(cx0 + perpX * w0, cy0 + perpY * w0);
-          g.lineTo(cx0 - perpX * w0, cy0 - perpY * w0);
-          g.lineTo(cx1 - perpX * w1, cy1 - perpY * w1);
-          g.lineTo(cx1 + perpX * w1, cy1 + perpY * w1);
-          g.closePath();
-          g.fill();
+        // Physically-informed cast shadow. Treat the light vector as a sun ray,
+        // project the stone/body away from it, then draw the projection as many
+        // overlapping soft pixel ellipses. This avoids hard triangular wedges and
+        // gives the boulder a long grounded shadow like the reference render.
+        var low = clamp01(1 + ly);                        // 0 = high light, 1 = low/grazing light
+        var grow = smoother01(clamp01(sunStr / 0.48));
+        var screenAway = sunL ? (boulderSX - sunL.x) : -lx; // positive when the sun is left of the stone
+        var castScreenX = (screenAway < 0 ? -1 : 1) * (0.92 + low * 0.26);
+        var castScreenY = 0.34 + low * 0.52;               // visible depth down the screen, like the render ref
+        var screenLen = Math.hypot(castScreenX, castScreenY) || 1;
+        castScreenX /= screenLen;
+        castScreenY /= screenLen;
+        // We are already inside the slope-rotated actor frame. Convert the desired
+        // screen-space cast ray back into local ground coordinates, otherwise the
+        // slope rotation flattens the shadow and it reads like a contact stain.
+        var ctShadow = Math.cos(theta), stShadow = Math.sin(theta);
+        var rayX = castScreenX * ctShadow - castScreenY * stShadow;
+        var rayY = castScreenX * stShadow + castScreenY * ctShadow;
+        if (rayY < 0.18) rayY = 0.18;
+        var rayLen = Math.hypot(rayX, rayY) || 1;
+        var dirX = rayX / rayLen, dirY = rayY / rayLen;
+        var rot = Math.atan2(dirY, dirX);
+        var baseY = bly + brad * 0.98;
+        var castLen = brad * (3.80 + low * 4.55) * (0.80 + grow * 0.72);
+        var castA = Math.min(0.72, (0.43 + low * 0.24) * (0.88 + grow * 0.62));
+
+        function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
+          if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
+          g.save();
+          g.translate(Math.round(cx), Math.round(cy));
+          g.rotate(rotAng);
+          g.scale(1, ry / rx);
+          var eg = g.createRadialGradient(0, 0, 1, 0, 0, rx);
+          eg.addColorStop(0, "rgba(2,12,7," + alpha.toFixed(3) + ")");
+          eg.addColorStop(0.52, "rgba(2,12,7," + (alpha * 0.54).toFixed(3) + ")");
+          eg.addColorStop(1, "rgba(2,12,7,0)");
+          g.fillStyle = eg;
+          g.beginPath(); g.arc(0, 0, rx, 0, Math.PI * 2); g.fill();
+          g.restore();
         }
-        g.save();
-        g.beginPath(); g.rect(-100000, baseY - 1, 200000, 200000); g.clip();   // only on the ground side of the slope
-        shadowPoly(blx + dirX * brad * 0.04, baseY + 2, castLen * 1.08, brad * 0.92, brad * 0.36, castA * 0.46, 0.34);
-        shadowPoly(blx + dirX * brad * 0.22, baseY + 2, castLen * 0.86, brad * 0.54, brad * 0.18, castA * 0.86, 0.42);
-        shadowPoly(manBaseX - 8 * BASE_SCALE + dirX * brad * 0.18, baseY + 2, castLen * 0.34, brad * 0.12, brad * 0.04, castA * 0.14, 0.30);
-
-        // Grounding contacts: dark and compact where the stone and feet touch,
-        // separated from the long cast body so the object still feels heavy.
-        g.save();
-        g.translate(blx - dirX * brad * 0.08, baseY + 1);
-        g.rotate(Math.atan2(dirY, dirX));
-        g.scale(1.0, 0.34);
-        var stoneContact = g.createRadialGradient(0, 0, 1, 0, 0, brad * 0.94);
-        stoneContact.addColorStop(0, "rgba(0,5,4,0.48)");
-        stoneContact.addColorStop(0.55, "rgba(0,5,4,0.24)");
-        stoneContact.addColorStop(1, "rgba(0,5,4,0)");
-        g.fillStyle = stoneContact;
-        g.beginPath(); g.arc(0, 0, brad * 0.94, 0, Math.PI * 2); g.fill();
-        g.restore();
 
         g.save();
-        g.translate(manBaseX - 10 * BASE_SCALE, baseY + 1);
-        g.rotate(Math.atan2(dirY, dirX));
-        g.scale(1.0, 0.28);
-        var manContact = g.createRadialGradient(0, 0, 1, 0, 0, brad * 0.46);
-        manContact.addColorStop(0, "rgba(0,5,4,0.26)");
-        manContact.addColorStop(0.62, "rgba(0,5,4,0.12)");
-        manContact.addColorStop(1, "rgba(0,5,4,0)");
-        g.fillStyle = manContact;
-        g.beginPath(); g.arc(0, 0, brad * 0.46, 0, Math.PI * 2); g.fill();
-        g.restore();
+        g.beginPath(); g.rect(-100000, baseY - 2, 200000, 200000); g.clip();
+
+        // Broad readable cast body. The ellipse chain below adds natural falloff,
+        // but the dense grass can hide it; this soft capsule gives the shadow the
+        // clear long mass seen in the render reference.
+        shadowEllipse(blx + dirX * castLen * 0.36, baseY + 2 + dirY * castLen * 0.36,
+          castLen * 0.44, Math.max(7, brad * (0.52 + low * 0.10)), rot, castA * 0.66);
+        shadowEllipse(blx + dirX * castLen * 0.22, baseY + 2 + dirY * castLen * 0.22,
+          castLen * 0.26, Math.max(6, brad * (0.40 + low * 0.08)), rot, castA * 0.56);
+
+        // Boulder mass: broad at contact, then a chain of smaller overlapping
+        // ellipses fades away. This creates the long soft shadow without a hard edge.
+        for (var si = 0; si < 11; si++) {
+          var u = si / 10;
+          var ease = 1 - Math.pow(1 - u, 1.7);
+          var cxS = blx + dirX * castLen * ease;
+          var cyS = baseY + 2 + dirY * castLen * ease;
+          var rxS = brad * (1.10 - u * 0.56);
+          var ryS = brad * (0.52 + low * 0.10 - u * 0.30);
+          var aS = castA * 0.58 * Math.pow(1 - u, 1.02);
+          shadowEllipse(cxS, cyS, rxS, Math.max(3, ryS), rot, aS);
+        }
+
+        // Figure shadow: much narrower and lower value than the stone, so it reads as
+        // attached to the feet/body instead of becoming a black spear.
+        var manRootX = manBaseX - 10 * BASE_SCALE;
+        var manLen = castLen * 0.46;
+        for (var mi = 0; mi < 5; mi++) {
+          var mu = mi / 4;
+          shadowEllipse(manRootX + dirX * manLen * mu, baseY + 2 + dirY * manLen * mu,
+            brad * (0.30 - mu * 0.12), Math.max(2, brad * (0.095 - mu * 0.035)), rot,
+            castA * 0.24 * Math.pow(1 - mu, 1.15));
+        }
+
+        // Contact anchors, intentionally compact and darkest right under the weight.
+        shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.82, Math.max(5, brad * 0.26), rot, 0.40 + 0.10 * grow);
+        shadowEllipse(manRootX, baseY + 1, brad * 0.34, Math.max(2, brad * 0.08), rot, 0.15 + 0.04 * grow);
         g.restore();
       }
 
