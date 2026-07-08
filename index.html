@@ -11246,6 +11246,16 @@
       var ACTOR_SINK = 3;
       g.translate(ANCHOR_X, ANCHOR_Y + ACTOR_SINK);     // surfaceAt(ANCHOR_X) === ANCHOR_Y (+ sink)
       g.rotate(-theta);
+      var cosTheta = Math.cos(theta), sinTheta = Math.sin(theta);
+      function localActorToScreen(localX, localY) {
+        return {
+          x: ztx + (ANCHOR_X + localX * cosTheta + localY * sinTheta) * zoom,
+          y: zty + (ANCHOR_Y + ACTOR_SINK - localX * sinTheta + localY * cosTheta) * zoom
+        };
+      }
+      var boulderScreen = localActorToScreen(blx, bly);
+      boulderSX = boulderScreen.x;
+      boulderSY = boulderScreen.y;
 
       // Directional light: unit vector toward the sun/moon, expressed in this local
       // (slope-rotated) frame. Drives the cast-shadow direction and the lit side of
@@ -11254,12 +11264,11 @@
       var lx = 0, ly = -1;   // local-frame unit vector TOWARD the light (default: overhead)
       var sScrX = 0, sScrY = -1, sunStr = 0;   // SCREEN-space dir toward the light + its strength
       if (sunL) {
-        var dsx = sunL.x - boulderSX, dsy = sunL.y - boulderSY, dl = Math.hypot(dsx, dsy) || 1;
+        var dsx = sunL.x - boulderScreen.x, dsy = sunL.y - boulderScreen.y, dl = Math.hypot(dsx, dsy) || 1;
         dsx /= dl; dsy /= dl;
         sScrX = dsx; sScrY = dsy; sunStr = sunL.strength || 0;
-        var ct = Math.cos(theta), st = Math.sin(theta);
-        lx = dsx * ct - dsy * st;
-        ly = dsx * st + dsy * ct;
+        lx = dsx * cosTheta - dsy * sinTheta;
+        ly = dsx * sinTheta + dsy * cosTheta;
       }
 
       // Cast contact shadow on the ground: a flattened blob under the stone + figure,
@@ -11287,25 +11296,30 @@
         // gives the boulder a long grounded shadow like the reference render.
         var low = clamp01(1 + ly);                        // 0 = high light, 1 = low/grazing light
         var grow = smoother01(clamp01(sunStr / 0.48));
-        var screenAway = sunL ? (boulderSX - sunL.x) : -lx; // positive when the sun is left of the stone
-        var castScreenX = (screenAway < 0 ? -1 : 1) * (0.92 + low * 0.26);
-        var castScreenY = 0.34 + low * 0.52;               // visible depth down the screen, like the render ref
+        // Ground-plane cast direction. A pure 2D sun-to-stone vector becomes almost
+        // vertical on phone screens when the sun is high over the actor; that looks
+        // like a streak. Instead, use the sun's real horizontal offset continuously
+        // for left/right direction, and a grounded down-screen component for depth.
+        var sunSide = sunL ? Math.max(-1, Math.min(1, (boulderScreen.x - sunL.x) / Math.max(70, VW * 0.13))) : -sScrX;
+        var lightLow = sunL ? clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27)) : low;
+        var castScreenX = sunSide * (0.86 + lightLow * 0.34);
+        var castScreenY = 0.34 + lightLow * 0.56;
+        if (Math.abs(castScreenX) < 0.10) castScreenX = castScreenX < 0 ? -0.10 : 0.10;
         var screenLen = Math.hypot(castScreenX, castScreenY) || 1;
         castScreenX /= screenLen;
         castScreenY /= screenLen;
         // We are already inside the slope-rotated actor frame. Convert the desired
         // screen-space cast ray back into local ground coordinates, otherwise the
         // slope rotation flattens the shadow and it reads like a contact stain.
-        var ctShadow = Math.cos(theta), stShadow = Math.sin(theta);
-        var rayX = castScreenX * ctShadow - castScreenY * stShadow;
-        var rayY = castScreenX * stShadow + castScreenY * ctShadow;
+        var rayX = castScreenX * cosTheta - castScreenY * sinTheta;
+        var rayY = castScreenX * sinTheta + castScreenY * cosTheta;
         if (rayY < 0.18) rayY = 0.18;
         var rayLen = Math.hypot(rayX, rayY) || 1;
         var dirX = rayX / rayLen, dirY = rayY / rayLen;
         var rot = Math.atan2(dirY, dirX);
         var baseY = bly + brad * 0.98;
-        var castLen = brad * (3.80 + low * 4.55) * (0.80 + grow * 0.72);
-        var castA = Math.min(0.72, (0.43 + low * 0.24) * (0.88 + grow * 0.62));
+        var castLen = brad * (3.35 + lightLow * 4.35 + low * 1.15) * (0.80 + grow * 0.72);
+        var castA = Math.min(0.72, (0.40 + lightLow * 0.25 + low * 0.10) * (0.88 + grow * 0.62));
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
@@ -11345,20 +11359,29 @@
           shadowEllipse(cxS, cyS, rxS, Math.max(3, ryS), rot, aS);
         }
 
-        // Figure shadow: much narrower and lower value than the stone, so it reads as
-        // attached to the feet/body instead of becoming a black spear.
-        var manRootX = manBaseX - 10 * BASE_SCALE;
-        var manLen = castLen * 0.46;
-        for (var mi = 0; mi < 5; mi++) {
-          var mu = mi / 4;
-          shadowEllipse(manRootX + dirX * manLen * mu, baseY + 3 + dirY * manLen * mu,
-            brad * (0.30 - mu * 0.12), Math.max(2, brad * (0.095 - mu * 0.035)), rot,
-            castA * 0.24 * Math.pow(1 - mu, 1.15));
+        // Sisyphus shadow: separate from the boulder and cast by the same sun ray.
+        // It starts at the feet/torso, so he no longer looks pasted onto the grass.
+        var manRootX = manBaseX + (figureLean || 0) - 10 * BASE_SCALE;
+        var manHipX = manBaseX + (figureLean || 0) - 4 * BASE_SCALE;
+        var manTopX = manBaseX + (figureLean || 0) + 4 * BASE_SCALE;
+        var manCastLen = castLen * (0.58 + 0.18 * low);
+        shadowEllipse(manRootX + 8 * BASE_SCALE + dirX * manCastLen * 0.22, baseY + 7 + dirY * manCastLen * 0.22,
+          manCastLen * 0.34, Math.max(3, brad * (0.22 + low * 0.05)), rot, castA * 0.55);
+        for (var mi = 0; mi < 7; mi++) {
+          var mu = mi / 6;
+          var mease = 1 - Math.pow(1 - mu, 1.55);
+          var anchorX = lerp(manRootX, manTopX, mu * 0.55);
+          var anchorY = baseY - (1 - mu) * 1.5 * BASE_SCALE;
+          shadowEllipse(anchorX + dirX * manCastLen * mease, anchorY + 3 + dirY * manCastLen * mease,
+            brad * (0.34 - mu * 0.15), Math.max(2.2, brad * (0.16 - mu * 0.055)), rot,
+            castA * 0.34 * Math.pow(1 - mu, 1.05));
         }
 
         // Contact anchors, intentionally compact and darkest right under the weight.
         shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.82, Math.max(5, brad * 0.26), rot, 0.40 + 0.10 * grow);
-        shadowEllipse(manRootX, baseY + 1, brad * 0.34, Math.max(2, brad * 0.08), rot, 0.15 + 0.04 * grow);
+        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.68, Math.max(2, brad * 0.16), rot, 0.40 + 0.08 * grow);
+        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.48, Math.max(2, brad * 0.12), rot, 0.34 + 0.08 * grow);
+        shadowEllipse(manHipX, baseY + 1, brad * 0.26, Math.max(2, brad * 0.08), rot, 0.18 + 0.06 * grow);
         g.restore();
       }
 
