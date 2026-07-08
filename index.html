@@ -11281,51 +11281,68 @@
         g.beginPath(); g.arc(0, 0, dW, 0, Math.PI * 2); g.fill();
         g.restore();
       } else if (!REDUCED && gameState !== "title") {
-        // Cast shadow that LIES IN THE SLOPE'S PLANE — drawn in the actor's slope-aligned
-        // frame, so it tilts to match the hill and reads as cast ON the ground (not a flat
-        // straight blob). It flattens ALONG the slope surface, rakes down-slope away from
-        // the sun, lengthens as the sun grazes, and grows in with the sun's strength.
-        var low = clamp01(1 + ly);                        // 0 = sun square to the slope, 1 = grazing -> long
-        var awaySlope = -lx;                              // along-the-slope direction away from the sun
-        var grow = smoother01(clamp01(sunStr / 0.5));     // shadow comes in WITH the sun (no pop)
-        var elong = 1.02 + low * 1.78 * grow;             // cast length without turning into a wide black stripe
-        var leanShear = awaySlope * (0.34 + low * 1.18) * grow;   // directional rake, kept restrained
-        var cxoff = awaySlope * brad * (0.42 + low * 1.60) * grow;
-        var dropY = brad * (0.18 + low * 0.95) * grow;    // let the shadow travel down into the slope, not just sideways
-        var shA = 0.30 + 0.58 * grow;                     // less heavy than the previous wide smear
-        var csW = brad * 1.34, csH = Math.max(11, brad * (0.56 + low * 0.34));
-        var baseY = bly + brad * 0.9;                     // the boulder's base on the slope surface
+        // Projected cast shadow: the old version was a stretched radial blob, which
+        // became a wide stripe. This uses a tapered body like the reference render:
+        // tight at the stone/feet, longer away from the sun, and falling deeper into
+        // the ground plane as the light gets lower.
+        var low = clamp01(1 + ly);                        // 0 = light high, 1 = grazing/longer
+        var grow = smoother01(clamp01(sunStr / 0.48));    // cast shadow appears with the sun
+        var awayX = -lx;                                  // along the slope, away from light
+        if (Math.abs(awayX) < 0.18) awayX = awayX < 0 ? -0.18 : 0.18;
+        var awayY = (0.32 + low * 0.58) * (0.74 + grow * 0.26); // down into the slope face
+        var dlen = Math.hypot(awayX, awayY) || 1;
+        var dirX = awayX / dlen, dirY = awayY / dlen;
+        var perpX = -dirY, perpY = dirX;
+        var baseY = bly + brad * 0.94;
+        var castLen = brad * (1.85 + low * 2.35) * (0.64 + grow * 0.56);
+        var castA = Math.min(0.54, (0.20 + low * 0.20) * (0.72 + grow * 0.72));
+        function shadowPoly(cx0, cy0, len, w0, w1, alpha, fade0) {
+          var cx1 = cx0 + dirX * len;
+          var cy1 = cy0 + dirY * len;
+          var sg = g.createLinearGradient(cx0, cy0, cx1, cy1);
+          sg.addColorStop(0, "rgba(1,2,4," + alpha.toFixed(3) + ")");
+          sg.addColorStop(fade0, "rgba(1,2,4," + (alpha * 0.48).toFixed(3) + ")");
+          sg.addColorStop(1, "rgba(1,2,4,0)");
+          g.fillStyle = sg;
+          g.beginPath();
+          g.moveTo(cx0 + perpX * w0, cy0 + perpY * w0);
+          g.lineTo(cx0 - perpX * w0, cy0 - perpY * w0);
+          g.lineTo(cx1 - perpX * w1, cy1 - perpY * w1);
+          g.lineTo(cx1 + perpX * w1, cy1 + perpY * w1);
+          g.closePath();
+          g.fill();
+        }
         g.save();
-        g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();   // ground side of the slope only (nothing above the base)
-        g.translate(blx + cxoff, baseY + 1 + dropY);
-        g.transform(1, 0, leanShear, 1, 0, 0);            // shear along the slope -> diagonal rake in-plane
-        g.scale(elong, csH / csW);                         // narrower across the slope, deeper down the face
-        var cgrad = g.createRadialGradient(0, 0, 1, 0, 0, csW);
-        cgrad.addColorStop(0, "rgba(1,1,4," + shA.toFixed(3) + ")");
-        cgrad.addColorStop(0.42, "rgba(1,1,4," + (shA * 0.54).toFixed(3) + ")");
-        cgrad.addColorStop(1, "rgba(1,1,4,0)");
-        g.fillStyle = cgrad;
-        g.beginPath(); g.arc(0, 0, csW, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.rect(-100000, baseY - 1, 200000, 200000); g.clip();   // only on the ground side of the slope
+        shadowPoly(blx + dirX * brad * 0.28, baseY + 2, castLen, brad * 0.78, brad * 0.34, castA, 0.46);
+        shadowPoly(manBaseX - 9 * BASE_SCALE + dirX * brad * 0.18, baseY + 2, castLen * 0.70, brad * 0.32, brad * 0.14, castA * 0.58, 0.40);
+
+        // Grounding contacts: dark and compact where the stone and feet touch,
+        // separated from the long cast body so the object still feels heavy.
+        g.save();
+        g.translate(blx - dirX * brad * 0.08, baseY + 1);
+        g.rotate(Math.atan2(dirY, dirX));
+        g.scale(1.0, 0.34);
+        var stoneContact = g.createRadialGradient(0, 0, 1, 0, 0, brad * 0.94);
+        stoneContact.addColorStop(0, "rgba(0,0,3,0.58)");
+        stoneContact.addColorStop(0.55, "rgba(0,0,3,0.30)");
+        stoneContact.addColorStop(1, "rgba(0,0,3,0)");
+        g.fillStyle = stoneContact;
+        g.beginPath(); g.arc(0, 0, brad * 0.94, 0, Math.PI * 2); g.fill();
         g.restore();
 
-        // A longer, softer tail makes the low sun readable on grass. Separate from
-        // the contact shadow so it can fade out naturally without a box edge.
-        if (sunL && sunStr > 0.035) {
-          g.save();
-          g.beginPath(); g.rect(-100000, baseY, 200000, 200000); g.clip();
-          g.translate(blx + awaySlope * brad * (1.30 + low * 1.95), baseY + brad * (0.52 + low * 1.08));
-          g.transform(1, 0, awaySlope * (0.24 + low * 0.72), 1, 0, 0);
-          g.scale(1.38 + low * 1.48, 0.42 + low * 0.30);
-          var tailR = brad * 1.22;
-          var tailA = Math.min(0.22, (0.10 + low * 0.12) * (0.58 + sunStr));
-          var tgrad = g.createRadialGradient(0, 0, 1, 0, 0, tailR);
-          tgrad.addColorStop(0, "rgba(2,3,8," + tailA.toFixed(3) + ")");
-          tgrad.addColorStop(0.48, "rgba(2,3,8," + (tailA * 0.52).toFixed(3) + ")");
-          tgrad.addColorStop(1, "rgba(2,3,8,0)");
-          g.fillStyle = tgrad;
-          g.beginPath(); g.arc(0, 0, tailR, 0, Math.PI * 2); g.fill();
-          g.restore();
-        }
+        g.save();
+        g.translate(manBaseX - 10 * BASE_SCALE, baseY + 1);
+        g.rotate(Math.atan2(dirY, dirX));
+        g.scale(1.0, 0.28);
+        var manContact = g.createRadialGradient(0, 0, 1, 0, 0, brad * 0.46);
+        manContact.addColorStop(0, "rgba(0,0,3,0.42)");
+        manContact.addColorStop(0.62, "rgba(0,0,3,0.20)");
+        manContact.addColorStop(1, "rgba(0,0,3,0)");
+        g.fillStyle = manContact;
+        g.beginPath(); g.arc(0, 0, brad * 0.46, 0, Math.PI * 2); g.fill();
+        g.restore();
+        g.restore();
       }
 
       // boulder (local coords)
