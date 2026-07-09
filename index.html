@@ -6662,7 +6662,7 @@
   // screen space — can anchor to the ACTUAL drawn ground instead of a screen-space
   // slope guess (which floated them on mobile, where zoom/offset differ).
   var curCamZtx = 0, curCamZty = 0, curCamZoom = 1;
-  var curCamZtxBase = 0;   // ztx WITHOUT per-frame camera shake — for the tree bridge-cull so trees don't flicker on/off at the bridge edge while the screen shakes
+  var curCamZtxBase = 0, curCamZtyBase = 0;   // stable camera position without push shake, used by scenery anchors
 
   // ---- geometry / camera ----
   var ANCHOR_X = 188, ANCHOR_Y = 156, HORIZON = 120;
@@ -8558,21 +8558,32 @@
     }
     return fade <= 0 ? 0 : (fade >= 1 ? 1 : fade * fade * (3 - 2 * fade));
   }
-  // True when the stone's screen position sits over a gorge-crossing bridge deck — used
-  // to swap the big ground cast-shadow for a small deck shadow (no ground below a bridge).
-  function boulderOverBridge() {
-    if (gameState === "title" || playMode === "run") return false;
-    if (bandGate(altitude, 0, 2800, 360) < 0.4) return false;   // bridges live only in the low gorge band
+  // Return the current bridge's exact span in the actor's slope-aligned local frame.
+  // Shadows use this as a receiver mask: they can land on planks, never in the gorge.
+  function bridgeDeckShadowSpan(theta) {
+    if (gameState === "title" || playMode === "run") return null;
+    if (bandGate(altitude, 0, 2800, 360) < 0.4) return null;
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
-    var bWorldX = (boulderSX - curCamZtx) / curCamZoom;   // stone screen-x -> world/zoom space (where the spans live)
+    var bWorldX = (boulderSX - curCamZtx) / curCamZoom;
+    var nearest = null, nearestGap = Infinity;
     for (var wi = 0; wi < 4; wi++) {
       var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
       if (mark < WATERFALL_FIRST) continue;
       var center = waterfallSceneX(mark);
       var gorgeW = 640 + Math.round(hash(mark * 0.31) * 90);
-      if (bWorldX > center - gorgeW * 0.78 && bWorldX < center + gorgeW * 0.82) return true;
+      var left = center - gorgeW * 0.78 - 54;
+      var right = center + gorgeW * 0.82 + 54;
+      var gap = bWorldX < left ? left - bWorldX : (bWorldX > right ? bWorldX - right : 0);
+      if (gap < nearestGap) {
+        var deckCos = Math.max(0.12, Math.cos(theta || 0));
+        nearestGap = gap;
+        nearest = {
+          left: (left - ANCHOR_X) / deckCos,
+          right: (right - ANCHOR_X) / deckCos
+        };
+      }
     }
-    return false;
+    return nearestGap < 900 ? nearest : null;
   }
   function drawTreeLayer(day, cfg) {
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
@@ -8641,7 +8652,7 @@
         // up the real surface there, and map it back to screen. (A screen-space slope
         // guess floated the trees on mobile, where the zoom/offset differ.)
         var treeWorldX = (sx + tw * 0.5 - curCamZtxBase) / curCamZoom;
-        baseY = Math.round(curCamZty + terrainLipAt(treeWorldX) * curCamZoom) + 6;
+        baseY = curCamZtyBase + terrainLipAt(treeWorldX) * curCamZoom + 6;
       }
       fg.save();
       fg.globalAlpha = treeRevealA;
@@ -11352,7 +11363,9 @@
     // above already adjusted them.)
     var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX;
     var zty = Math.round(focusY - ANCHOR_Y * zoom) + shakeY + openingDrop;
-    curCamZtx = ztx; curCamZty = zty; curCamZoom = zoom; curCamZtxBase = ztx - shakeX;
+    curCamZtx = ztx; curCamZty = zty; curCamZoom = zoom;
+    curCamZtxBase = ztx - shakeX;
+    curCamZtyBase = zty - shakeY;
     // clouds (in front of background)
     var drift = REDUCED ? 0 : (tSec * 4 + altitude * 0.2 + mountainIndex * 43);
     var galaxyCloudDim = 1 - (day.galaxy || 0) * 0.88;
@@ -11596,22 +11609,8 @@
       // Cast contact shadow on the ground: a flattened blob under the stone + figure,
       // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast
       // shadow (the sun pushes it to the far side), grounding them with depth.
-      if (!REDUCED && gameState !== "title" && boulderOverBridge()) {
-        // ON A BRIDGE: the deck is a thin plank over a see-through gorge — there's no
-        // ground to catch a cast shadow, so the big raking ellipse just hangs in the
-        // void. Draw a small, tight shadow hugging the deck right under the stone.
-        var dW = brad * 1.05;
-        g.save();
-        g.translate(blx - brad * 0.12, 5);
-        g.scale(1, 0.14);                                  // very flat — sits on the planks
-        var dgrad = g.createRadialGradient(0, 0, 1, 0, 0, dW);
-        dgrad.addColorStop(0, "rgba(2,2,6,0.5)");
-        dgrad.addColorStop(0.6, "rgba(2,2,6,0.22)");
-        dgrad.addColorStop(1, "rgba(2,2,6,0)");
-        g.fillStyle = dgrad;
-        g.beginPath(); g.arc(0, 0, dW, 0, Math.PI * 2); g.fill();
-        g.restore();
-      } else if (!REDUCED && gameState !== "title") {
+      if (!REDUCED && gameState !== "title") {
+        var bridgeShadowSpan = bridgeDeckShadowSpan(actorTheta);
         // Physically-informed cast shadow. Treat the light vector as a sun ray,
         // project the stone/body away from it, then draw the projection as many
         // overlapping soft pixel ellipses. This avoids hard triangular wedges and
@@ -11703,6 +11702,22 @@
         }
 
         g.save();
+
+        // Receiver mask: shadows exist only where a surface can receive them.
+        // Ground uses the slope-aligned half-plane below y=0. A bridge uses its
+        // exact horizontal span plus a shallow deck strip, so the same directional
+        // shadow continues across the planks but cannot spill into the gorge.
+        g.beginPath();
+        if (bridgeShadowSpan) {
+          var shadowBridgeL = Math.floor(bridgeShadowSpan.left);
+          var shadowBridgeR = Math.ceil(bridgeShadowSpan.right);
+          g.rect(-actorW, 0, shadowBridgeL + actorW, actorH);                 // ground before the gorge
+          g.rect(shadowBridgeL, -1, shadowBridgeR - shadowBridgeL, 15);      // bridge deck receiver
+          g.rect(shadowBridgeR, 0, actorW * 2 - shadowBridgeR, actorH);      // ground after the gorge
+        } else {
+          g.rect(-actorW, 0, actorW * 3, actorH);
+        }
+        g.clip();
 
         // Broad readable cast body. The ellipse chain below adds natural falloff,
         // but the dense grass can hide it; this soft capsule gives the shadow the
