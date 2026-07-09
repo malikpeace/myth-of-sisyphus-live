@@ -3835,7 +3835,6 @@
     storageSet("sisyphus4.lifetime", String(lifetimeMeters));
     var after = currentRank();
     if (after.name !== before.name) {
-      showModeBanner("you are now " + after.name.toLowerCase(), 3.2);
       playSound("mark");
       shakePulse = Math.max(shakePulse, 0.6);
     }
