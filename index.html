@@ -11302,9 +11302,9 @@
         // for left/right direction, and a grounded down-screen component for depth.
         var sunSide = sunL ? Math.max(-1, Math.min(1, (boulderScreen.x - sunL.x) / Math.max(70, VW * 0.13))) : -sScrX;
         var lightLow = sunL ? clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27)) : low;
-        var castScreenX = sunSide * (0.86 + lightLow * 0.34);
-        var castScreenY = 0.34 + lightLow * 0.56;
-        if (Math.abs(castScreenX) < 0.10) castScreenX = castScreenX < 0 ? -0.10 : 0.10;
+        var castScreenX = sunSide * (0.94 + lightLow * 0.30);
+        var castScreenY = 0.28 + lightLow * 0.42;
+        if (Math.abs(castScreenX) < 0.34) castScreenX = castScreenX < 0 ? -0.34 : 0.34;
         var screenLen = Math.hypot(castScreenX, castScreenY) || 1;
         castScreenX /= screenLen;
         castScreenY /= screenLen;
@@ -11318,8 +11318,8 @@
         var dirX = rayX / rayLen, dirY = rayY / rayLen;
         var rot = Math.atan2(dirY, dirX);
         var baseY = bly + brad * 0.98;
-        var castLen = brad * (3.35 + lightLow * 4.35 + low * 1.15) * (0.80 + grow * 0.72);
-        var castA = Math.min(0.72, (0.40 + lightLow * 0.25 + low * 0.10) * (0.88 + grow * 0.62));
+        var castLen = brad * (2.05 + lightLow * 2.30 + low * 0.45) * (0.82 + grow * 0.36);
+        var castA = Math.min(0.62, (0.36 + lightLow * 0.18 + low * 0.08) * (0.84 + grow * 0.46));
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
@@ -11341,21 +11341,21 @@
         // Broad readable cast body. The ellipse chain below adds natural falloff,
         // but the dense grass can hide it; this soft capsule gives the shadow the
         // clear long mass seen in the render reference.
-        shadowEllipse(blx + dirX * castLen * 0.36, baseY + 5 + dirY * castLen * 0.36,
-          castLen * 0.44, Math.max(7, brad * (0.52 + low * 0.10)), rot, castA * 0.66);
-        shadowEllipse(blx + dirX * castLen * 0.22, baseY + 4 + dirY * castLen * 0.22,
-          castLen * 0.26, Math.max(6, brad * (0.40 + low * 0.08)), rot, castA * 0.56);
+        shadowEllipse(blx + dirX * castLen * 0.32, baseY + 5 + dirY * castLen * 0.32,
+          castLen * 0.50, Math.max(8, brad * (0.76 + low * 0.08)), rot, castA * 0.58);
+        shadowEllipse(blx + dirX * castLen * 0.18, baseY + 4 + dirY * castLen * 0.18,
+          castLen * 0.32, Math.max(7, brad * (0.58 + low * 0.06)), rot, castA * 0.46);
 
         // Boulder mass: broad at contact, then a chain of smaller overlapping
         // ellipses fades away. This creates the long soft shadow without a hard edge.
-        for (var si = 0; si < 11; si++) {
-          var u = si / 10;
-          var ease = 1 - Math.pow(1 - u, 1.7);
+        for (var si = 0; si < 8; si++) {
+          var u = si / 7;
+          var ease = 1 - Math.pow(1 - u, 1.55);
           var cxS = blx + dirX * castLen * ease;
           var cyS = baseY + 3 + dirY * castLen * ease;
-          var rxS = brad * (1.10 - u * 0.56);
-          var ryS = brad * (0.52 + low * 0.10 - u * 0.30);
-          var aS = castA * 0.58 * Math.pow(1 - u, 1.02);
+          var rxS = brad * (1.18 - u * 0.52);
+          var ryS = brad * (0.74 + low * 0.07 - u * 0.38);
+          var aS = castA * 0.30 * Math.pow(1 - u, 1.18);
           shadowEllipse(cxS, cyS, rxS, Math.max(3, ryS), rot, aS);
         }
 
@@ -11364,9 +11364,9 @@
         var manRootX = manBaseX + (figureLean || 0) - 10 * BASE_SCALE;
         var manHipX = manBaseX + (figureLean || 0) - 4 * BASE_SCALE;
         var manTopX = manBaseX + (figureLean || 0) + 4 * BASE_SCALE;
-        var manCastLen = castLen * (0.58 + 0.18 * low);
+        var manCastLen = castLen * (0.54 + 0.12 * low);
         shadowEllipse(manRootX + 8 * BASE_SCALE + dirX * manCastLen * 0.22, baseY + 7 + dirY * manCastLen * 0.22,
-          manCastLen * 0.34, Math.max(3, brad * (0.22 + low * 0.05)), rot, castA * 0.55);
+          manCastLen * 0.34, Math.max(3, brad * (0.24 + low * 0.04)), rot, castA * 0.42);
         for (var mi = 0; mi < 7; mi++) {
           var mu = mi / 6;
           var mease = 1 - Math.pow(1 - mu, 1.55);
@@ -11378,9 +11378,9 @@
         }
 
         // Contact anchors, intentionally compact and darkest right under the weight.
-        shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.82, Math.max(5, brad * 0.26), rot, 0.40 + 0.10 * grow);
-        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.68, Math.max(2, brad * 0.16), rot, 0.40 + 0.08 * grow);
-        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.48, Math.max(2, brad * 0.12), rot, 0.34 + 0.08 * grow);
+        shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.88, Math.max(5, brad * 0.30), rot, 0.34 + 0.08 * grow);
+        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.68, Math.max(2, brad * 0.17), rot, 0.32 + 0.07 * grow);
+        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.48, Math.max(2, brad * 0.13), rot, 0.28 + 0.07 * grow);
         shadowEllipse(manHipX, baseY + 1, brad * 0.26, Math.max(2, brad * 0.08), rot, 0.18 + 0.06 * grow);
         g.restore();
       }
