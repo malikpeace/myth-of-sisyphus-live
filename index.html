@@ -8577,9 +8577,10 @@
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
     var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
     if (wfa <= 0.02) return;
-    // Trees are fully opaque once the forest is active. Depth comes from blur and
-    // parallax, not transparency, so a close tree remains visible over the figure.
-    var layerA = 1;
+    // Ease the forest into view as its biome arrives so whole trees never pop into
+    // a frame. The ramp ends early; once present, trees remain fully opaque and
+    // depth comes from blur + parallax rather than permanent transparency.
+    var layerA = smoother01(clamp01((wfa - 0.02) / 0.22));
     // SUMMIT (Absurd): the forest must clear well before the crest so it never crowds
     // the summit reveal, the celebration, or the rolling-stone fall. Fade out as the top
     // approaches, and drop entirely once he's at the top / the stone is falling.
