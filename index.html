@@ -2155,6 +2155,7 @@
   var dailySeed = dailyDate.split("").reduce(function (a, ch) { return a + ch.charCodeAt(0); }, 0);
   var QA_STATE = params.has("qa") || /QA/i.test(window.location.search);
   var QA_AUTOSTART = params.get("qaStart") === "1";
+  var SHADOW_LAB_ENABLED = QA_STATE && params.get("shadowLab") === "1";
   // QA-only overrides + frame timing stats (all inert unless ?qa= and helpers used)
   var qaBoulderScaleOverride = 0;
   var qaHazardOverride = null;
@@ -2326,7 +2327,7 @@
   }
   function updateShadowLabPanel() {}
   function initShadowLabPanel() {
-    if (!QA_STATE || document.getElementById("shadowlab")) return;
+    if (!SHADOW_LAB_ENABLED || document.getElementById("shadowlab")) return;
     loadShadowLab();
     var panel = document.createElement("div");
     panel.id = "shadowlab";
@@ -2438,7 +2439,7 @@
       preset: applyShadowLabPreset
     };
   }
-  if (QA_STATE) setTimeout(initShadowLabPanel, 0);
+  if (SHADOW_LAB_ENABLED) setTimeout(initShadowLabPanel, 0);
   // v4 storage lives under sisyphus4.* so v3 saves stay pristine. One-time
   // migration copies achievements/streak/history verbatim and scales bests by
   // 0.65 (fair under the slower climb). Ghosts are not migrated — old ghosts
@@ -11596,10 +11597,10 @@
         // project the stone/body away from it, then draw the projection as many
         // overlapping soft pixel ellipses. This avoids hard triangular wedges and
         // gives the boulder a long grounded shadow like the reference render.
-        var shadowLengthTune = QA_STATE ? shadowLab.length : SHADOW_SELECTED.length;
-        var shadowWidthTune = QA_STATE ? shadowLab.width : SHADOW_SELECTED.width;
-        var shadowOpacityTune = QA_STATE ? shadowLab.opacity : SHADOW_SELECTED.opacity;
-        var shadowSlantTune = QA_STATE ? shadowLab.slant : SHADOW_SELECTED.slant;
+        var shadowLengthTune = SHADOW_LAB_ENABLED ? shadowLab.length : SHADOW_SELECTED.length;
+        var shadowWidthTune = SHADOW_LAB_ENABLED ? shadowLab.width : SHADOW_SELECTED.width;
+        var shadowOpacityTune = SHADOW_LAB_ENABLED ? shadowLab.opacity : SHADOW_SELECTED.opacity;
+        var shadowSlantTune = SHADOW_LAB_ENABLED ? shadowLab.slant : SHADOW_SELECTED.slant;
         var targetScreenX = castShadowState.screenX || -0.62;
         var targetScreenY = 0.14;
         var targetStrength = 0;
