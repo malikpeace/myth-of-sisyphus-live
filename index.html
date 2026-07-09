@@ -2230,14 +2230,15 @@
       return false;
     }
   }
+  var SHADOW_SELECTED = { length: 0.81, width: 0.88, opacity: 1.21, slant: 0.65 };
   var SHADOW_LAB_PRESETS = [
-    { id: "soft", label: "soft oval", length: 0.78, width: 1.35, opacity: 0.86, slant: 1.15 },
+    { id: "soft", label: "selected", length: SHADOW_SELECTED.length, width: SHADOW_SELECTED.width, opacity: SHADOW_SELECTED.opacity, slant: SHADOW_SELECTED.slant },
     { id: "cinematic", label: "cinematic", length: 1.06, width: 1.08, opacity: 0.82, slant: 1.28 },
     { id: "contact", label: "grounded", length: 0.58, width: 1.62, opacity: 0.94, slant: 0.95 },
     { id: "pixel", label: "pixel cast", length: 0.82, width: 0.98, opacity: 1.02, slant: 1.10 },
     { id: "wide", label: "wide haze", length: 0.68, width: 1.90, opacity: 0.66, slant: 0.88 }
   ];
-  var shadowLabDefault = { preset: "soft", length: 0.78, width: 1.35, opacity: 0.86, slant: 1.15 };
+  var shadowLabDefault = { preset: "soft", length: SHADOW_SELECTED.length, width: SHADOW_SELECTED.width, opacity: SHADOW_SELECTED.opacity, slant: SHADOW_SELECTED.slant };
   var shadowLab = {
     preset: shadowLabDefault.preset,
     length: shadowLabDefault.length,
@@ -11472,7 +11473,11 @@
         var lightLow = sunL ? clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27)) : low;
         var castScreenX = sunSide * (0.94 + lightLow * 0.30);
         var castScreenY = 0.28 + lightLow * 0.42;
-        if (QA_STATE) castScreenX *= shadowLab.slant;
+        var shadowLengthTune = QA_STATE ? shadowLab.length : SHADOW_SELECTED.length;
+        var shadowWidthTune = QA_STATE ? shadowLab.width : SHADOW_SELECTED.width;
+        var shadowOpacityTune = QA_STATE ? shadowLab.opacity : SHADOW_SELECTED.opacity;
+        var shadowSlantTune = QA_STATE ? shadowLab.slant : SHADOW_SELECTED.slant;
+        castScreenX *= shadowSlantTune;
         if (Math.abs(castScreenX) < 0.34) castScreenX = castScreenX < 0 ? -0.34 : 0.34;
         var screenLen = Math.hypot(castScreenX, castScreenY) || 1;
         castScreenX /= screenLen;
@@ -11496,11 +11501,8 @@
           castLen *= lerp(1, 0.66, mountainShadowT);
           castA *= lerp(1, 0.72, mountainShadowT);
         }
-        var shadowWidthTune = QA_STATE ? shadowLab.width : 1;
-        if (QA_STATE) {
-          castLen *= shadowLab.length;
-          castA *= shadowLab.opacity;
-        }
+        castLen *= shadowLengthTune;
+        castA *= shadowOpacityTune;
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
