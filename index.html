@@ -2649,6 +2649,13 @@
   var plankBridgeImg = new Image(), plankBridgeReady = false;
   plankBridgeImg.onload = function () { plankBridgeReady = true; };
   plankBridgeImg.src = "assets/bridge-plank-tile-v2.png";
+  // Full authored rope bridge used for the forest gorge. Unlike the procedural
+  // fallback, its planks, lashings, support ropes, and end posts share one hand-made
+  // pixel treatment, so the bridge reads as part of the painted world.
+  var premiumBridgeImg = new Image(), premiumBridgeReady = false;
+  premiumBridgeImg.onload = function () { premiumBridgeReady = true; };
+  premiumBridgeImg.src = "assets/bridge-rope-premium-sprite-v1.png";
+  var premiumBridgeC = document.createElement("canvas"), premiumBridgeG = premiumBridgeC.getContext("2d");
   // Painted grass tufts (16-variant atlas, bottom-aligned) scattered on the ground for
   // life + texture, replacing the procedural path-grass clumps where loaded.
   var grassTuftImg = new Image(), grassTuftReady = false;
@@ -2723,7 +2730,7 @@
   // the action so trees sweep past the camera as you climb.
   var foregroundTreeImg = new Image(), foregroundTreeReady = false;
   foregroundTreeImg.onload = function () { foregroundTreeReady = true; };
-  foregroundTreeImg.src = "assets/foreground-tree.png";
+  foregroundTreeImg.src = "assets/foreground-tree-solid-v1.png";
   var fgTreeC = document.createElement("canvas"), fgTreeCtx = fgTreeC.getContext("2d");
   var voidReflC = document.createElement("canvas"), voidReflCtx = voidReflC.getContext("2d");
   var darkRockC = document.createElement("canvas"), darkRockG = darkRockC.getContext("2d");   // isolated night-darkened boulder copy
@@ -8570,10 +8577,9 @@
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
     var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
     if (wfa <= 0.02) return;
-    // OPAQUE trees: solid wherever they show. Only a hair of fade right at the very
-    // fringe of the waterfall zone (so they don't hard-pop) — reaches full opacity
-    // almost immediately, never a see-through tree in the play area.
-    var layerA = smoother01(clamp01((wfa - 0.03) / 0.1));
+    // Trees are fully opaque once the forest is active. Depth comes from blur and
+    // parallax, not transparency, so a close tree remains visible over the figure.
+    var layerA = 1;
     // SUMMIT (Absurd): the forest must clear well before the crest so it never crowds
     // the summit reveal, the celebration, or the rolling-stone fall. Fade out as the top
     // approaches, and drop entirely once he's at the top / the stone is falling.
@@ -8611,7 +8617,7 @@
       // space, so convert this tree's screen-x extent to world-x before the test —
       // otherwise the cull masks the wrong region when zoomed (trees crept onto bridges).
       var bridgeFade = treeBridgeFade((sx - curCamZtxBase) / curCamZoom, (sx + tw - curCamZtxBase) / curCamZoom);
-      if (bridgeFade <= 0.01) continue;                                          // fully over a gorge deck: no ground to root on
+      if (bridgeFade < 0.995) continue;                                          // hard cull near a gorge: never render a translucent tree
       var baseY;
       if (cfg.anchor === "screen") {
         baseY = Math.round(VH * cfg.baseYFrac);       // FOREGROUND: rooted below the frame so it sweeps in front of the camera (depth)
@@ -8624,7 +8630,7 @@
         baseY = Math.round(curCamZty + terrainLipAt(treeWorldX) * curCamZoom) + 6;
       }
       fg.save();
-      fg.globalAlpha = bridgeFade;                                               // dissolve near gorges instead of hard-popping
+      fg.globalAlpha = 1;
       fg.translate(sx, baseY - th);
       if (hash(i * 9.71 + cfg.seed) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
       fg.drawImage(foregroundTreeImg, 0, 0, tw, th);
@@ -8639,17 +8645,6 @@
     var tc = day.sky[2] || [120, 130, 150];
     fg.fillStyle = "rgba(" + Math.round(tc[0]) + "," + Math.round(tc[1]) + "," + Math.round(tc[2]) + "," + cfg.tint + ")";
     fg.fillRect(-logicalPad, -logicalPad, VW + logicalPad * 2, VH + logicalPad * 2);
-    if (cfg.groundFade) {
-      // Close trees pass over the playfield as depth. Fade their lower canopy into
-      // the meadow so the blur never reads like a rectangular shadow layer.
-      fg.globalCompositeOperation = "destination-in";
-      fg.fillStyle = lgrad(fg, 0, VH * 0.16, 0, VH * 0.56, [
-        [0, "rgba(0,0,0,1)"],
-        [0.62, "rgba(0,0,0,0.74)"],
-        [1, "rgba(0,0,0,0)"]
-      ]);
-      fg.fillRect(-logicalPad, -logicalPad, VW + logicalPad * 2, VH + logicalPad * 2);
-    }
     fg.restore();
     g.save();
     g.setTransform(RES, 0, 0, RES, 0, 0);
@@ -8671,10 +8666,10 @@
   // past at full speed. The bases are occluded by the foreground slope (drawn after), and
   // baseY is re-sampled from the ground every frame, so the slower drift never floats a
   // trunk off the hillside — it just gives the forest distance.
-  var TREES_BG = { anchor: "ground", par: 0.6, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.34, tint: 0.17, seed: 333, blur: 1.2 };
+  var TREES_BG = { anchor: "ground", par: 0.6, spacing: 72, skip: 0.30, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.8 };
   // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
   // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
-  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.50, tint: 0.12, seed: 0, blur: 5, groundFade: true };
+  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 520, skip: 0.5, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.24, tint: 0.05, seed: 0, blur: 1.5 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
@@ -9955,6 +9950,50 @@
     g.restore();
   }
 
+  function drawPremiumRopeBridgeSpan(left, right, yL, yR, len, angle, a, day) {
+    var ov = 58;
+    var targetW = len + ov * 2;
+    // The source is intentionally tall enough to contain complete posts and rails.
+    // Compress only its vertical presentation so it remains substantial without
+    // competing with the giant boulder or hiding Sisyphus.
+    var heightScale = 0.68;
+    var targetH = premiumBridgeImg.naturalHeight * (targetW / premiumBridgeImg.naturalWidth) * heightScale;
+    var bw = Math.max(2, Math.round(targetW));
+    var bh = Math.max(2, Math.round(targetH));
+    if (premiumBridgeC.width !== bw) premiumBridgeC.width = bw;
+    if (premiumBridgeC.height !== bh) premiumBridgeC.height = bh;
+    var pg = premiumBridgeG;
+    pg.setTransform(1, 0, 0, 1, 0, 0);
+    pg.globalAlpha = 1;
+    pg.globalCompositeOperation = "source-over";
+    pg.imageSmoothingEnabled = false;
+    pg.clearRect(0, 0, bw, bh);
+    pg.drawImage(premiumBridgeImg, 0, 0, bw, bh);
+
+    // Match the authored warm timber to the current weather without erasing its
+    // grain. Daylight remains rich; storms and dusk settle it into the scene.
+    var sceneLight = lum((day && day.sky && day.sky[2]) || [150, 160, 174]);
+    var darkA = clamp01((0.54 - sceneLight) * 0.72);
+    if (darkA > 0.01) {
+      pg.globalCompositeOperation = "source-atop";
+      pg.fillStyle = css((day && day.near) || [34, 38, 44], darkA);
+      pg.fillRect(0, 0, bw, bh);
+      pg.globalCompositeOperation = "source-over";
+    }
+
+    // In the cropped sprite, the walkable plank top sits 86px into 177px. Align
+    // that exact row to the collision surface so feet and stone never float.
+    var deckFrac = 86 / 177;
+    g.save();
+    g.globalAlpha = a;
+    g.translate(left, yL);
+    g.rotate(angle);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(premiumBridgeC, -ov, -Math.round(deckFrac * targetH), targetW, targetH);
+    g.imageSmoothingEnabled = false;
+    g.restore();
+  }
+
   function drawNativeRopeBridge(left, right, yL, yR, len, angle, a, mark, day, wood, woodDark, rope, hi) {
     var ov = 54;
     var start = -ov, end = len + ov;
@@ -10135,7 +10174,11 @@
         continue;
       }
 
-      drawNativeRopeBridge(left, right, yL, yR, len, angle, a, mark, day, wood, woodDark, rope, hi);
+      if (premiumBridgeReady) {
+        drawPremiumRopeBridgeSpan(left, right, yL, yR, len, angle, a, day);
+      } else {
+        drawNativeRopeBridge(left, right, yL, yR, len, angle, a, mark, day, wood, woodDark, rope, hi);
+      }
     }
   }
 
