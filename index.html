@@ -583,6 +583,9 @@
   #startscreen .start-selected {
     transition: opacity 0.8s ease, transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
   }
+  #startscreen .menu-more {
+    transition: opacity 0.8s ease, transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  }
   /* Light cascade so the menu pulls in from the top down instead of all at once. */
   #startscreen.menu-entered .s-copy { transition-delay: 0.05s; }
   #startscreen.menu-entered .daily-line { transition-delay: 0.10s; }
@@ -609,7 +612,8 @@
   #startscreen:not(.menu-ready) .progress-panel,
   #startscreen:not(.menu-ready) .customizer,
   #startscreen:not(.menu-ready) .email-join,
-  #startscreen:not(.menu-ready) .start-selected {
+  #startscreen:not(.menu-ready) .start-selected,
+  #startscreen:not(.menu-ready) .menu-more {
     opacity: 0;
     transform: translateY(22px);
     pointer-events: none;
@@ -628,7 +632,8 @@
   #startscreen.menu-settled .progress-panel,
   #startscreen.menu-settled .customizer,
   #startscreen.menu-settled .email-join,
-  #startscreen.menu-settled .start-selected {
+  #startscreen.menu-settled .start-selected,
+  #startscreen.menu-settled .menu-more {
     opacity: 1 !important;
     transform: none !important;
     pointer-events: auto !important;
@@ -756,7 +761,7 @@
     margin-bottom: 2.4em;
     text-align: center;
     overflow-wrap: anywhere;
-    text-shadow: 0 2px 0 rgba(20,24,32,0.22);
+    text-shadow: 0 2px 0 rgba(20,24,32,0.34), 0 8px 22px rgba(20,24,32,0.24);
   }
   #startscreen .s-copy {
     display: block;
@@ -768,7 +773,7 @@
     line-height: 1.65;
     text-align: center;
     text-transform: lowercase;
-    text-shadow: 0 2px 14px rgba(20,24,32,0.28);
+    text-shadow: 0 2px 2px rgba(20,24,32,0.52), 0 8px 18px rgba(20,24,32,0.24);
   }
   #startscreen .mode-label {
     width: min(980px, 90vw);
@@ -782,8 +787,8 @@
   #startscreen .mode-grid {
     width: min(980px, 90vw);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(176px, 100%), 1fr));
-    gap: clamp(12px, 1.2vw, 18px);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
   }
  #startscreen .mode-card,
   #startscreen .stat-cell,
@@ -796,11 +801,11 @@
     backdrop-filter: blur(7px);
   }
   #startscreen .mode-card {
-    min-height: 104px;
-    padding: 16px 14px;
-    border: 1px solid rgba(255,255,255,0.28);
-    border-top-width: 3px;
-    background: rgba(22,24,30,0.55);
+    min-height: 66px;
+    padding: 12px 13px;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-top-width: 2px;
+    background: rgba(18,20,25,0.48);
     color: rgba(255,255,255,0.88);
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     text-align: left;
@@ -813,7 +818,7 @@
   }
   #startscreen .mode-card.preferred {
     border-color: rgba(255,255,255,0.62);
-    background: rgba(255,255,255,0.11);
+    background: rgba(255,255,255,0.105);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
   }
   #startscreen .mode-card .tag {
@@ -828,16 +833,60 @@
   }
   #startscreen .mode-card strong {
     display: block;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     font-size: clamp(12px, 1.55vw, 16px);
     font-weight: 700;
   }
   #startscreen .mode-card span {
     display: block;
+    max-height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    opacity: 0;
     color: rgba(255,255,255,0.62);
     font-size: clamp(10px, 1.05vw, 12px);
     line-height: 1.45;
     text-transform: lowercase;
+    transition: max-height 0.28s ease, opacity 0.22s ease, margin-top 0.22s ease;
+  }
+  #startscreen .mode-card.preferred span,
+  #startscreen .mode-card:hover span,
+  #startscreen .mode-card:focus-visible span {
+    max-height: 52px;
+    margin-top: 8px;
+    opacity: 1;
+  }
+  #startscreen .menu-more {
+    width: min(980px, 90vw);
+    margin: 14px auto 0;
+    color: rgba(255,255,255,0.72);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  #startscreen .menu-more > summary {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(18,20,25,0.46);
+    color: rgba(255,255,255,0.66);
+    cursor: pointer;
+    list-style: none;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  #startscreen .menu-more > summary::-webkit-details-marker { display: none; }
+  #startscreen .menu-more > summary::after {
+    content: "+";
+    margin-left: 10px;
+    color: rgba(255,255,255,0.46);
+    font-size: 14px;
+  }
+  #startscreen .menu-more[open] > summary::after { content: "−"; }
+  #startscreen .menu-more[open] > summary {
+    border-color: rgba(255,255,255,0.42);
+    background: rgba(255,255,255,0.08);
   }
   #startscreen .timed-picker {
     display: none;
@@ -1509,15 +1558,15 @@
       line-height: 1.45;
     }
     #startscreen .mode-grid {
-      grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
     }
     #startscreen .customizer {
       grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
     }
     #startscreen .mode-card {
-      min-height: 92px;
-      padding: 12px 12px;
+      min-height: 66px;
+      padding: 11px 12px;
     }
     #startscreen .mode-card strong {
       margin-bottom: 8px;
@@ -1582,13 +1631,16 @@
       line-height: 1.45;
     }
     #startscreen .mode-grid {
-      grid-template-columns: repeat(auto-fit, minmax(min(142px, 100%), 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
     #startscreen .mode-card {
-      min-height: 72px;
-      padding: 12px 14px;
+      min-height: 58px;
+      padding: 11px 12px;
     }
+    #startscreen .mode-card.preferred span,
+    #startscreen .mode-card:focus-visible span { max-height: 72px; }
+    #startscreen .mode-card:hover:not(.preferred) span { max-height: 0; margin-top: 0; opacity: 0; }
     #startscreen .legacy-line {
       margin: 12px auto 10px;
       padding: 6px 8px;
@@ -1729,6 +1781,11 @@
   #startscreen.menu-entered {
     padding-bottom: calc(max(22px, env(safe-area-inset-bottom)) + 64px);
   }
+  @media (min-width: 681px) {
+    #startscreen.menu-entered {
+      padding-top: calc(env(safe-area-inset-top) + clamp(52px, 7vh, 84px));
+    }
+  }
   @media (max-width: 680px), (max-height: 560px) {
     #startscreen.menu-entered {
       padding-bottom: calc(max(18px, env(safe-area-inset-bottom)) + 24px);
@@ -1752,7 +1809,8 @@
   #startscreen.menu-ready .record-label,
   #startscreen.menu-ready .record-tablets,
   #startscreen.menu-ready .daily-line,
-  #startscreen.menu-ready .start-selected {
+  #startscreen.menu-ready .start-selected,
+  #startscreen.menu-ready .menu-more {
     opacity: 1 !important;
     transform: none !important;
   }
@@ -1770,6 +1828,7 @@
   #startscreen.menu-entered.menu-ready .record-tablets,
   #startscreen.menu-entered.menu-ready .daily-line,
   #startscreen.menu-entered.menu-ready .start-selected,
+  #startscreen.menu-entered.menu-ready .menu-more,
   #startscreen.menu-settled .progress-panel,
   #startscreen.menu-settled .mode-grid,
   #startscreen.menu-settled .customizer,
@@ -1781,7 +1840,8 @@
   #startscreen.menu-settled .record-label,
   #startscreen.menu-settled .record-tablets,
   #startscreen.menu-settled .daily-line,
-  #startscreen.menu-settled .start-selected {
+  #startscreen.menu-settled .start-selected,
+  #startscreen.menu-settled .menu-more {
     opacity: 1 !important;
     transform: translateY(0) !important;
     pointer-events: auto !important;
@@ -1914,47 +1974,50 @@
       <button class="timed-choice" data-timed-duration="60" type="button">1m</button>
       <button class="timed-choice" data-timed-duration="300" type="button">5m</button>
     </div>
-    <div id="rankline" class="legacy-line"></div>
-    <div id="legacyline" class="legacy-line">record: no climbs saved yet</div>
-    <div class="stats-grid" aria-label="progress stats">
-      <div class="stat-cell"><strong id="statbest">0000m</strong><span>best in this mode</span></div>
-      <div class="stat-cell"><strong id="statnext">0100m</strong><span>next record mark</span></div>
-      <div class="stat-cell"><strong id="stattotal">0000m</strong><span>meters remembered</span></div>
-      <div class="stat-cell"><strong id="statstyle">0000m</strong><span>worst fall remembered</span></div>
-    </div>
-    <div class="progress-panel" aria-label="sisyphus 2 progress">
-      <div class="sigil-box"><div class="ach-head"><span class="ach-title">Achievements</span><span class="ach-count" id="achcount">0 / 12</span></div><div id="achievementpanel" class="achievement-list"></div></div>
-    </div>
-    <div class="customizer" aria-label="customizer">
-      <div class="customizer-panel">
-        <strong>THEME</strong>
-        <div class="choice-row">
-          <button class="choice active" data-custom="look" data-value="classic">classic</button>
-          <button class="choice" data-custom="look" data-value="noir">night</button>
-          <button class="choice" data-custom="look" data-value="void">void</button>
+    <details class="menu-more">
+      <summary>records, achievements &amp; settings</summary>
+      <div id="rankline" class="legacy-line"></div>
+      <div id="legacyline" class="legacy-line">record: no climbs saved yet</div>
+      <div class="stats-grid" aria-label="progress stats">
+        <div class="stat-cell"><strong id="statbest">0000m</strong><span>best in this mode</span></div>
+        <div class="stat-cell"><strong id="statnext">0100m</strong><span>next record mark</span></div>
+        <div class="stat-cell"><strong id="stattotal">0000m</strong><span>meters remembered</span></div>
+        <div class="stat-cell"><strong id="statstyle">0000m</strong><span>worst fall remembered</span></div>
+      </div>
+      <div class="progress-panel" aria-label="sisyphus 2 progress">
+        <div class="sigil-box"><div class="ach-head"><span class="ach-title">Achievements</span><span class="ach-count" id="achcount">0 / 12</span></div><div id="achievementpanel" class="achievement-list"></div></div>
+      </div>
+      <div class="customizer" aria-label="customizer">
+        <div class="customizer-panel">
+          <strong>THEME</strong>
+          <div class="choice-row">
+            <button class="choice active" data-custom="look" data-value="classic">classic</button>
+            <button class="choice" data-custom="look" data-value="noir">night</button>
+            <button class="choice" data-custom="look" data-value="void">void</button>
+          </div>
+        </div>
+        <div class="customizer-panel">
+          <strong>SOUND</strong>
+          <div class="choice-row">
+            <button class="choice active" data-custom="sound" data-value="off">off</button>
+            <button class="choice" data-custom="sound" data-value="on">on</button>
+          </div>
+        </div>
+        <div class="customizer-panel">
+          <strong>SHARE</strong>
+          <button id="sharebtn" class="share-btn" type="button">copy link</button>
         </div>
       </div>
-      <div class="customizer-panel">
-        <strong>SOUND</strong>
-        <div class="choice-row">
-          <button class="choice active" data-custom="sound" data-value="off">off</button>
-          <button class="choice" data-custom="sound" data-value="on">on</button>
-        </div>
+      <div class="email-join" aria-label="join the email list">
+        <div class="email-join-title">enjoying the climb?</div>
+        <div class="email-join-sub">leave your email for new realms &amp; updates. no spam.</div>
+        <form id="emailjoinform" class="email-join-row">
+          <input id="emailjoininput" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" aria-label="email address" />
+          <button id="emailjoinbtn" type="submit">join</button>
+        </form>
+        <div id="emailjoinmsg" class="email-join-msg" aria-live="polite"></div>
       </div>
-      <div class="customizer-panel">
-        <strong>SHARE</strong>
-        <button id="sharebtn" class="share-btn" type="button">copy link</button>
-      </div>
-    </div>
-    <div class="email-join" aria-label="join the email list">
-      <div class="email-join-title">enjoying the climb?</div>
-      <div class="email-join-sub">leave your email for new realms &amp; updates. no spam.</div>
-      <form id="emailjoinform" class="email-join-row">
-        <input id="emailjoininput" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" aria-label="email address" />
-        <button id="emailjoinbtn" type="submit">join</button>
-      </form>
-      <div id="emailjoinmsg" class="email-join-msg" aria-live="polite"></div>
-    </div>
+    </details>
   </div>
 
 <script>
@@ -1977,46 +2040,21 @@
   var LOW_PX = 2;                                                                 // bigger = chunkier / lower-res
   var ACTOR_PAD_TOP = 260, ACTOR_PAD_BOTTOM = 1120;                                // room for giant rocks and summit drops
   var ACTOR_PAD_LEFT = 72, ACTOR_PAD_RIGHT = 1120;                                 // room for the summit stone drop
-  // A fixed in-game boulder sprite. Keep this stable: the stone should not change
-  // with modes, lighting, or old cropped reference processing.
+  // A fixed in-game boulder sprite authored for this game. Material detail is baked,
+  // while the live sun pass below still controls which side reads as illuminated.
   var rockCv = document.createElement("canvas"), rockReady = false;
   function buildFixedRockSprite() {
     var rsrc = new Image();
     rsrc.onload = function () {
-      var cx = 1030, cy = 458, R = 50, sz = R * 2 + 2;
+      var sz = 128;
       rockCv.width = sz; rockCv.height = sz;
       var rx = rockCv.getContext("2d"); rx.imageSmoothingEnabled = false;
-      rx.drawImage(rsrc, cx - sz / 2, cy - sz / 2, sz, sz, 0, 0, sz, sz);
-      var dd = rx.getImageData(0, 0, sz, sz), pp = dd.data;
-      for (var yy = 0; yy < sz; yy++) for (var xx = 0; xx < sz; xx++) {
-        var ii = (yy * sz + xx) * 4, ex = xx - sz / 2 + 0.5, ey = yy - sz / 2 + 0.5;
-        var dist = Math.sqrt(ex * ex + ey * ey);
-        var L = (pp[ii] + pp[ii + 1] + pp[ii + 2]) / 3;
-        if (dist > R) {
-          pp[ii + 3] = 0;
-        } else {
-          // SOFT spherical edge: smoothly darken toward the perimeter instead of a hard
-          // outline ring (a hard rim on a pixel-circle speckled at the staircase corners
-          // when upscaled). Darken the outer edge HARD so the boulder's anti-aliased edge
-          // fringe (from rotation) samples near-black pixels — otherwise that fringe was a
-          // light grey, and over the dark night sky it bled into a faint "glow" halo.
-          var t2 = (dist - R * 0.5) / (R * 0.5);
-          if (t2 < 0) t2 = 0; else if (t2 > 1) t2 = 1;
-          var k = 1 - 0.86 * t2 * t2;
-          if (L > 158) {
-            var shade = 96 + Math.round((1 - Math.min(1, dist / R)) * 18);
-            pp[ii] = Math.round(shade * k); pp[ii + 1] = Math.round((shade + 3) * k); pp[ii + 2] = Math.round((shade + 7) * k);
-          } else {
-            pp[ii] = Math.round(pp[ii] * k); pp[ii + 1] = Math.round(pp[ii + 1] * k); pp[ii + 2] = Math.round(pp[ii + 2] * k);
-          }
-          pp[ii + 3] = 255;
-        }
-      }
-      rx.putImageData(dd, 0, 0);
+      rx.clearRect(0, 0, sz, sz);
+      rx.drawImage(rsrc, 0, 0, rsrc.naturalWidth, rsrc.naturalHeight, 0, 0, sz, sz);
       rockReady = true;
       buildBoulderVariants();
     };
-    rsrc.src = "render.png";
+    rsrc.src = "assets/boulder-granite-sprite-v2.png";
   }
   buildFixedRockSprite();
 
@@ -2517,8 +2555,8 @@
   var ZOOM_MIN = 0.22;         // far-view scale at high altitude
 
   var BOULDER_R = 32;          // world radius -> about 2x the man (code-drawn version)
-  var BOULDER_GROW_MAX = 3.35;   // capped so the fixed rock sprite stays round at high altitude
-  var BOULDER_GROW_RANGE = 1000; // reaches full size by ~1000m — fast, noticeable growth early on
+  var BOULDER_GROW_MAX = 2.85;   // still mythic at altitude, but never swallows the figure or bridge
+  var BOULDER_GROW_RANGE = 1200; // a longer growth arc keeps the early realms readable
   var SUMMIT_ALT = 1000;
   var SUMMIT_CREST_TIME = 2.15;
   var SUMMIT_DROP_TIME = 3.55;
@@ -4778,7 +4816,7 @@
 
   function forceStartMenuSectionsVisible() {
     if (!startEl || gameState !== "title" || !startEl.classList.contains("menu-ready")) return;
-    var revealEls = startEl.querySelectorAll(".s-copy, .mode-label, .mode-grid, .legacy-line, .stats-grid, .memory-line, .record-label, .record-tablets, .daily-line, .progress-panel, .customizer, .start-selected");
+    var revealEls = startEl.querySelectorAll(".s-copy, .mode-label, .mode-grid, .legacy-line, .stats-grid, .memory-line, .record-label, .record-tablets, .daily-line, .progress-panel, .customizer, .start-selected, .menu-more");
     for (var rei = 0; rei < revealEls.length; rei++) {
       revealEls[rei].style.transition = "none";
       revealEls[rei].style.opacity = "1";
@@ -7571,7 +7609,7 @@
     if (qaBoulderScaleOverride > 0) return qaBoulderScaleOverride;
     var t = clamp01(altitude / BOULDER_GROW_RANGE);
     t = t * t * (3 - 2 * t);
-    return lerp(0.5, BOULDER_GROW_MAX, t);   // start half-size so the growth is far more noticeable; grows to the same big max
+    return lerp(0.62, BOULDER_GROW_MAX, t);  // readable at the opening, then steadily heavier rather than suddenly enormous
   }
   function summitDropEase(t) {
     t = clamp01(t);
@@ -8199,10 +8237,11 @@
     // hue-cast (esp. the purple galaxy/void), read as harsh repetitive dark lumps. Fade
     // the atlas down in those realms so the smooth solid base (groundDark) dominates and
     // the lumps blur into one uniform surface. Grass/forest/plain-grey rock keep full atlas.
-    var exoticRock = 0;
-    if (day) exoticRock = Math.max(day.galaxy || 0, (day.r4 && day.r4.thevoid) || 0, (day.r4 && day.r4.ashen) || 0,
-      (day.canyon || 0) * 0.7, (day.greek || 0) * 0.7, (day.valleys || 0) * 0.7);
-    var baseAtlasA = 1 - 0.66 * clamp01(exoticRock);
+    var exoticRockRaw = 0;
+    if (day) exoticRockRaw = Math.max(day.galaxy || 0, (day.r4 && day.r4.thevoid) || 0, (day.r4 && day.r4.ashen) || 0,
+      day.canyon || 0, day.greek || 0, day.valleys || 0, day.snow || 0);
+    var exoticRock = smoother01(clamp01(exoticRockRaw * 1.35));
+    var baseAtlasA = 1 - 0.97 * exoticRock;
     drawAtlasTiles(groundTex, baseAtlasA);
     // Grass over the rock base at the start + forest; fades higher so rock returns.
     // The night (noir) theme swaps in the dark moonlit ground atlas.
@@ -8221,9 +8260,52 @@
     // (cold daily peaks + high-altitude weather), mirroring the flower crossfade.
     var snowA = snowGroundReady ? clamp01(((day && day.snow || 0) - 0.12) / 0.5) : 0;
     if (snowA > 0.002) {
-      drawAtlasTiles(snowGroundTex, Math.min(0.97, snowA));
+      drawAtlasTiles(snowGroundTex, Math.min(0.11, snowA * 0.13));
     }
     g.globalAlpha = 1;
+
+    // Macro-value pass: quiet the repeated atlas detail in the exotic realms and
+    // replace it with broad, slow tonal variation. The terrain still has texture,
+    // but it now reads as a mountain first and a repeating tile second.
+    if (day && exoticRock > 0.08) {
+      var macroA = clamp01(exoticRock) * 0.40;
+      var macroCol = mix(day.ground || [76, 72, 68], day.groundDark || [34, 34, 38], 0.34);
+      g.fillStyle = css(macroCol, macroA);
+      g.fillRect(x0, 0, x1 - x0, h);
+      var macro = g.createLinearGradient(x0, 0, x1, Math.min(h, 520));
+      macro.addColorStop(0, css(day.groundDark || [28, 30, 36], macroA * 0.72));
+      macro.addColorStop(0.38, css(day.ground || [72, 72, 76], 0));
+      macro.addColorStop(0.72, css(day.ground || [72, 72, 76], macroA * 0.34));
+      macro.addColorStop(1, css(day.groundDark || [28, 30, 36], macroA * 0.56));
+      g.fillStyle = macro;
+      g.fillRect(x0, 0, x1 - x0, Math.min(h, 620));
+
+      // Sparse, world-locked strata replace the atlas's obvious repeated stones.
+      // Long quiet runs make the slope feel geologic while the tiny stepped ends
+      // preserve the game's crisp pixel language.
+      var strataT = clamp01(exoticRock);
+      var strataSnow = clamp01(day.snow || 0);
+      var strataDark = mix(day.groundDark || day.ground || [54, 54, 58], [0, 0, 0], 0.24);
+      var strataLight = mix(day.ground || [92, 90, 86], [255, 255, 255], strataSnow > 0.4 ? 0.18 : 0.10);
+      var strataCell = 74;
+      var strataStart = Math.floor((x0 + scroll) / strataCell) - 1;
+      var strataEnd = Math.ceil((x1 + scroll) / strataCell) + 1;
+      var strataDepth = Math.min(h * 0.72, 560);
+      for (var sr = 0; sr < 10; sr++) {
+        var sy = 18 + sr * 43 + Math.round(hash(sr * 7.13 + mountainIndex) * 18);
+        if (sy > strataDepth) break;
+        for (var sc = strataStart; sc <= strataEnd; sc++) {
+          var sh = hash(sc * 5.91 + sr * 17.27 + mountainIndex * 0.73);
+          if (sh < 0.66) continue;
+          var sx = sc * strataCell - scroll + Math.round(hash(sc * 3.17 + sr) * 22);
+          var sw = 14 + Math.round(hash(sc * 9.43 + sr * 2.7) * 42);
+          var sa = strataT * (0.055 + sh * 0.065) * (1 - sy / Math.max(1, strataDepth) * 0.35);
+          g.fillStyle = css(sh > 0.84 ? strataLight : strataDark, sa);
+          g.fillRect(Math.round(sx), sy, sw, sh > 0.91 ? 2 : 1);
+          if (sh > 0.88) g.fillRect(Math.round(sx + 4), sy + 1, Math.max(3, Math.round(sw * 0.42)), 1);
+        }
+      }
+    }
 
     // ATMOSPHERE COLOUR CAST — sync the ground's hue with the backdrop. CRUCIAL:
     // applied HERE, in the atlas's own rotated space over exactly the atlas band
@@ -8283,14 +8365,14 @@
     // It adds close-up sharpness without switching styles or needing vector grass.
     if (grassA > 0.12 && customize.look !== "void") {
       var detailA = Math.min(1, grassA * 1.15) * (1 - ((day && day.snow) || 0) * 0.8);
-      var detailDepth = Math.min(280, h * 0.34);
-      var dStep = 5;
+      var detailDepth = Math.min(220, h * 0.30);
+      var dStep = 8;
       var dStart = Math.floor((x0 - 10) / dStep) * dStep;
       var dEnd = Math.ceil((x1 + 10) / dStep) * dStep;
       for (var dxp = dStart; dxp <= dEnd; dxp += dStep) {
         var did = Math.floor((dxp + scroll * 0.93 + mountainIndex * 57) / dStep);
         var r0 = hash(did * 3.17);
-        if (r0 < 0.38) continue;
+        if (r0 < 0.52) continue;
         var dy = Math.round(5 + hash(did * 7.41) * detailDepth);
         var nearTop = 1 - Math.min(0.86, dy / Math.max(1, detailDepth));
         var a0 = detailA * (0.12 + nearTop * 0.42) * (0.72 + r0 * 0.28);
@@ -8308,7 +8390,7 @@
 
     if (flowerA > 0.01 && flowerGroundReady) {
       var fieldA = Math.min(1, flowerA * 1.22) * (1 - ((day && day.snow) || 0) * 0.82);
-      var flowerStep = 18;
+      var flowerStep = 26;
       var flowerPhase = scroll % flowerStep; if (flowerPhase < 0) flowerPhase += flowerStep;
       var flowerCols = [
         [223, 141, 79],
@@ -10270,7 +10352,7 @@
       var estHalf = Math.sqrt(Math.max(0, brad * brad - estRel * estRel));
       var chordX = bx - estHalf - 1 * s;          // where the hand will land on the sphere
       var maxReach = 16 * s;                      // natural bent-arm reach
-      leanIn = Math.max(0, (chordX - (ax + 9 * s)) - maxReach) * giantT;
+      leanIn = Math.min(14 * s, Math.max(0, (chordX - (ax + 9 * s)) - maxReach) * giantT * 0.72);
     }
     ax += leanIn;
     figureLean = leanIn;
@@ -10284,12 +10366,19 @@
         activity < 0.035 && effort < 0.055 && slideEffort < 0.04 && stumble < 0.04) {
       idleBreath = (Math.sin(tSec * 2.05) * 0.5 + 0.5) * (REDUCED ? 0.28 : 1);
     }
-    var hipX = ax - brace * 4 * s - stumble * 1.8 * s, hipY = gY - 14 * s + bob + brace * 2 * s + stumble * 2.4 * s;
-    var shX = hipX + (9 + brace * 4 + stumble * 2.0) * s, shY = hipY - (13 - brace * 1.5) * s + bob * 0.5 + stumble * 0.8 * s;   // torso digs into the rock
+    // Every successful input travels through the whole body. The old pose only
+    // squashed the stone, which made Sisyphus look static beside it. This short
+    // drive lowers the hips, sends the shoulder into the hand, then eases back.
+    var pushDrive = (!REDUCED && gameState === "playing" && modePhase === "play")
+      ? smoother01(clamp01(Math.max(heavePulse / 0.72, rhythmPulse * 0.78))) : 0;
+    var hipX = ax - brace * 4 * s - stumble * 1.8 * s + pushDrive * 1.15 * s;
+    var hipY = gY - 14 * s + bob + brace * 2 * s + stumble * 2.4 * s + pushDrive * 0.75 * s;
+    var shX = hipX + (9 + brace * 4 + stumble * 2.0 + pushDrive * 1.85) * s;
+    var shY = hipY - (13 - brace * 1.5 - pushDrive * 0.5) * s + bob * 0.5 + stumble * 0.8 * s;   // torso digs into the rock
 
     if (brace > 0.08) {
-      var backFootX = hipX - (19 + brace * 3) * s, backFootY = floorY;
-      var frontFootX = hipX - (7 + brace * 2) * s, frontFootY = floorY;
+      var backFootX = hipX - (19 + brace * 3 + pushDrive * 1.15) * s, backFootY = floorY;
+      var frontFootX = hipX - (7 + brace * 2 + pushDrive * 0.35) * s, frontFootY = floorY;
       var backKneeX = hipX - 12 * s, backKneeY = hipY + 6 * s;
       var frontKneeX = hipX - 1 * s, frontKneeY = hipY + 7 * s;
 
@@ -10392,8 +10481,8 @@
     if (selectedCosmetic === "wraps") {
       r(shX + (handX - shX) * 0.70, handY - 2 * s, Math.max(2, 4 * s), Math.max(1, 1.5 * s), "rgba(218,218,202,0.82)");
     }
-    var elbowX = shX + (handX - shX) * 0.5;
-    var elbowY = (shY + handY) / 2 + 1.4 * s;   // gentle, CONSTANT bow — the arm stays straight at every boulder size (no extra bend at altitude)
+    var elbowX = shX + (handX - shX) * (0.48 + pushDrive * 0.05);
+    var elbowY = (shY + handY) / 2 + (1.4 + pushDrive * 0.8) * s;   // a little compression on impact sells the shove without losing contact
     limb(shX, shY, elbowX, elbowY, aw, figInk);
     limb(elbowX, elbowY, handX, handY, aw, figInk);
     r(handX - 2 * s, handY - 2 * s, 4 * s, 4 * s, figInk);
@@ -11473,16 +11562,13 @@
         var targetStrength = 0;
         var targetLightLow = 0;
         if (sunL && sunStr > 0.025) {
-          // Ground-plane cast direction. Use the visible light position, but keep
-          // a small side bias when the sun crosses overhead so the shadow eases
-          // through center instead of snapping left/right.
+          // Ground-plane cast direction comes directly from the visible light.
+          // Let it pass through zero naturally when the sun crosses overhead;
+          // forcing a minimum side offset caused the old left/right jump.
           var rawSide = (boulderScreen.x - sunL.x) / Math.max(86, VW * 0.15);
           var sunSide = Math.max(-1, Math.min(1, rawSide));
           targetLightLow = clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27));
           targetScreenX = sunSide * (0.94 + targetLightLow * 0.30) * shadowSlantTune;
-          var minSide = 0.20 + targetLightLow * 0.14;
-          var sideSign = Math.abs(targetScreenX) > 0.035 ? (targetScreenX < 0 ? -1 : 1) : (castShadowState.screenX < 0 ? -1 : 1);
-          if (Math.abs(targetScreenX) < minSide) targetScreenX = sideSign * minSide;
           targetScreenY = 0.26 + targetLightLow * 0.42;
           targetStrength = smoother01(clamp01((sunStr - 0.025) / 0.45));
         }
@@ -11537,7 +11623,9 @@
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
-          ry *= shadowWidthTune;
+          // Contain steep-slope shadows by narrowing the soft projection itself.
+          // A rectangular clip made the edge read as an invisible box.
+          ry *= shadowWidthTune * lerp(1, 0.62, mountainShadowT);
           g.save();
           g.translate(Math.round(cx), Math.round(cy));
           g.rotate(rotAng);
@@ -11552,14 +11640,6 @@
         }
 
         g.save();
-        if (mountainShadowT > 0.18) {
-          // On steep giant-rock slopes the broad ellipse can otherwise spill off
-          // the mountain into the sky. Clip only to the ground side of the local
-          // slope line; meadow scenes skip this to avoid visible boxed cutoffs.
-          g.beginPath();
-          g.rect(-100000, baseY - brad * 0.06, 200000, 200000);
-          g.clip();
-        }
 
         // Broad readable cast body. The ellipse chain below adds natural falloff,
         // but the dense grass can hide it; this soft capsule gives the shadow the
@@ -11756,7 +11836,7 @@
           var hx = blx + lx * brad * 0.5, hy = bly + ly * brad * 0.5;
           g.save();
           g.beginPath(); g.arc(blx, bly, brad - 1, 0, Math.PI * 2); g.clip();
-          var hl = Math.min(0.5, 0.46 * sunL.strength);
+          var hl = Math.min(0.30, 0.24 * sunL.strength);
           var hgr = g.createRadialGradient(hx, hy, brad * 0.08, hx, hy, brad * 1.18);
           hgr.addColorStop(0, "rgba(" + sunL.col[0] + "," + sunL.col[1] + "," + sunL.col[2] + "," + hl.toFixed(3) + ")");
           hgr.addColorStop(0.5, "rgba(" + sunL.col[0] + "," + sunL.col[1] + "," + sunL.col[2] + "," + (hl * 0.32).toFixed(3) + ")");
@@ -11764,7 +11844,7 @@
           g.fillStyle = hgr;
           g.fillRect(blx - brad, bly - brad, brad * 2, brad * 2);
           var tx = blx - lx * brad * 0.75, ty = bly - ly * brad * 0.75;
-          var tda = Math.min(0.42, 0.26 * sunL.strength + 0.12);
+          var tda = Math.min(0.34, 0.20 * sunL.strength + 0.10);
           var tgr = g.createRadialGradient(tx, ty, brad * 0.15, tx, ty, brad * 1.25);
           tgr.addColorStop(0, "rgba(6,8,16," + tda.toFixed(3) + ")");
           tgr.addColorStop(0.6, "rgba(6,8,16," + (tda * 0.4).toFixed(3) + ")");
