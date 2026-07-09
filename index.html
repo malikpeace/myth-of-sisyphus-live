@@ -7737,6 +7737,17 @@
       lift: Math.max(0, lift)
     };
   }
+  // Keep the end-of-day -> sunrise wrap invisible, then reveal the new sun over
+  // a broad section of the climb. Without this envelope the arc jumped from its
+  // far-right endpoint to the top-left and the fully lit disk appeared in one frame.
+  // This same value also drives currentSunLight(), so cast shadows wake up at the
+  // exact pace of the visible sun instead of arriving before it.
+  function sunCycleVisibility(cycle) {
+    cycle = ((cycle % 1) + 1) % 1;
+    var sunrise = smoother01(clamp01((cycle - 0.012) / 0.115));
+    var sunset = 1 - smoother01(clamp01((cycle - 0.66) / 0.10));
+    return sunrise * sunset;
+  }
   function drawMinimalSun(cx, cy, size, alpha) {
     alpha = clamp01(alpha);
     if (alpha <= 0.01) return;
@@ -7829,6 +7840,7 @@
       return { x: nmp.x, y: nmp.y, strength: 0.42 * rainDim * clamp01(1 - (day.galaxy || 0) * 0.7), col: [150, 172, 224] };
     }
     var sunGate = clamp01(((((day.sun && day.sun.a) || 0)) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
+    sunGate *= sunCycleVisibility(cycle);
     if (sunGate > 0.02) {
       var sp = sunArcPoint(clamp01(cycle / 0.72));
       return { x: sp.x, y: sp.y, strength: clamp01(sunGate * 2.2) * rainDim * (0.55 + 0.45 * sp.lift), col: [255, 238, 198] };
@@ -7848,6 +7860,7 @@
     var topLum = lum(day.sky[0]);
     var brightSky = Math.max(lum(day.sky[1]), lum(day.sky[2]), lum(day.sky[3]));
     var sunGate = clamp01((((day.sun && day.sun.a) || 0) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
+    sunGate *= sunCycleVisibility(cycle);
     var moonGate = clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20);
     if (customize.look === "noir") {
       // NIGHT theme: a moon takes the sun's arc — always up, sweeping from the
@@ -7859,8 +7872,8 @@
       if (nMoonA > 0.02) drawMinimalMoon(nmp.x, nmp.y, (24 + nmp.lift * 7) * 0.82, nMoonA);
     } else if (sunGate > 0.02) {
       var sunPhase = clamp01(cycle / 0.72);
-      // Bias the brightness so the sun is already lit when it starts in the
-      // top-left corner (phase 0), instead of fading up from the horizon.
+      // The arc begins at the top-left, while sunCycleVisibility() now supplies
+      // the slow atmospheric reveal that keeps this position change invisible.
       var daylight = Math.sin(clamp01(0.18 + sunPhase * 0.82) * Math.PI);
       var sp = sunArcPoint(sunPhase);
       // FULLY VISIBLE, OPAQUE sun: the disc is solid whenever the sun is up. Only the
