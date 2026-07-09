@@ -2230,6 +2230,174 @@
       return false;
     }
   }
+  var SHADOW_LAB_PRESETS = [
+    { id: "soft", label: "soft oval", length: 0.78, width: 1.35, opacity: 0.86, slant: 1.15 },
+    { id: "cinematic", label: "cinematic", length: 1.06, width: 1.08, opacity: 0.82, slant: 1.28 },
+    { id: "contact", label: "grounded", length: 0.58, width: 1.62, opacity: 0.94, slant: 0.95 },
+    { id: "pixel", label: "pixel cast", length: 0.82, width: 0.98, opacity: 1.02, slant: 1.10 },
+    { id: "wide", label: "wide haze", length: 0.68, width: 1.90, opacity: 0.66, slant: 0.88 }
+  ];
+  var shadowLabDefault = { preset: "soft", length: 0.78, width: 1.35, opacity: 0.86, slant: 1.15 };
+  var shadowLab = {
+    preset: shadowLabDefault.preset,
+    length: shadowLabDefault.length,
+    width: shadowLabDefault.width,
+    opacity: shadowLabDefault.opacity,
+    slant: shadowLabDefault.slant
+  };
+  function shadowLabStorageGet() {
+    try {
+      if (!window.localStorage) return "";
+      return localStorage.getItem("sisyphus4.qa.shadowLab") || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function shadowLabStorageSet() {
+    try {
+      if (window.localStorage) localStorage.setItem("sisyphus4.qa.shadowLab", JSON.stringify(shadowLab));
+    } catch (e) {}
+  }
+  function applyShadowLabPreset(id) {
+    var p = SHADOW_LAB_PRESETS[0];
+    for (var i = 0; i < SHADOW_LAB_PRESETS.length; i++) {
+      if (SHADOW_LAB_PRESETS[i].id === id) { p = SHADOW_LAB_PRESETS[i]; break; }
+    }
+    shadowLab.preset = p.id;
+    shadowLab.length = p.length;
+    shadowLab.width = p.width;
+    shadowLab.opacity = p.opacity;
+    shadowLab.slant = p.slant;
+    shadowLabStorageSet();
+    updateShadowLabPanel();
+  }
+  function loadShadowLab() {
+    var raw = shadowLabStorageGet();
+    if (!raw) return;
+    try {
+      var saved = JSON.parse(raw);
+      shadowLab.preset = String(saved.preset || shadowLab.preset);
+      shadowLab.length = Math.max(0.35, Math.min(1.6, Number(saved.length) || shadowLab.length));
+      shadowLab.width = Math.max(0.55, Math.min(2.4, Number(saved.width) || shadowLab.width));
+      shadowLab.opacity = Math.max(0.25, Math.min(1.35, Number(saved.opacity) || shadowLab.opacity));
+      shadowLab.slant = Math.max(0.45, Math.min(1.75, Number(saved.slant) || shadowLab.slant));
+    } catch (e) {}
+  }
+  function updateShadowLabPanel() {}
+  function initShadowLabPanel() {
+    if (!QA_STATE || document.getElementById("shadowlab")) return;
+    loadShadowLab();
+    var panel = document.createElement("div");
+    panel.id = "shadowlab";
+    panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9998;width:270px;background:rgba(14,18,24,0.86);color:#f1f5f0;border:1px solid rgba(255,255,255,0.22);font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;padding:10px;box-shadow:0 12px 40px rgba(0,0,0,0.35);backdrop-filter:blur(6px);";
+    var title = document.createElement("div");
+    title.textContent = "SHADOW LAB";
+    title.style.cssText = "letter-spacing:0.18em;font-weight:700;margin-bottom:8px;color:#fff;";
+    panel.appendChild(title);
+    var presetRow = document.createElement("div");
+    presetRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;";
+    for (var pi = 0; pi < SHADOW_LAB_PRESETS.length; pi++) {
+      (function (preset) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = preset.label;
+        btn.setAttribute("data-shadow-preset", preset.id);
+        btn.style.cssText = "border:1px solid rgba(255,255,255,0.22);background:rgba(255,255,255,0.08);color:#fff;padding:5px 6px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;cursor:pointer;";
+        btn.onclick = function () { applyShadowLabPreset(preset.id); };
+        presetRow.appendChild(btn);
+      })(SHADOW_LAB_PRESETS[pi]);
+    }
+    panel.appendChild(presetRow);
+    function addSlider(key, label, min, max, step) {
+      var wrap = document.createElement("label");
+      wrap.style.cssText = "display:grid;grid-template-columns:72px 1fr 42px;align-items:center;gap:6px;margin:6px 0;";
+      var name = document.createElement("span");
+      name.textContent = label;
+      var input = document.createElement("input");
+      input.type = "range";
+      input.min = min;
+      input.max = max;
+      input.step = step;
+      input.setAttribute("data-shadow-slider", key);
+      var value = document.createElement("span");
+      value.setAttribute("data-shadow-value", key);
+      value.style.cssText = "text-align:right;color:#dce7dc;";
+      input.oninput = function () {
+        shadowLab.preset = "custom";
+        shadowLab[key] = Number(input.value);
+        shadowLabStorageSet();
+        updateShadowLabPanel();
+      };
+      wrap.appendChild(name);
+      wrap.appendChild(input);
+      wrap.appendChild(value);
+      panel.appendChild(wrap);
+    }
+    addSlider("length", "length", "0.35", "1.60", "0.01");
+    addSlider("width", "width", "0.55", "2.40", "0.01");
+    addSlider("opacity", "opacity", "0.25", "1.35", "0.01");
+    addSlider("slant", "angle", "0.45", "1.75", "0.01");
+    var actions = document.createElement("div");
+    actions.style.cssText = "display:flex;gap:6px;margin-top:8px;";
+    var copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "copy";
+    copy.style.cssText = "flex:1;border:1px solid rgba(255,255,255,0.22);background:rgba(255,255,255,0.08);color:#fff;padding:5px;font:11px ui-monospace,SFMono-Regular,Menlo,monospace;";
+    copy.onclick = function () {
+      var txt = JSON.stringify(shadowLab);
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt);
+      copy.textContent = "copied";
+      setTimeout(function () { copy.textContent = "copy"; }, 900);
+    };
+    var reset = document.createElement("button");
+    reset.type = "button";
+    reset.textContent = "reset";
+    reset.style.cssText = copy.style.cssText;
+    reset.onclick = function () { applyShadowLabPreset("soft"); };
+    actions.appendChild(copy);
+    actions.appendChild(reset);
+    panel.appendChild(actions);
+    var note = document.createElement("div");
+    note.textContent = "QA only. Tell me the preset or copy values.";
+    note.style.cssText = "margin-top:7px;color:rgba(255,255,255,0.62);font-size:10px;";
+    panel.appendChild(note);
+    document.body.appendChild(panel);
+    updateShadowLabPanel = function () {
+      var sliders = panel.querySelectorAll("[data-shadow-slider]");
+      for (var si = 0; si < sliders.length; si++) {
+        var key = sliders[si].getAttribute("data-shadow-slider");
+        sliders[si].value = shadowLab[key];
+      }
+      var values = panel.querySelectorAll("[data-shadow-value]");
+      for (var vi = 0; vi < values.length; vi++) {
+        var vkey = values[vi].getAttribute("data-shadow-value");
+        values[vi].textContent = Number(shadowLab[vkey]).toFixed(2);
+      }
+      var buttons = panel.querySelectorAll("[data-shadow-preset]");
+      for (var bi = 0; bi < buttons.length; bi++) {
+        var active = buttons[bi].getAttribute("data-shadow-preset") === shadowLab.preset;
+        buttons[bi].style.background = active ? "rgba(190,220,150,0.30)" : "rgba(255,255,255,0.08)";
+        buttons[bi].style.borderColor = active ? "rgba(220,255,180,0.58)" : "rgba(255,255,255,0.22)";
+      }
+    };
+    updateShadowLabPanel();
+    window.__sisyphusShadowLab = {
+      get: function () { return JSON.parse(JSON.stringify(shadowLab)); },
+      set: function (next) {
+        next = next || {};
+        shadowLab.preset = String(next.preset || "custom");
+        if (next.length != null) shadowLab.length = Math.max(0.35, Math.min(1.6, Number(next.length) || shadowLab.length));
+        if (next.width != null) shadowLab.width = Math.max(0.55, Math.min(2.4, Number(next.width) || shadowLab.width));
+        if (next.opacity != null) shadowLab.opacity = Math.max(0.25, Math.min(1.35, Number(next.opacity) || shadowLab.opacity));
+        if (next.slant != null) shadowLab.slant = Math.max(0.45, Math.min(1.75, Number(next.slant) || shadowLab.slant));
+        shadowLabStorageSet();
+        updateShadowLabPanel();
+        return this.get();
+      },
+      preset: applyShadowLabPreset
+    };
+  }
+  if (QA_STATE) setTimeout(initShadowLabPanel, 0);
   // v4 storage lives under sisyphus4.* so v3 saves stay pristine. One-time
   // migration copies achievements/streak/history verbatim and scales bests by
   // 0.65 (fair under the slower climb). Ghosts are not migrated — old ghosts
@@ -11304,6 +11472,7 @@
         var lightLow = sunL ? clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27)) : low;
         var castScreenX = sunSide * (0.94 + lightLow * 0.30);
         var castScreenY = 0.28 + lightLow * 0.42;
+        if (QA_STATE) castScreenX *= shadowLab.slant;
         if (Math.abs(castScreenX) < 0.34) castScreenX = castScreenX < 0 ? -0.34 : 0.34;
         var screenLen = Math.hypot(castScreenX, castScreenY) || 1;
         castScreenX /= screenLen;
@@ -11327,9 +11496,15 @@
           castLen *= lerp(1, 0.66, mountainShadowT);
           castA *= lerp(1, 0.72, mountainShadowT);
         }
+        var shadowWidthTune = QA_STATE ? shadowLab.width : 1;
+        if (QA_STATE) {
+          castLen *= shadowLab.length;
+          castA *= shadowLab.opacity;
+        }
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
+          ry *= shadowWidthTune;
           g.save();
           g.translate(Math.round(cx), Math.round(cy));
           g.rotate(rotAng);
