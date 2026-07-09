@@ -2231,6 +2231,8 @@
     }
   }
   var SHADOW_SELECTED = { length: 0.81, width: 0.88, opacity: 1.21, slant: 0.65 };
+  var castShadowState = { screenX: -0.62, screenY: 0.32, strength: 0, lightLow: 0 };
+  var castShadowLastMs = 0;
   var SHADOW_LAB_PRESETS = [
     { id: "soft", label: "selected", length: SHADOW_SELECTED.length, width: SHADOW_SELECTED.width, opacity: SHADOW_SELECTED.opacity, slant: SHADOW_SELECTED.slant },
     { id: "cinematic", label: "cinematic", length: 1.06, width: 1.08, opacity: 0.82, slant: 1.28 },
@@ -11463,22 +11465,50 @@
         // project the stone/body away from it, then draw the projection as many
         // overlapping soft pixel ellipses. This avoids hard triangular wedges and
         // gives the boulder a long grounded shadow like the reference render.
-        var low = clamp01(1 + ly);                        // 0 = high light, 1 = low/grazing light
-        var grow = smoother01(clamp01(sunStr / 0.48));
-        // Ground-plane cast direction. A pure 2D sun-to-stone vector becomes almost
-        // vertical on phone screens when the sun is high over the actor; that looks
-        // like a streak. Instead, use the sun's real horizontal offset continuously
-        // for left/right direction, and a grounded down-screen component for depth.
-        var sunSide = sunL ? Math.max(-1, Math.min(1, (boulderScreen.x - sunL.x) / Math.max(70, VW * 0.13))) : -sScrX;
-        var lightLow = sunL ? clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27)) : low;
-        var castScreenX = sunSide * (0.94 + lightLow * 0.30);
-        var castScreenY = 0.28 + lightLow * 0.42;
         var shadowLengthTune = QA_STATE ? shadowLab.length : SHADOW_SELECTED.length;
         var shadowWidthTune = QA_STATE ? shadowLab.width : SHADOW_SELECTED.width;
         var shadowOpacityTune = QA_STATE ? shadowLab.opacity : SHADOW_SELECTED.opacity;
         var shadowSlantTune = QA_STATE ? shadowLab.slant : SHADOW_SELECTED.slant;
-        castScreenX *= shadowSlantTune;
-        if (Math.abs(castScreenX) < 0.34) castScreenX = castScreenX < 0 ? -0.34 : 0.34;
+        var targetScreenX = castShadowState.screenX || -0.62;
+        var targetScreenY = 0.14;
+        var targetStrength = 0;
+        var targetLightLow = 0;
+        if (sunL && sunStr > 0.025) {
+          // Ground-plane cast direction. Use the visible light position, but keep
+          // a small side bias when the sun crosses overhead so the shadow eases
+          // through center instead of snapping left/right.
+          var rawSide = (boulderScreen.x - sunL.x) / Math.max(86, VW * 0.15);
+          var sunSide = Math.max(-1, Math.min(1, rawSide));
+          targetLightLow = clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27));
+          targetScreenX = sunSide * (0.94 + targetLightLow * 0.30) * shadowSlantTune;
+          var minSide = 0.20 + targetLightLow * 0.14;
+          var sideSign = Math.abs(targetScreenX) > 0.035 ? (targetScreenX < 0 ? -1 : 1) : (castShadowState.screenX < 0 ? -1 : 1);
+          if (Math.abs(targetScreenX) < minSide) targetScreenX = sideSign * minSide;
+          targetScreenY = 0.26 + targetLightLow * 0.42;
+          targetStrength = smoother01(clamp01((sunStr - 0.025) / 0.45));
+        }
+        var shadowNowMs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+        var shadowDt = castShadowLastMs ? Math.min(0.10, Math.max(0.001, (shadowNowMs - castShadowLastMs) / 1000)) : 0;
+        castShadowLastMs = shadowNowMs;
+        if (shadowDt <= 0) {
+          castShadowState.screenX = targetScreenX;
+          castShadowState.screenY = targetScreenY;
+          castShadowState.strength = targetStrength;
+          castShadowState.lightLow = targetLightLow;
+        } else {
+          var dirFollow = 1 - Math.pow(0.028, shadowDt);
+          var strengthFollow = 1 - Math.pow(0.010, shadowDt);
+          castShadowState.screenX = lerp(castShadowState.screenX, targetScreenX, dirFollow);
+          castShadowState.screenY = lerp(castShadowState.screenY, targetScreenY, dirFollow);
+          castShadowState.strength = lerp(castShadowState.strength, targetStrength, strengthFollow);
+          castShadowState.lightLow = lerp(castShadowState.lightLow, targetLightLow, dirFollow);
+        }
+        var castPresence = smoother01(clamp01(castShadowState.strength));
+        var low = castShadowState.lightLow;                // 0 = high/soft light, 1 = low/grazing light
+        var grow = castPresence;
+        var lightLow = castShadowState.lightLow;
+        var castScreenX = castShadowState.screenX;
+        var castScreenY = castShadowState.screenY;
         var screenLen = Math.hypot(castScreenX, castScreenY) || 1;
         castScreenX /= screenLen;
         castScreenY /= screenLen;
@@ -11502,7 +11532,9 @@
           castA *= lerp(1, 0.72, mountainShadowT);
         }
         castLen *= shadowLengthTune;
-        castA *= shadowOpacityTune;
+        castLen *= lerp(0.16, 1, castPresence);
+        castA *= shadowOpacityTune * castPresence;
+        var contactShadowA = lerp(0.20, 1, castPresence);
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
@@ -11570,10 +11602,10 @@
         }
 
         // Contact anchors, intentionally compact and darkest right under the weight.
-        shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.88, Math.max(5, brad * 0.30), rot, 0.34 + 0.08 * grow);
-        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.68, Math.max(2, brad * 0.17), rot, 0.32 + 0.07 * grow);
-        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.48, Math.max(2, brad * 0.13), rot, 0.28 + 0.07 * grow);
-        shadowEllipse(manHipX, baseY + 1, brad * 0.26, Math.max(2, brad * 0.08), rot, 0.18 + 0.06 * grow);
+        shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.88, Math.max(5, brad * 0.30), rot, (0.34 + 0.08 * grow) * contactShadowA);
+        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.68, Math.max(2, brad * 0.17), rot, (0.32 + 0.07 * grow) * contactShadowA);
+        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.48, Math.max(2, brad * 0.13), rot, (0.28 + 0.07 * grow) * contactShadowA);
+        shadowEllipse(manHipX, baseY + 1, brad * 0.26, Math.max(2, brad * 0.08), rot, (0.18 + 0.06 * grow) * contactShadowA);
         g.restore();
       }
 
