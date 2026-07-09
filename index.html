@@ -10209,13 +10209,13 @@
 
     // arm: keep him braced into the boulder before and during play.
     var aw = Math.max(4, Math.round(5.4 * s));
-    // Hand contact: small stones look more believable with the grip lower on
-    // the face; otherwise his arms read like they are resting across the top.
+    // Hand contact: small stones need a slightly lower grip than giant stones,
+    // but not so low that he looks like he is pushing down into the ground.
     // Fade back to the older shoulder-height grip as the stone grows, where a
     // lower target would make the giant-stone pose look like he is pushing down.
     var boulderRatio = brad / (BOULDER_R * BASE_SCALE);
     var smallGripT = 1 - smoother01(clamp01((boulderRatio - 1.0) / 0.72));
-    var handY = shY + lerp(-1 * s, 7.0 * s, smallGripT);
+    var handY = shY + lerp(-1 * s, 4.7 * s, smallGripT);
     var rel = Math.max(-brad + 3, Math.min(brad - 3, handY - by));
     var halfw = Math.sqrt(Math.max(0, brad * brad - rel * rel));
     var handX = bx - halfw + 1 * s;   // sit firmly ON the stone (slight overlap) so the hand always touches at every size
