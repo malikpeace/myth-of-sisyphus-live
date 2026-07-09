@@ -2654,7 +2654,7 @@
   // pixel treatment, so the bridge reads as part of the painted world.
   var premiumBridgeImg = new Image(), premiumBridgeReady = false;
   premiumBridgeImg.onload = function () { premiumBridgeReady = true; };
-  premiumBridgeImg.src = "assets/bridge-rope-premium-sprite-v1.png";
+  premiumBridgeImg.src = "assets/bridge-rope-low-profile-v2.png";
   var premiumBridgeC = document.createElement("canvas"), premiumBridgeG = premiumBridgeC.getContext("2d");
   // Painted grass tufts (16-variant atlas, bottom-aligned) scattered on the ground for
   // life + texture, replacing the procedural path-grass clumps where loaded.
@@ -9951,13 +9951,12 @@
   }
 
   function drawPremiumRopeBridgeSpan(left, right, yL, yR, len, angle, a, day) {
-    var ov = 58;
+    var ov = 54;
     var targetW = len + ov * 2;
-    // The source is intentionally tall enough to contain complete posts and rails.
-    // Compress only its vertical presentation so it remains substantial without
-    // competing with the giant boulder or hiding Sisyphus.
-    var heightScale = 0.68;
-    var targetH = premiumBridgeImg.naturalHeight * (targetW / premiumBridgeImg.naturalWidth) * heightScale;
+    // The generated file is intentionally mostly transparent. Crop only its compact
+    // 1246x79 bridge strip so the visible structure stays at the game's native scale.
+    var srcX = 64, srcY = 530, srcW = 1246, srcH = 79;
+    var targetH = targetW * (srcH / srcW);
     var bw = Math.max(2, Math.round(targetW));
     var bh = Math.max(2, Math.round(targetH));
     if (premiumBridgeC.width !== bw) premiumBridgeC.width = bw;
@@ -9968,7 +9967,7 @@
     pg.globalCompositeOperation = "source-over";
     pg.imageSmoothingEnabled = false;
     pg.clearRect(0, 0, bw, bh);
-    pg.drawImage(premiumBridgeImg, 0, 0, bw, bh);
+    pg.drawImage(premiumBridgeImg, srcX, srcY, srcW, srcH, 0, 0, bw, bh);
 
     // Match the authored warm timber to the current weather without erasing its
     // grain. Daylight remains rich; storms and dusk settle it into the scene.
@@ -9981,9 +9980,9 @@
       pg.globalCompositeOperation = "source-over";
     }
 
-    // In the cropped sprite, the walkable plank top sits 86px into 177px. Align
-    // that exact row to the collision surface so feet and stone never float.
-    var deckFrac = 86 / 177;
+    // The walkable plank top is 44px into the cropped 79px strip. Align that exact
+    // row to the collision surface so feet and stone never float.
+    var deckFrac = 44 / 79;
     g.save();
     g.globalAlpha = a;
     g.translate(left, yL);
