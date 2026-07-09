@@ -11320,6 +11320,13 @@
         var baseY = bly + brad * 0.98;
         var castLen = brad * (2.05 + lightLow * 2.30 + low * 0.45) * (0.82 + grow * 0.36);
         var castA = Math.min(0.62, (0.36 + lightLow * 0.18 + low * 0.08) * (0.84 + grow * 0.46));
+        var giantShadowT = smoother01(clamp01((boulderScale - 1.85) / Math.max(0.01, BOULDER_GROW_MAX - 1.85)));
+        var steepShadowT = smoother01(clamp01((Math.abs(leanSlope) - 0.48) / 0.34));
+        var mountainShadowT = Math.max(giantShadowT * 0.55, giantShadowT * steepShadowT);
+        if (mountainShadowT > 0.001) {
+          castLen *= lerp(1, 0.66, mountainShadowT);
+          castA *= lerp(1, 0.72, mountainShadowT);
+        }
 
         function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
@@ -11337,6 +11344,14 @@
         }
 
         g.save();
+        if (mountainShadowT > 0.18) {
+          // On steep giant-rock slopes the broad ellipse can otherwise spill off
+          // the mountain into the sky. Clip only to the ground side of the local
+          // slope line; meadow scenes skip this to avoid visible boxed cutoffs.
+          g.beginPath();
+          g.rect(-100000, baseY - brad * 0.06, 200000, 200000);
+          g.clip();
+        }
 
         // Broad readable cast body. The ellipse chain below adds natural falloff,
         // but the dense grass can hide it; this soft capsule gives the shadow the
