@@ -801,11 +801,11 @@
     backdrop-filter: blur(7px);
   }
   #startscreen .mode-card {
-    min-height: 66px;
+    min-height: 94px;
     padding: 12px 13px;
     border: 1px solid rgba(255,255,255,0.22);
     border-top-width: 2px;
-    background: rgba(18,20,25,0.48);
+    background: rgba(18,20,25,0.58);
     color: rgba(255,255,255,0.88);
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     text-align: left;
@@ -836,25 +836,23 @@
     margin-bottom: 0;
     font-size: clamp(12px, 1.55vw, 16px);
     font-weight: 700;
+    color: rgba(255,255,255,0.96);
   }
   #startscreen .mode-card span {
     display: block;
-    max-height: 0;
-    margin-top: 0;
-    overflow: hidden;
-    opacity: 0;
-    color: rgba(255,255,255,0.62);
+    max-height: none;
+    margin-top: 8px;
+    opacity: 1;
+    color: rgba(255,255,255,0.78);
     font-size: clamp(10px, 1.05vw, 12px);
     line-height: 1.45;
     text-transform: lowercase;
-    transition: max-height 0.28s ease, opacity 0.22s ease, margin-top 0.22s ease;
+    transition: color 0.2s ease;
   }
   #startscreen .mode-card.preferred span,
   #startscreen .mode-card:hover span,
   #startscreen .mode-card:focus-visible span {
-    max-height: 52px;
-    margin-top: 8px;
-    opacity: 1;
+    color: rgba(255,255,255,0.94);
   }
   #startscreen .menu-more {
     width: min(980px, 90vw);
@@ -1565,11 +1563,11 @@
       grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
     }
     #startscreen .mode-card {
-      min-height: 66px;
+      min-height: 90px;
       padding: 11px 12px;
     }
     #startscreen .mode-card strong {
-      margin-bottom: 8px;
+      margin-bottom: 0;
       font-size: 13px;
     }
     #startscreen .mode-card span {
@@ -1635,12 +1633,9 @@
       gap: 8px;
     }
     #startscreen .mode-card {
-      min-height: 58px;
+      min-height: 96px;
       padding: 11px 12px;
     }
-    #startscreen .mode-card.preferred span,
-    #startscreen .mode-card:focus-visible span { max-height: 72px; }
-    #startscreen .mode-card:hover:not(.preferred) span { max-height: 0; margin-top: 0; opacity: 0; }
     #startscreen .legacy-line {
       margin: 12px auto 10px;
       padding: 6px 8px;
@@ -1756,7 +1751,7 @@
       line-height: 1.35;
     }
     #startscreen .mode-card {
-      min-height: 64px;
+      min-height: 86px;
       padding: 9px 10px;
     }
     #startscreen .mode-card strong {
