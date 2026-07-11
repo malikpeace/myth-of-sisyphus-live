@@ -8807,13 +8807,11 @@
       if (modePhase === "summitRest" || modePhase === "summitLaunch") layerA = 0;
     }
     if (layerA <= 0.02) return;
-    // Density grows with forward progress through the first forest: a handful of
-    // trees at the meadow edge, then a genuinely dense stand near the waterfall.
-    // Each candidate owns a fixed world slot and fades into that slot as its reveal
-    // threshold is crossed, so increasing density never rearranges the forest.
+    // Density grows spatially through the first forest: a handful of trees at the
+    // meadow edge, then a dense stand farther along the mountain. Density belongs
+    // to each fixed world slot, never to the player's current frame, so trees that
+    // are already visible cannot appear, disappear, or reshuffle while he walks.
     var forestStartM = WATERFALL_FIRST - WATERFALL_VIEW + 40;
-    var forestWalkT = smoother01(clamp01((altitude - forestStartM) / 520));
-    var densityTarget = lerp(cfg.densityStart, cfg.densityEnd, forestWalkT);
     var blurPad = Math.ceil(((cfg.blur || 0) * 8 + 28) * RES);
     var bufW = VW * RES + blurPad * 2;
     var bufH = VH * RES + blurPad * 2;
@@ -8824,29 +8822,41 @@
     fg.setTransform(RES, 0, 0, RES, blurPad, blurPad);   // logical draws, padded RES× buffer (sharp trees, unclipped blur)
     fg.imageSmoothingEnabled = false;
     var iw = foregroundTreeImg.naturalWidth || 290, ih = foregroundTreeImg.naturalHeight || 482;
-    var scroll = altitude * GROUND_SCROLL * cfg.par + cfg.seed;   // locked to the ground scroll so trees stay put on the hillside
+    var scroll = altitude * GROUND_SCROLL + cfg.seed;
     var spacing = cfg.spacing;
     var baseScale = (VH * cfg.treeH) / ih;
     var drew = 0;
-    var first = Math.floor((scroll - 560) / spacing);
-    var last = Math.ceil((scroll + VW + 560) / spacing);
+    var viewWorldL = -curCamZtxBase / Math.max(0.01, curCamZoom);
+    var viewWorldR = (VW - curCamZtxBase) / Math.max(0.01, curCamZoom);
+    var first = Math.floor((scroll + viewWorldL - 560) / spacing);
+    var last = Math.ceil((scroll + viewWorldR + 560) / spacing);
     for (var i = first; i <= last; i++) {
+      var jitterX = (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter;
+      var slotMeters = (i * spacing + jitterX - cfg.seed) / GROUND_SCROLL;
+      var slotWalkT = smoother01(clamp01((slotMeters - forestStartM) / 520));
+      var slotDensity = lerp(cfg.densityStart, cfg.densityEnd, slotWalkT);
       var appearKey = hash(i * 12.91 + cfg.seed);
-      if (appearKey > densityTarget) continue;
-      var treeRevealA = smoother01(clamp01((densityTarget - appearKey) / 0.12));
+      if (appearKey > slotDensity) continue;
       var sc = baseScale * (cfg.scaleLo + hash(i * 7.27 + cfg.seed) * (cfg.scaleHi - cfg.scaleLo));
-      var tw = Math.round(iw * sc), th = Math.round(ih * sc);
-      var sx = Math.round(i * spacing - scroll + (hash(i * 4.13 + cfg.seed) - 0.5) * cfg.jitter);
+      var localW = iw * sc, localH = ih * sc;
+      var treeWorldX = i * spacing - scroll + jitterX;
+      var treeWorldCenter = treeWorldX + localW * 0.5;
+      var tw = Math.round(localW * curCamZoom), th = Math.round(localH * curCamZoom);
+      var sx = Math.round(curCamZtxBase + treeWorldX * curCamZoom);
       var logicalPad = blurPad / RES;
       if (sx + tw < -logicalPad - 40 || sx > VW + logicalPad + 40) continue;
+      // Fade only while crossing a viewport edge. Once in the scene, opacity and
+      // identity remain fixed until the same tree leaves the opposite edge.
+      var edgeIn = smoother01(clamp01((sx + tw + 24) / 110));
+      var edgeOut = smoother01(clamp01((VW + 24 - sx) / 110));
+      var treeRevealA = Math.min(edgeIn, edgeOut);
       // ZERO trees on a bridge — test the whole trunk+canopy extent. The bridge span
       // (treeOnBridge / waterfallSceneX) is in WORLD/zoom space, but trees draw in screen
       // space, so convert this tree's screen-x extent to world-x before the test —
       // otherwise the cull masks the wrong region when zoomed (trees crept onto bridges).
-      var treeScreenCenter = sx + tw * 0.5;
-      var bridgeTestL = cfg.anchor === "ground" ? treeScreenCenter - 12 : sx;
-      var bridgeTestR = cfg.anchor === "ground" ? treeScreenCenter + 12 : sx + tw;
-      var bridgeFade = treeBridgeFade((bridgeTestL - curCamZtxBase) / curCamZoom, (bridgeTestR - curCamZtxBase) / curCamZoom);
+      var bridgeTestL = cfg.anchor === "ground" ? treeWorldCenter - 12 : treeWorldX;
+      var bridgeTestR = cfg.anchor === "ground" ? treeWorldCenter + 12 : treeWorldX + localW;
+      var bridgeFade = treeBridgeFade(bridgeTestL, bridgeTestR);
       if (bridgeFade < 0.995) continue;                                          // hard cull near a gorge: never render a translucent tree
       var baseY;
       if (cfg.anchor === "screen") {
@@ -8856,8 +8866,7 @@
         // in the camera's zoom space, so map this tree's screen-x back to world-x, look
         // up the real surface there, and map it back to screen. (A screen-space slope
         // guess floated the trees on mobile, where the zoom/offset differ.)
-        var treeWorldX = (sx + tw * 0.5 - curCamZtxBase) / curCamZoom;
-        baseY = curCamZtyBase + terrainLipAt(treeWorldX) * curCamZoom + 6;
+        baseY = curCamZtyBase + terrainLipAt(treeWorldCenter) * curCamZoom + 6 * curCamZoom;
       }
       fg.save();
       fg.globalAlpha = treeRevealA;
@@ -8891,15 +8900,12 @@
   // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
   // (~4x the old count) with wide scale/jitter variance so it reads as a real,
   // random forest the figure climbs through — not a sparse line. Drawn behind him.
-  // par < 1.0 → the background forest DRIFTS SLOWER than the ground, so it reads as a
-  // set-back, more-stationary layer (real parallax depth) instead of a flat sheet sliding
-  // past at full speed. The bases are occluded by the foreground slope (drawn after), and
-  // baseY is re-sampled from the ground every frame, so the slower drift never floats a
-  // trunk off the hillside — it just gives the forest distance.
-  var TREES_BG = { anchor: "ground", par: 0.6, spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.8 };
-  // FOREGROUND: tall close conifers rooted BELOW the frame (anchor:"screen") that
-  // sweep IN FRONT of the figure at a faster parallax — pure depth. Sparse/occasional.
-  var TREES_NEAR = { anchor: "screen", par: 1.0, spacing: 320, densityStart: 0.06, densityEnd: 0.72, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.24, tint: 0.05, seed: 0, blur: 1.5 };
+  // Every tree shares the terrain's world scroll. Depth comes from size, draw order,
+  // and blur; never from sliding a trunk independently of the ground beneath it.
+  var TREES_BG = { anchor: "ground", spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.8 };
+  // Close conifers still pass in front of the actor, but are rooted to fixed terrain
+  // coordinates just like bushes and bridge anchors.
+  var TREES_NEAR = { anchor: "ground", spacing: 320, densityStart: 0.06, densityEnd: 0.72, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.24, tint: 0.05, seed: 0, blur: 1.5 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
