@@ -2150,6 +2150,8 @@
   var dailySeed = dailyDate.split("").reduce(function (a, ch) { return a + ch.charCodeAt(0); }, 0);
   var QA_STATE = params.has("qa") || /QA/i.test(window.location.search);
   var QA_AUTOSTART = params.get("qaStart") === "1";
+  var QA_HOLD_ALTITUDE = QA_STATE && params.has("qaHoldAltitude")
+    ? Math.max(0, Number(params.get("qaHoldAltitude")) || 0) : -1;
   var SHADOW_LAB_ENABLED = QA_STATE && params.get("shadowLab") === "1";
   // QA-only overrides + frame timing stats (all inert unless ?qa= and helpers used)
   var qaBoulderScaleOverride = 0;
@@ -7078,7 +7080,10 @@
   function rockySceneryReveal() {
     if (gameState === "title" || playMode === "run") return 0;
     var up = smoother01(clamp01((altitude - 940) / 260));
-    var down = 1 - smoother01(clamp01((altitude - 1540) / 430));
+    // The rocky pass is a distinct chapter, not a layer beneath the galaxy.
+    // Clear it before the space biome arrives so the generated silhouettes
+    // never stack into a pasted-on collage during the transition.
+    var down = 1 - smoother01(clamp01((altitude - 1310) / 220));
     var snowDim = 1 - 0.92 * snowCoverFor(altitude);
     var deepDim = 1 - 0.86 * realm4Max(altitude);
     return up * down * snowDim * deepDim;
@@ -7090,15 +7095,15 @@
     var iw = rockySpireImg.naturalWidth || 1536;
     var ih = rockySpireImg.naturalHeight || 1024;
     var scroll = altitude * GROUND_SCROLL * 0.34 + mountainIndex * 137;
-    var dh = Math.round(VH * 0.56);
+    var dh = Math.round(VH * 0.41);
     var dw = Math.round(dh * iw / ih);
     var spacing = Math.max(420, Math.round(dw * 1.16));
     var first = Math.floor((scroll - dw * 1.4) / spacing);
     var last = Math.ceil((scroll + VW + dw * 1.4) / spacing);
     g.save();
     g.imageSmoothingEnabled = false;
-    if (!REDUCED) g.filter = "blur(0.45px)";
-    g.globalAlpha = reveal * 0.68;
+    if (!REDUCED) g.filter = "blur(0.8px)";
+    g.globalAlpha = reveal * 0.50;
     for (var i = first; i <= last; i++) {
       if (hash(i * 5.73 + 11) < 0.32) continue;
       var sx = i * spacing - scroll + (hash(i * 8.31) - 0.5) * 170;
@@ -7128,11 +7133,11 @@
     g.save();
     g.imageSmoothingEnabled = false;
     if (!REDUCED) g.filter = "blur(0.6px)";
-    g.globalAlpha = reveal * 0.92;
+    g.globalAlpha = reveal * 0.76;
     for (var i = first; i <= last; i++) {
       if (hash(i * 6.17 + 29) < 0.28) continue;
       var variant = Math.floor(hash(i * 4.91 + 3) * 4) % 4;
-      var dh = Math.round(VH * (0.34 + hash(i * 3.27) * 0.13));
+      var dh = Math.round(VH * (0.25 + hash(i * 3.27) * 0.09));
       var dw = Math.round(dh * cellW / ih);
       var sx = i * spacing - scroll + (hash(i * 9.43) - 0.5) * spacing * 0.32;
       if (sx + dw < -80 || sx > VW + 80) continue;
@@ -7481,7 +7486,8 @@
     var rawReveal = galaxySceneReveal();
     // Hold the authored nebula back until this biome genuinely owns the frame.
     // The old broad bell exposed space art inside the preceding grey-rock band.
-    var reveal = smoother01(clamp01((rawReveal - 0.18) / 0.82)) * (1 - (day.snow || 0) * 0.78);
+    var altitudeGate = smoother01(clamp01((altitude - 1600) / 230));
+    var reveal = smoother01(clamp01((rawReveal - 0.18) / 0.82)) * altitudeGate * (1 - (day.snow || 0) * 0.78);
     var galaxyImg = (VW >= VH * 0.92) ? galaxyWideImg : galaxyPortraitImg;
     var galaxyReady = (galaxyImg === galaxyWideImg) ? galaxyWideReady : galaxyPortraitReady;
     if (reveal <= 0.002 || !galaxyReady) return;
@@ -7493,7 +7499,7 @@
     var drift = REDUCED ? 0 : (altitude - galaxyNearestMeters(altitude)) * 0.020;
     var dx = Math.round((VW - dw) * 0.5 - drift);
     var dy = Math.round((VH - dh) * 0.43);
-    var a = reveal * (0.82 + openingT * 0.18) * (alphaMul == null ? 1 : alphaMul);
+    var a = reveal * (0.68 + openingT * 0.12) * (alphaMul == null ? 1 : alphaMul);
 
     g.save();
     g.globalAlpha = a;
@@ -8436,6 +8442,9 @@
       day.canyon || 0, day.greek || 0, day.valleys || 0, day.snow || 0);
     var exoticRock = smoother01(clamp01(exoticRockRaw * 1.35));
     var baseAtlasA = 1 - 0.97 * exoticRock;
+    // Preserve the rock grain under the galaxy tint. Removing almost all of it
+    // left a featureless purple plane at the exact rocky-to-space transition.
+    if (day && day.galaxy) baseAtlasA = Math.max(baseAtlasA, 0.42 * day.galaxy);
     drawAtlasTiles(groundTex, baseAtlasA);
     // Grass over the rock base at the start + forest; fades higher so rock returns.
     // The night (noir) theme swaps in the dark moonlit ground atlas.
@@ -8527,6 +8536,16 @@
       if (customize.look === "void") {
         g.globalCompositeOperation = "multiply";
         g.fillStyle = css([18, 18, 24], 0.94);
+        g.fillRect(x0, 0, x1 - x0, h);
+        g.globalCompositeOperation = "source-over";
+      }
+      // Once the authored night sky has arrived, deepen the rock with the same
+      // indigo value range. This keeps the slope tangible without leaving a pale
+      // grey wedge pasted over the galaxy.
+      var galaxyGroundT = (day.galaxy || 0) * smoother01(clamp01((altitude - 1580) / 240));
+      if (galaxyGroundT > 0.01) {
+        g.globalCompositeOperation = "multiply";
+        g.fillStyle = css([42, 34, 66], 0.46 * galaxyGroundT);
         g.fillRect(x0, 0, x1 - x0, h);
         g.globalCompositeOperation = "source-over";
       }
@@ -12351,6 +12370,7 @@
         if (QA_STATE) {
           var qaT0 = performance.now();
           update(dt, wallDt);
+          if (QA_HOLD_ALTITUDE >= 0 && gameState === "playing") altitude = QA_HOLD_ALTITUDE;
           draw();
           qaFrameMs[qaFrameMsIdx % 240] = performance.now() - qaT0;
           qaFrameMsIdx++;
