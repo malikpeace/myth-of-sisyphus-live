@@ -2712,10 +2712,26 @@
   aboveCloudsImg.src = "assets/above-clouds-sunset-px.png";
   var galaxyPortraitImg = new Image(), galaxyPortraitReady = false;
   galaxyPortraitImg.onload = function () { galaxyPortraitReady = true; };
-  galaxyPortraitImg.src = "assets/galaxy-night-px.png";
+  galaxyPortraitImg.src = "assets/galaxy-night-portrait-v2.png";
   var galaxyWideImg = new Image(), galaxyWideReady = false;
   galaxyWideImg.onload = function () { galaxyWideReady = true; };
-  galaxyWideImg.src = "assets/galaxy-night-wide-px.png";
+  galaxyWideImg.src = "assets/galaxy-night-wide-v2.png";
+  // Generated environmental set: distant/foreground rock layers plus authored
+  // lightning and fire sheets. All cutout sheets are alpha-cleaned PNGs.
+  var rockySpireImg = new Image(), rockySpireReady = false;
+  rockySpireImg.onload = function () { rockySpireReady = true; };
+  rockySpireImg.src = "assets/rocky-spires-bg-alpha-v1.png";
+  var rockyPropImg = new Image(), rockyPropReady = false;
+  rockyPropImg.onload = function () { rockyPropReady = true; };
+  rockyPropImg.src = "assets/rocky-props-fg-alpha-v1.png";
+  var lightningImg = new Image(), lightningReady = false;
+  lightningImg.onload = function () { lightningReady = true; };
+  lightningImg.src = "assets/lightning-strikes-alpha-v1.png";
+  var lightningFireImg = new Image(), lightningFireReady = false;
+  lightningFireImg.onload = function () { lightningFireReady = true; };
+  lightningFireImg.src = "assets/lightning-fire-alpha-v1.png";
+  var stormStrike = { next: 0, start: -99, worldX: 0, variant: 0, serial: 0 };
+  var stormFires = [];
   var valleysImg = new Image(), valleysReady = false;
   valleysImg.onload = function () { valleysReady = true; };
   valleysImg.src = "assets/valleys-realm-px.png";
@@ -7058,6 +7074,181 @@
       day.tintA = (day.tintA || 0) * (1 - t);
     }
   }
+
+  function rockySceneryReveal() {
+    if (gameState === "title" || playMode === "run") return 0;
+    var up = smoother01(clamp01((altitude - 940) / 260));
+    var down = 1 - smoother01(clamp01((altitude - 1540) / 430));
+    var snowDim = 1 - 0.92 * snowCoverFor(altitude);
+    var deepDim = 1 - 0.86 * realm4Max(altitude);
+    return up * down * snowDim * deepDim;
+  }
+
+  function drawBackgroundRockSpines(day) {
+    var reveal = rockySceneryReveal() * (1 - 0.52 * (day.galaxy || 0));
+    if (!rockySpireReady || reveal <= 0.01) return;
+    var iw = rockySpireImg.naturalWidth || 1536;
+    var ih = rockySpireImg.naturalHeight || 1024;
+    var scroll = altitude * GROUND_SCROLL * 0.34 + mountainIndex * 137;
+    var dh = Math.round(VH * 0.56);
+    var dw = Math.round(dh * iw / ih);
+    var spacing = Math.max(420, Math.round(dw * 1.16));
+    var first = Math.floor((scroll - dw * 1.4) / spacing);
+    var last = Math.ceil((scroll + VW + dw * 1.4) / spacing);
+    g.save();
+    g.imageSmoothingEnabled = false;
+    if (!REDUCED) g.filter = "blur(0.45px)";
+    g.globalAlpha = reveal * 0.68;
+    for (var i = first; i <= last; i++) {
+      if (hash(i * 5.73 + 11) < 0.32) continue;
+      var sx = i * spacing - scroll + (hash(i * 8.31) - 0.5) * 170;
+      var worldX = (sx + dw * 0.5 - curCamZtxBase) / Math.max(0.01, curCamZoom);
+      if (treeOnBridge(worldX - 80, worldX + 80)) continue;
+      var baseY = curCamZtyBase + terrainLipAt(worldX) * curCamZoom + 14;
+      g.save();
+      if (hash(i * 7.19) > 0.5) { g.translate(Math.round(sx + dw), 0); g.scale(-1, 1); sx = 0; }
+      g.drawImage(rockySpireImg, Math.round(sx), Math.round(baseY - dh * 0.89), dw, dh);
+      g.restore();
+    }
+    g.filter = "none";
+    g.globalAlpha = 1;
+    g.restore();
+  }
+
+  function drawForegroundRockProps(day) {
+    var reveal = rockySceneryReveal() * (1 - 0.68 * (day.galaxy || 0));
+    if (!rockyPropReady || reveal <= 0.01) return;
+    var iw = rockyPropImg.naturalWidth || 1984;
+    var ih = rockyPropImg.naturalHeight || 792;
+    var cellW = iw / 4;
+    var scroll = altitude * GROUND_SCROLL * 1.08 + mountainIndex * 211;
+    var spacing = Math.max(280, Math.round(VW * 0.28));
+    var first = Math.floor((scroll - spacing) / spacing);
+    var last = Math.ceil((scroll + VW + spacing) / spacing);
+    g.save();
+    g.imageSmoothingEnabled = false;
+    if (!REDUCED) g.filter = "blur(0.6px)";
+    g.globalAlpha = reveal * 0.92;
+    for (var i = first; i <= last; i++) {
+      if (hash(i * 6.17 + 29) < 0.28) continue;
+      var variant = Math.floor(hash(i * 4.91 + 3) * 4) % 4;
+      var dh = Math.round(VH * (0.34 + hash(i * 3.27) * 0.13));
+      var dw = Math.round(dh * cellW / ih);
+      var sx = i * spacing - scroll + (hash(i * 9.43) - 0.5) * spacing * 0.32;
+      if (sx + dw < -80 || sx > VW + 80) continue;
+      // Keep the immediate play silhouette readable. These are foreground depth
+      // forms, not obstacles, so they should frame the push rather than cover it.
+      if (sx < boulderSX + VW * 0.16 && sx + dw > boulderSX - VW * 0.14) continue;
+      var worldX = (sx + dw * 0.5 - curCamZtxBase) / Math.max(0.01, curCamZoom);
+      if (treeOnBridge(worldX - 54, worldX + 54)) continue;
+      var baseY = curCamZtyBase + terrainLipAt(worldX) * curCamZoom + 13;
+      g.save();
+      if (hash(i * 8.53) > 0.5) { g.translate(Math.round(sx + dw), 0); g.scale(-1, 1); sx = 0; }
+      g.drawImage(rockyPropImg, variant * cellW, 0, cellW, ih,
+        Math.round(sx), Math.round(baseY - dh * 0.86), dw, dh);
+      g.restore();
+    }
+    g.filter = "none";
+    g.globalAlpha = 1;
+    g.restore();
+  }
+
+  function triggerStormStrike(stormT) {
+    stormStrike.serial += 1;
+    var seed = stormStrike.serial * 19.37 + Math.floor(tSec * 7) + mountainIndex * 13.1;
+    var screenX = VW * (0.12 + hash(seed) * 0.76);
+    if (Math.abs(screenX - boulderSX) < VW * 0.17) {
+      screenX = screenX < boulderSX ? VW * 0.10 : VW * 0.90;
+    }
+    var worldX = (screenX - curCamZtxBase) / Math.max(0.01, curCamZoom);
+    if (bridgeGapActiveAt(worldX, 34)) worldX += 120;
+    stormStrike.start = tSec;
+    stormStrike.worldX = worldX;
+    stormStrike.variant = Math.floor(hash(seed * 2.71) * 3) % 3;
+    stormStrike.next = tSec + 4.5 + hash(seed * 5.13) * 5.5;
+    stormFires.push({ worldX: worldX, born: tSec + 0.16, life: 7 + hash(seed * 8.91) * 5, seed: seed });
+    if (stormFires.length > 6) stormFires.shift();
+  }
+
+  function drawStormLightning(stormT) {
+    if (REDUCED || stormT <= 0.02) return;
+    if (stormStrike.next <= 0) stormStrike.next = tSec + 0.8 + hash(mountainIndex + altitude * 0.01) * 1.4;
+    if (params.has("qaStormStrike") && stormStrike.serial === 0) stormStrike.next = tSec;
+    if (tSec >= stormStrike.next) triggerStormStrike(stormT);
+    var age = tSec - stormStrike.start;
+    if (age < 0 || age > 0.48 || !lightningReady) return;
+    var flash = age < 0.11 ? 1 - age / 0.11 : (age > 0.18 && age < 0.30 ? (1 - (age - 0.18) / 0.12) * 0.48 : 0);
+    flash = clamp01(flash) * stormT;
+    if (flash <= 0.005) return;
+    var sx = curCamZtxBase + stormStrike.worldX * curCamZoom;
+    var impactY = curCamZtyBase + terrainLipAt(stormStrike.worldX) * curCamZoom;
+    var iw = lightningImg.naturalWidth || 1536;
+    var ih = lightningImg.naturalHeight || 1024;
+    var cellW = iw / 3;
+    var dh = Math.max(180, impactY + 24);
+    var dw = Math.round(dh * cellW / ih * 1.16);
+    var dx = Math.round(sx - dw * 0.5);
+    var dy = Math.round(impactY - dh * 0.94);
+    g.save();
+    g.fillStyle = css([222, 230, 246], 0.16 * flash);
+    g.fillRect(0, 0, VW, VH);
+    g.globalCompositeOperation = "screen";
+    if (!REDUCED) {
+      g.filter = "blur(4px)";
+      g.globalAlpha = flash * 0.46;
+      g.drawImage(lightningImg, stormStrike.variant * cellW, 0, cellW, ih, dx, dy, dw, dh);
+      g.filter = "none";
+    }
+    g.globalAlpha = Math.min(1, 0.72 + flash * 0.35);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(lightningImg, stormStrike.variant * cellW, 0, cellW, ih, dx, dy, dw, dh);
+    var impactGlow = g.createRadialGradient(sx, impactY, 1, sx, impactY, 70);
+    impactGlow.addColorStop(0, css([238, 242, 255], 0.66 * flash));
+    impactGlow.addColorStop(0.35, css([156, 184, 255], 0.24 * flash));
+    impactGlow.addColorStop(1, css([156, 184, 255], 0));
+    g.fillStyle = impactGlow;
+    g.beginPath(); g.arc(sx, impactY, 70, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+
+  function drawStormFires(wxL, wxR, day) {
+    if (!lightningFireReady || !stormFires.length) return;
+    var stormT = (day.r4 && day.r4.storm) || 0;
+    var alive = [];
+    var iw = lightningFireImg.naturalWidth || 2048;
+    var ih = lightningFireImg.naturalHeight || 768;
+    var cellW = iw / 6;
+    for (var i = 0; i < stormFires.length; i++) {
+      var fire = stormFires[i];
+      var age = tSec - fire.born;
+      if (age < fire.life) alive.push(fire);
+      if (age < 0 || age >= fire.life || fire.worldX < wxL - 100 || fire.worldX > wxR + 100) continue;
+      var fadeIn = smoother01(clamp01(age / 0.24));
+      var fadeOut = 1 - smoother01(clamp01((age - (fire.life - 2.2)) / 2.2));
+      var alpha = fadeIn * fadeOut * stormT;
+      if (alpha <= 0.01) continue;
+      var frame = Math.floor(age * 9 + hash(fire.seed) * 6) % 6;
+      var dh = 190 + Math.round(hash(fire.seed * 2.3) * 42);
+      var dw = Math.round(dh * cellW / ih);
+      var y = Math.round(terrainLipAt(fire.worldX)) + 2;
+      var slopeAng = Math.atan2(terrainLipAt(fire.worldX + 12) - terrainLipAt(fire.worldX - 12), 24);
+      g.save();
+      g.translate(Math.round(fire.worldX), y);
+      g.rotate(slopeAng);
+      var glow = g.createRadialGradient(0, 1, 1, 0, 1, 45);
+      glow.addColorStop(0, css([255, 158, 48], 0.24 * alpha));
+      glow.addColorStop(1, css([255, 98, 24], 0));
+      g.fillStyle = glow;
+      g.beginPath(); g.ellipse(0, 2, 45, 14, 0, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = alpha;
+      g.imageSmoothingEnabled = false;
+      g.drawImage(lightningFireImg, frame * cellW, 0, cellW, ih,
+        -dw * 0.5, -dh * 0.64, dw, dh);
+      g.restore();
+    }
+    stormFires = alive;
+  }
+
   function drawRealm4Scenes(day, openingT) {
     if (!day.r4) return;
     var a;
@@ -7084,22 +7275,6 @@
         var ry4 = ((hash(rp * 8.9) * VH + tSec * 150 * (0.7 + hash(rp * 2.2) * 0.6)) % VH + VH) % VH;
         g.fillStyle = css([124, 134, 150], (0.18 + hash(rp * 3.3) * 0.20) * a);
         g.fillRect(Math.round(rx4), Math.round(ry4), 1, 3);
-      }
-      // lightning
-      var strikeCell = Math.floor(tSec / (6 + hash(Math.floor(tSec / 9)) * 5));
-      var strikeAge = tSec - strikeCell * (6 + hash(Math.floor(tSec / 9)) * 5);
-      if (strikeAge < 0.30 && !REDUCED) {
-        var ft = 1 - strikeAge / 0.30;
-        g.fillStyle = css([226, 231, 239], 0.10 * ft * ft * a);
-        g.fillRect(0, 0, VW, VH);
-        var bx4 = hash(strikeCell * 3.97) * VW, by4 = HORIZON - 95;
-        g.fillStyle = css([226, 231, 239], 0.85 * ft * a);
-        for (var bseg = 0; bseg < 6; bseg++) {
-          var bdx = (hash(strikeCell + bseg * 1.7) - 0.5) * 26;
-          var bdy = 14 + hash(strikeCell * 2.3 + bseg) * 8;
-          g.fillRect(Math.round(bx4), Math.round(by4), 2, Math.round(bdy));
-          bx4 += bdx; by4 += bdy;
-        }
       }
     }
     t = day.r4.ruins || 0;
@@ -7303,7 +7478,10 @@
     }
   }
   function drawGalaxyNightScene(day, openingT, alphaMul) {
-    var reveal = galaxySceneReveal() * (1 - (day.snow || 0) * 0.78);
+    var rawReveal = galaxySceneReveal();
+    // Hold the authored nebula back until this biome genuinely owns the frame.
+    // The old broad bell exposed space art inside the preceding grey-rock band.
+    var reveal = smoother01(clamp01((rawReveal - 0.18) / 0.82)) * (1 - (day.snow || 0) * 0.78);
     var galaxyImg = (VW >= VH * 0.92) ? galaxyWideImg : galaxyPortraitImg;
     var galaxyReady = (galaxyImg === galaxyWideImg) ? galaxyWideReady : galaxyPortraitReady;
     if (reveal <= 0.002 || !galaxyReady) return;
@@ -11388,6 +11566,8 @@
     }
     if ((day.galaxy || 0) < 0.55) drawBirds(day);
     drawWindVeil(day);
+    drawStormLightning((day.r4 && day.r4.storm) || 0);   // grade-safe, terrain-anchored strike layer
+    drawBackgroundRockSpines(day);   // distant barren crags, rooted behind the slope
     // Background forest is scenery BEHIND the ground — drawn before the foreground
     // slope so the ground occludes the tree bases (they grow down the hillside).
     // The FOREGROUND sweep trees are drawn later, after the actor, to pass in front.
@@ -11427,6 +11607,7 @@
     drawPathGrass(wxL, wxR, day);
     drawFootprints(wxL, wxR, day);   // trail of pressed footprints downhill behind the figure
     drawBiomeProps(wxL, wxR, day);   // occasional biome-keyed props (flora / boulders / skulls)
+    drawStormFires(wxL, wxR, day);   // strike remnants stay planted on the receiving terrain
     if (SHOW_HORIZON_HAZE) drawHorizonHaze(wxL, wxR, day);   // dissolve the ground's top edge into the distance (no hard line)
     drawGroundSunlight(wxL, wxR, day);   // directional sun/moon light pooling on the ground
     drawSnowSurface(wxL, wxR, day);
@@ -12013,6 +12194,7 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
+    drawForegroundRockProps(day);   // close rock forms sweep in front through the barren band
     drawForegroundTrees(day);   // close conifers sweeping IN FRONT of the figure (depth)
     drawRunAsh(day);
     drawRain(day);
