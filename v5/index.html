@@ -2035,43 +2035,24 @@
   g.imageSmoothingEnabled = false;
   var fullC = document.createElement("canvas"), fullG = fullC.getContext("2d");  // crisp full-res buffer
   var lowC = document.createElement("canvas"), lowG = lowC.getContext("2d");     // downsampled buffer
-  var LOW_PX = 1;                                                                 // V5 actor pixels match the canonical world grid
+  var LOW_PX = 2;                                                                 // restore the exact V4 actor/boulder pixel scale
   var ACTOR_PAD_TOP = 260, ACTOR_PAD_BOTTOM = 1120;                                // room for giant rocks and summit drops
   var ACTOR_PAD_LEFT = 72, ACTOR_PAD_RIGHT = 1120;                                 // room for the summit stone drop
   // A fixed in-game boulder sprite authored for this game. Material detail is baked,
   // while the live sun pass below still controls which side reads as illuminated.
   var rockCv = document.createElement("canvas"), rockReady = false;
   function buildFixedRockSprite() {
-    var sz = 128;
-    var granite = [
-      [25, 28, 32], [37, 41, 45], [50, 55, 59], [64, 69, 73],
-      [79, 84, 87], [96, 100, 102], [116, 119, 119]
-    ];
-    rockCv.width = sz; rockCv.height = sz;
-    var rx = rockCv.getContext("2d"); rx.imageSmoothingEnabled = false;
-    rx.clearRect(0, 0, sz, sz);
-    var cx = (sz - 1) * 0.5, cy = (sz - 1) * 0.5, radius = sz * 0.46;
-    for (var y = 0; y < sz; y++) {
-      for (var x = 0; x < sz; x++) {
-        var nx = (x - cx) / radius, ny = (y - cy) / radius;
-        var d2 = nx * nx + ny * ny;
-        if (d2 > 1) continue;
-        var edge = Math.sqrt(d2) > 1 - 2.2 / radius;
-        var nz = Math.sqrt(Math.max(0, 1 - d2));
-        var light = nx * -0.42 + ny * -0.50 + nz * 0.56;
-        var level = Math.max(1, Math.min(6, Math.round(3.0 + light * 2.25)));
-        // Broad strata and facets, never single-pixel texture noise.
-        if (x > sz * 0.15 && x < sz * 0.66 && Math.abs(y - (sz * 0.24 + x * 0.24)) < sz * 0.026) level = Math.min(6, level + 1);
-        if (x > sz * 0.38 && x < sz * 0.86 && Math.abs(y - (sz * 0.70 - x * 0.20)) < sz * 0.023) level = Math.max(1, level - 1);
-        if (x > sz * 0.20 && x < sz * 0.46 && y > sz * 0.24 && y < sz * 0.46 && x + y < sz * 0.82) level = Math.min(6, level + 1);
-        if (x > sz * 0.63 && y > sz * 0.50 && x + y > sz * 1.34) level = Math.max(1, level - 1);
-        var col = edge ? granite[0] : granite[level];
-        rx.fillStyle = css(col);
-        rx.fillRect(x, y, 1, 1);
-      }
-    }
-    rockReady = true;
-    buildBoulderVariants();
+    var rsrc = new Image();
+    rsrc.onload = function () {
+      var sz = 128;
+      rockCv.width = sz; rockCv.height = sz;
+      var rx = rockCv.getContext("2d"); rx.imageSmoothingEnabled = false;
+      rx.clearRect(0, 0, sz, sz);
+      rx.drawImage(rsrc, 0, 0, rsrc.naturalWidth, rsrc.naturalHeight, 0, 0, sz, sz);
+      rockReady = true;
+      buildBoulderVariants();
+    };
+    rsrc.src = "assets/boulder-granite-sprite-v2.png";
   }
   buildFixedRockSprite();
 
@@ -5854,6 +5835,9 @@
     if (!QA_STATE) return;
     if (!document.body || !window.__sisyphusDebug) return;
     document.body.setAttribute("data-sisyphus-state", JSON.stringify(window.__sisyphusDebug()));
+    if (window.__sisyphusQa && window.__sisyphusQa.frameStats) {
+      document.body.setAttribute("data-sisyphus-frame-ms", JSON.stringify(window.__sisyphusQa.frameStats()));
+    }
   }
 
   if (QA_STATE) {
@@ -7141,7 +7125,6 @@
     var last = Math.ceil((scroll + VW + dw * 1.4) / spacing);
     g.save();
     g.imageSmoothingEnabled = false;
-    if (!REDUCED) g.filter = "blur(0.8px)";
     g.globalAlpha = reveal * 0.50;
     for (var i = first; i <= last; i++) {
       if (hash(i * 5.73 + 11) < 0.32) continue;
@@ -7154,7 +7137,6 @@
       g.drawImage(rockySpireImg, Math.round(sx), Math.round(baseY - dh * 0.89), dw, dh);
       g.restore();
     }
-    g.filter = "none";
     g.globalAlpha = 1;
     g.restore();
   }
@@ -7171,7 +7153,6 @@
     var last = Math.ceil((scroll + VW + spacing) / spacing);
     g.save();
     g.imageSmoothingEnabled = false;
-    if (!REDUCED) g.filter = "blur(0.6px)";
     g.globalAlpha = reveal * 0.76;
     for (var i = first; i <= last; i++) {
       if (hash(i * 6.17 + 29) < 0.28) continue;
@@ -7192,7 +7173,6 @@
         Math.round(sx), Math.round(baseY - dh * 0.86), dw, dh);
       g.restore();
     }
-    g.filter = "none";
     g.globalAlpha = 1;
     g.restore();
   }
@@ -8472,86 +8452,6 @@
         }
       }
     }
-    function drawV5RockMaterial(alphaMul) {
-      if (alphaMul <= 0.002) return;
-      var rockBase = mix(day.ground || [78, 78, 82], day.groundDark || [38, 40, 45], 0.26);
-      var rockDark = mix(rockBase, [0, 0, 0], 0.48);
-      var rockMid = mix(rockBase, [255, 255, 255], 0.08);
-      var rockHigh = mix(rockBase, [255, 255, 255], 0.30);
-      g.save();
-      g.globalAlpha = alphaMul;
-      g.fillStyle = css(rockBase);
-      g.fillRect(x0, 0, x1 - x0, h);
-
-      var materialScroll = scroll * 0.92;
-      // Broken, stepped strata replace smooth gradients and full-width rules.
-      // Each segment is world locked, so the geology moves with the mountain
-      // while the quiet gaps keep the slope from reading as striped wallpaper.
-      var strataCell = 76;
-      var firstStrata = Math.floor((x0 + materialScroll) / strataCell) - 1;
-      var lastStrata = Math.ceil((x1 + materialScroll) / strataCell) + 1;
-      for (var by = 20, strataRow = 0; by < Math.min(h, 600); by += 29, strataRow++) {
-        for (var bs = firstStrata; bs <= lastStrata; bs++) {
-          var bandSeed = hash(bs * 8.71 + strataRow * 13.27 + mountainIndex * 1.9);
-          if (bandSeed < 0.38) continue;
-          var bandX = Math.round(bs * strataCell - materialScroll + bandSeed * 13);
-          var bandW = 24 + Math.round(hash(bs * 4.39 + strataRow * 5.17) * 48);
-          var bandShade = bandSeed > 0.76 ? rockMid : rockDark;
-          var bandA = 0.12 + Math.min(0.11, by / Math.max(1, h) * 0.11);
-          g.fillStyle = css(bandShade, bandA);
-          g.fillRect(bandX, by, bandW, bandSeed > 0.90 ? 2 : 1);
-          if (bandSeed > 0.68) {
-            var echoW = Math.max(6, Math.round(bandW * (0.28 + bandSeed * 0.22)));
-            g.fillRect(bandX + 4, by + 2, echoW, 1);
-          }
-        }
-      }
-
-      // Sparse world-locked chips. Features translate with the exact ground
-      // scroll, so the material never swims beneath the character.
-      var cellW = 32, rowH = 24;
-      var firstCell = Math.floor((x0 + materialScroll) / cellW) - 1;
-      var lastCell = Math.ceil((x1 + materialScroll) / cellW) + 1;
-      for (var ry = 0; ry < Math.min(h, 560); ry += rowH) {
-        for (var rc = firstCell; rc <= lastCell; rc++) {
-          var seedR = hash(rc * 7.91 + ry * 2.37 + mountainIndex * 11.3);
-          if (seedR < 0.78) continue;
-          var pxR = Math.round(rc * cellW - materialScroll + hash(rc * 3.11 + ry) * 7);
-          var pyR = Math.round(6 + ry + hash(rc * 5.17 + ry * 1.9) * 5);
-          var pwR = seedR > 0.94 ? 8 : (seedR > 0.86 ? 6 : 4);
-          g.fillStyle = css(seedR > 0.92 ? rockHigh : rockDark, 0.72);
-          g.fillRect(pxR, pyR, pwR, seedR > 0.90 ? 2 : 1);
-          if (seedR > 0.86) {
-            g.fillStyle = css(rockDark, 0.52);
-            g.fillRect(pxR + 1, pyR + 2, Math.max(1, pwR - 2), 1);
-          }
-        }
-      }
-
-      // A few larger embedded plates survive the upper-mountain zoom. They use
-      // the same stepped grammar as the small chips, but remain part of the
-      // material rather than becoming repeated objects perched on the lip.
-      var plateScale = 1 + smoother01(clamp01((altitude - 2500) / 3600));
-      var plateCellW = Math.round(104 * plateScale);
-      var plateCellH = Math.round(72 * plateScale);
-      var plateFirst = Math.floor((x0 + materialScroll) / plateCellW) - 1;
-      var plateLast = Math.ceil((x1 + materialScroll) / plateCellW) + 1;
-      for (var pry = 42, plateRow = 0; pry < Math.min(h, 640); pry += plateCellH, plateRow++) {
-        for (var pc = plateFirst; pc <= plateLast; pc++) {
-          var plateSeed = hash(pc * 10.71 + plateRow * 19.43 + mountainIndex * 4.9);
-          if (plateSeed < 0.72) continue;
-          var plateX = Math.round(pc * plateCellW - materialScroll + plateSeed * 18);
-          var plateW = Math.round((14 + plateSeed * 20) * plateScale);
-          var plateH = plateSeed > 0.9 ? 3 : 2;
-          g.fillStyle = css(rockDark, 0.18 + plateSeed * 0.12);
-          g.fillRect(plateX, pry, plateW, plateH);
-          g.fillRect(plateX + 4, pry - 3, Math.max(5, Math.round(plateW * 0.58)), 3);
-          g.fillStyle = css(rockHigh, 0.12 + plateSeed * 0.08);
-          g.fillRect(plateX + 5, pry - 4, Math.max(3, Math.round(plateW * 0.34)), 1);
-        }
-      }
-      g.restore();
-    }
     // EXOTIC-REALM ROCK: the rock atlas's embossed stone lozenges, once bare + strongly
     // hue-cast (esp. the purple galaxy/void), read as harsh repetitive dark lumps. Fade
     // the atlas down in those realms so the smooth solid base (groundDark) dominates and
@@ -8560,28 +8460,21 @@
     if (day) exoticRockRaw = Math.max(day.galaxy || 0, (day.r4 && day.r4.thevoid) || 0, (day.r4 && day.r4.ashen) || 0,
       day.canyon || 0, day.greek || 0, day.valleys || 0, day.snow || 0);
     var exoticRock = smoother01(clamp01(exoticRockRaw * 1.35));
-    var baseAtlasA = 1 - 0.97 * exoticRock;
-    // Preserve the rock grain under the galaxy tint. Removing almost all of it
-    // left a featureless purple plane at the exact rocky-to-space transition.
-    if (day && day.galaxy) baseAtlasA = Math.max(baseAtlasA, 0.42 * day.galaxy);
+    // Keep the authored rock pixels present in every realm. V4 nearly erased the
+    // atlas under later-biome colour grades, which left a broad, soft grey sheet.
+    var baseAtlasA = 1 - 0.15 * exoticRock;
+    if (day && day.galaxy) baseAtlasA = Math.max(baseAtlasA, 0.90 * day.galaxy);
     drawAtlasTiles(groundTex, baseAtlasA);
     // Grass over the rock base at the start + forest; fades higher so rock returns.
     // The night (noir) theme swaps in the dark moonlit ground atlas.
     var nightGround = customize.look === "noir" && nightGroundReady;
     var grassTex = nightGround ? nightGroundTex : grassGroundTex;
     var grassA = (nightGround || grassGroundReady) ? grassGroundReveal() : 0;
-    // V5 gives each major realm one owned material. The recurring waterfall
-    // signal may still place bridges and scenery, but it no longer recolors the
-    // canyon/Greek/storm ground with the low-mountain grass atlas.
-    grassA *= 1 - smoother01(clamp01((altitude - 980) / 180));
     if (customize.look === "void") grassA = 0;   // void: no grass — just dark rock-in-shadow
-    var v5RockT = smoother01(clamp01((altitude - 820) / 330)) * (1 - Math.min(1, grassA));
-    drawV5RockMaterial(v5RockT);
     if (grassA > 0.002) {
       drawAtlasTiles(grassTex, Math.min(0.985, grassA));
     }
     var flowerA = flowerGroundReady ? flowerGroundReveal() : 0;
-    flowerA *= 1 - smoother01(clamp01((altitude - 960) / 160));
     if (flowerA > 0.002) {
       drawAtlasTiles(flowerGroundTex, Math.min(0.96, flowerA));
     }
@@ -8596,11 +8489,8 @@
     // Macro-value pass: quiet the repeated atlas detail in the exotic realms and
     // replace it with broad, slow tonal variation. The terrain still has texture,
     // but it now reads as a mountain first and a repeating tile second.
-    // The V5 material above already supplies broad depth bands and sparse strata.
-    // Do not lay V4's smoothing macro over it; that pass erased the intentional
-    // grid detail and turned later realms into featureless tinted planes.
-    if (false && day && exoticRock > 0.08) {
-      var macroA = clamp01(exoticRock) * 0.40;
+    if (day && exoticRock > 0.08) {
+      var macroA = clamp01(exoticRock) * 0.12;
       var macroCol = mix(day.ground || [76, 72, 68], day.groundDark || [34, 34, 38], 0.34);
       g.fillStyle = css(macroCol, macroA);
       g.fillRect(x0, 0, x1 - x0, h);
@@ -9006,7 +8896,8 @@
     fg.setTransform(RES, 0, 0, RES, blurPad, blurPad);   // logical draws, padded RES× buffer (sharp trees, unclipped blur)
     fg.imageSmoothingEnabled = false;
     var iw = foregroundTreeImg.naturalWidth || 290, ih = foregroundTreeImg.naturalHeight || 482;
-    var scroll = altitude * GROUND_SCROLL + cfg.seed;
+    var phase = cfg.phase == null ? cfg.seed : cfg.phase;
+    var scroll = altitude * GROUND_SCROLL + phase;
     var spacing = cfg.spacing;
     var baseScale = (VH * cfg.treeH) / ih;
     var drew = 0;
@@ -9086,10 +8977,10 @@
   // random forest the figure climbs through — not a sparse line. Drawn behind him.
   // Every tree shares the terrain's world scroll. Depth comes from size, draw order,
   // and blur; never from sliding a trunk independently of the ground beneath it.
-  var TREES_BG = { anchor: "ground", spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.28, tint: 0.13, seed: 333, blur: 0 };
+  var TREES_BG = { anchor: "ground", spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.35 };
   // Close conifers still pass in front of the actor, but are rooted to fixed terrain
   // coordinates just like bushes and bridge anchors.
-  var TREES_NEAR = { anchor: "ground", spacing: 320, densityStart: 0.06, densityEnd: 0.72, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.30, tint: 0.10, seed: 0, blur: 0 };
+  var TREES_NEAR = { anchor: "ground", spacing: 320, densityStart: 0.06, densityEnd: 0.72, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.24, tint: 0.05, seed: 0, phase: 360, blur: 0.55 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
@@ -11798,6 +11689,7 @@
   function draw() {
     // start every frame with canvas text state at defaults — guarantees no
     // textAlign/textBaseline leak from a prior frame can misalign HUD/world text
+    g.imageSmoothingEnabled = false;
     g.textAlign = "start";
     g.textBaseline = "alphabetic";
     var day = sampleStage(visualMeters());
@@ -12862,7 +12754,11 @@
     // Hidden tabs, iframes, and in-app webviews can report 0x0; bail and keep
     // the last good size instead of poisoning VH with NaN for every draw.
     if (!isFinite(winW) || !isFinite(winH) || winW <= 0 || winH <= 0) return;
-    var displayScale = (winW < 700 || winH < 520) ? 2 : 3;
+    // Keep a stable low-resolution art grid. Large screens use bigger integer
+    // display pixels instead of asking the game to render hundreds of thousands
+    // of extra world pixels that are immediately enlarged anyway.
+    var compact = winW < 700 || winH < 520;
+    var displayScale = compact ? 2 : Math.max(3, Math.min(5, Math.round(winH / 270)));
     var nextVW = Math.max(160, Math.floor(winW / displayScale));
     var nextVH = Math.max(220, Math.floor(winH / displayScale));
     var nextRES = displayScale;

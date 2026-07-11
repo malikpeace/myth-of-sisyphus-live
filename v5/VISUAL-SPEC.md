@@ -11,7 +11,7 @@
 
 - Render the world directly at one virtual-pixel resolution (`RES = 1`).
 - One virtual world pixel displays as exactly 2 CSS pixels on compact/mobile
-  screens and 3 CSS pixels on larger screens.
+  screens and an integer 3–5 CSS pixels on larger screens.
 - Calculate virtual width/height from the viewport and chosen integer display
   scale. Never stretch the world canvas fractionally.
 - Center the canvas; allow only the 0–2 pixel viewport remainder at its edges.
@@ -26,8 +26,8 @@
 - Limit material ramps to deliberate stepped values; avoid micro-noise.
 - Use one-pixel world outlines at 1× where outlines are required.
 - No accidental partially transparent edge pixels.
-- No per-object Gaussian blur. Create depth with scale, palette, contrast,
-  occlusion, and slower world movement.
+- Keep world art sharp. The only scenery blur exception is the tree depth layer
+  requested for near/far separation; atmospheric light effects may retain glow.
 - Generated imagery is source material only. Reduce, palette-map, edge-clean,
   and verify it on the canonical grid before use.
 
