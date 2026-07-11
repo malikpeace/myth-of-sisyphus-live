@@ -13,7 +13,7 @@
 <title>Myth of Sisyphus</title>
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
-<link rel="preload" as="image" href="assets/mountain-bg-noclouds.png">
+<link rel="preload" as="image" href="v5/assets/mountain-bg-pixel-master-v5.png">
 <style>
   :root { color-scheme: dark; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2648,10 +2648,9 @@
   var mtBg = new Image(), mtBgReady = false, mtBgFailed = false;
   mtBg.onload = function () { mtBgReady = true; mtBgBottomCol = sampleBottomCol(mtBg); };
   mtBg.onerror = function () { mtBgFailed = true; };
-  // JPEG (q92) instead of a 1.7MB PNG: photographic mountain scene compresses ~7x
-  // smaller with no visible loss, so it loads before first paint and the cold-blue
-  // procedural sky never flashes in while the PNG downloads. Preloaded in <head>.
-  mtBg.src = "assets/mountain-bg-noclouds.png";
+  // V5-only canonical pixel master: 384×256, 32 colors, no dithering or soft
+  // source texture. Preloaded in <head> so the matching sky appears immediately.
+  mtBg.src = "v5/assets/mountain-bg-pixel-master-v5.png";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
