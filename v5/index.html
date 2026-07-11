@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="5-foundation">
+<meta name="sisyphus-build" content="5-ultra-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -806,10 +806,10 @@
   #startscreen .mode-card {
     min-height: 94px;
     padding: 12px 13px;
-    border: 1px solid rgba(255,255,255,0.22);
+    border: 1px solid rgba(255,255,255,0.34);
     border-top-width: 2px;
-    background: rgba(18,20,25,0.58);
-    color: rgba(255,255,255,0.88);
+    background: rgba(10,12,17,0.78);
+    color: rgba(255,255,255,0.94);
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     text-align: left;
     cursor: pointer;
@@ -817,12 +817,12 @@
   }
   #startscreen .mode-card:hover {
     border-color: rgba(255,255,255,0.72);
-    background: rgba(22,24,30,0.64);
+    background: rgba(12,14,19,0.86);
   }
   #startscreen .mode-card.preferred {
-    border-color: rgba(255,255,255,0.62);
-    background: rgba(255,255,255,0.105);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.90);
+    background: rgba(7,9,13,0.90);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.24);
   }
   #startscreen .mode-card .tag {
     display: inline-block;
@@ -839,18 +839,20 @@
     margin-bottom: 0;
     font-size: clamp(12px, 1.55vw, 16px);
     font-weight: 700;
-    color: rgba(255,255,255,0.96);
+    color: #fff;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.90);
   }
   #startscreen .mode-card span {
     display: block;
     max-height: none;
     margin-top: 8px;
     opacity: 1;
-    color: rgba(255,255,255,0.78);
+    color: rgba(255,255,255,0.92);
     font-size: clamp(10px, 1.05vw, 12px);
     line-height: 1.45;
     text-transform: lowercase;
     transition: color 0.2s ease;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.86);
   }
   #startscreen .mode-card.preferred span,
   #startscreen .mode-card:hover span,
@@ -2033,14 +2035,14 @@
   g.imageSmoothingEnabled = false;
   var fullC = document.createElement("canvas"), fullG = fullC.getContext("2d");  // crisp full-res buffer
   var lowC = document.createElement("canvas"), lowG = lowC.getContext("2d");     // downsampled buffer
-  var LOW_PX = 2;                                                                 // bigger = chunkier / lower-res
+  var LOW_PX = 1;                                                                 // V5 actor pixels match the canonical world grid
   var ACTOR_PAD_TOP = 260, ACTOR_PAD_BOTTOM = 1120;                                // room for giant rocks and summit drops
   var ACTOR_PAD_LEFT = 72, ACTOR_PAD_RIGHT = 1120;                                 // room for the summit stone drop
   // A fixed in-game boulder sprite authored for this game. Material detail is baked,
   // while the live sun pass below still controls which side reads as illuminated.
   var rockCv = document.createElement("canvas"), rockReady = false;
   function buildFixedRockSprite() {
-    var sz = 48;
+    var sz = 128;
     var granite = [
       [25, 28, 32], [37, 41, 45], [50, 55, 59], [64, 69, 73],
       [79, 84, 87], [96, 100, 102], [116, 119, 119]
@@ -2048,21 +2050,21 @@
     rockCv.width = sz; rockCv.height = sz;
     var rx = rockCv.getContext("2d"); rx.imageSmoothingEnabled = false;
     rx.clearRect(0, 0, sz, sz);
-    var cx = 23.5, cy = 23.5, radius = 22;
+    var cx = (sz - 1) * 0.5, cy = (sz - 1) * 0.5, radius = sz * 0.46;
     for (var y = 0; y < sz; y++) {
       for (var x = 0; x < sz; x++) {
         var nx = (x - cx) / radius, ny = (y - cy) / radius;
         var d2 = nx * nx + ny * ny;
         if (d2 > 1) continue;
-        var edge = d2 > 0.82;
+        var edge = Math.sqrt(d2) > 1 - 2.2 / radius;
         var nz = Math.sqrt(Math.max(0, 1 - d2));
         var light = nx * -0.42 + ny * -0.50 + nz * 0.56;
         var level = Math.max(1, Math.min(6, Math.round(3.0 + light * 2.25)));
         // Broad strata and facets, never single-pixel texture noise.
-        if (x > 7 && x < 31 && Math.abs(y - (12 + x * 0.24)) < 1.25) level = Math.min(6, level + 1);
-        if (x > 18 && x < 41 && Math.abs(y - (31 - x * 0.20)) < 1.1) level = Math.max(1, level - 1);
-        if (x > 10 && x < 22 && y > 12 && y < 21 && x + y < 38) level = Math.min(6, level + 1);
-        if (x > 30 && y > 24 && x + y > 63) level = Math.max(1, level - 1);
+        if (x > sz * 0.15 && x < sz * 0.66 && Math.abs(y - (sz * 0.24 + x * 0.24)) < sz * 0.026) level = Math.min(6, level + 1);
+        if (x > sz * 0.38 && x < sz * 0.86 && Math.abs(y - (sz * 0.70 - x * 0.20)) < sz * 0.023) level = Math.max(1, level - 1);
+        if (x > sz * 0.20 && x < sz * 0.46 && y > sz * 0.24 && y < sz * 0.46 && x + y < sz * 0.82) level = Math.min(6, level + 1);
+        if (x > sz * 0.63 && y > sz * 0.50 && x + y > sz * 1.34) level = Math.max(1, level - 1);
         var col = edge ? granite[0] : granite[level];
         rx.fillStyle = css(col);
         rx.fillRect(x, y, 1, 1);
@@ -2212,7 +2214,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus5-foundation");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus5-ultra-1");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2511,8 +2513,8 @@
   function burdenLabel() {
     return currentBurden || "the stone";
   }
-  var savedSoundPref = storageGet("sisyphus.sound", "");
-  var soundOffMigrated = storageGet("sisyphus.sound.off.v3", "");
+  var savedSoundPref = storageGet("sisyphus5.sound", storageGet("sisyphus.sound", ""));
+  var soundOffMigrated = storageGet("sisyphus5.sound.off.v3", "");
   var customize = {
     look: "classic",
     fx: "calm",
@@ -2524,20 +2526,19 @@
   // wiping that stale auto-on. After that, the player's own toggle persists normally.
   if (soundOffMigrated !== "1") {
     customize.sound = "off";
-    storageSet("sisyphus.sound", "off");
-    storageSet("sisyphus.sound.off.v3", "1");
+    storageSet("sisyphus5.sound", "off");
+    storageSet("sisyphus5.sound.off.v3", "1");
   } else if (savedSoundPref === "on" || savedSoundPref === "off") {
     customize.sound = savedSoundPref;
   }
   // Restore the saved visual style (look) + fx across sessions — the choice was
   // always written on click, but only sound was read back on load before, so
   // night/green/ember/void reset to classic every visit. Now they persist.
-  var savedLook = storageGet("sisyphus.look", "");
+  var savedLook = storageGet("sisyphus5.look", storageGet("sisyphus.look", ""));
   if (/^(classic|noir|void)$/.test(savedLook)) customize.look = savedLook;   // green/ember removed — old saves fall back to classic
   // FX picker retired — the game is locked to "calm" (the minimal effect level).
   customize.fx = "calm";
-  storageRemove("sisyphus.stone");
-  storageRemove("sisyphus2.sisyphus.cosmetic.v1");   // legacy v2-format cleanup only — never touch the v4 key
+  storageRemove("sisyphus5.stone");
   if (params.has("stone")) {
     params.delete("stone");
     var stoneCleanUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
@@ -2752,10 +2753,10 @@
   aboveCloudsImg.src = "assets/above-clouds-sunset-px.png";
   var galaxyPortraitImg = new Image(), galaxyPortraitReady = false;
   galaxyPortraitImg.onload = function () { galaxyPortraitReady = true; };
-  galaxyPortraitImg.src = "assets/galaxy-night-portrait-v2.png";
+  galaxyPortraitImg.src = "v5/assets/galaxy-portrait-v5.png";
   var galaxyWideImg = new Image(), galaxyWideReady = false;
   galaxyWideImg.onload = function () { galaxyWideReady = true; };
-  galaxyWideImg.src = "assets/galaxy-night-wide-v2.png";
+  galaxyWideImg.src = "v5/assets/galaxy-wide-v5.png";
   // Generated environmental set: distant/foreground rock layers plus authored
   // lightning and fire sheets. All cutout sheets are alpha-cleaned PNGs.
   var rockySpireImg = new Image(), rockySpireReady = false;
@@ -3062,7 +3063,7 @@
       var k = this.getAttribute("data-custom");
       var v = this.getAttribute("data-value");
       customize[k] = v;
-      storageSet("sisyphus." + k, v);
+      storageSet("sisyphus5." + k, v);
       refreshChoices();
       refreshLegacyLine();
       if (k === "sound") {
@@ -7529,8 +7530,8 @@
     var galaxyImg = (VW >= VH * 0.92) ? galaxyWideImg : galaxyPortraitImg;
     var galaxyReady = (galaxyImg === galaxyWideImg) ? galaxyWideReady : galaxyPortraitReady;
     if (reveal <= 0.002 || !galaxyReady) return;
-    var imgW = galaxyImg.naturalWidth || (galaxyImg === galaxyWideImg ? 1792 : 895);
-    var imgH = galaxyImg.naturalHeight || (galaxyImg === galaxyWideImg ? 1024 : 1536);
+    var imgW = galaxyImg.naturalWidth || (galaxyImg === galaxyWideImg ? 426 : 240);
+    var imgH = galaxyImg.naturalHeight || (galaxyImg === galaxyWideImg ? 240 : 426);
     var scale = Math.max(VW / imgW, VH / imgH) * 1.04;
     var dw = Math.round(imgW * scale);
     var dh = Math.round(imgH * scale);
@@ -8471,6 +8472,86 @@
         }
       }
     }
+    function drawV5RockMaterial(alphaMul) {
+      if (alphaMul <= 0.002) return;
+      var rockBase = mix(day.ground || [78, 78, 82], day.groundDark || [38, 40, 45], 0.26);
+      var rockDark = mix(rockBase, [0, 0, 0], 0.48);
+      var rockMid = mix(rockBase, [255, 255, 255], 0.08);
+      var rockHigh = mix(rockBase, [255, 255, 255], 0.30);
+      g.save();
+      g.globalAlpha = alphaMul;
+      g.fillStyle = css(rockBase);
+      g.fillRect(x0, 0, x1 - x0, h);
+
+      var materialScroll = scroll * 0.92;
+      // Broken, stepped strata replace smooth gradients and full-width rules.
+      // Each segment is world locked, so the geology moves with the mountain
+      // while the quiet gaps keep the slope from reading as striped wallpaper.
+      var strataCell = 76;
+      var firstStrata = Math.floor((x0 + materialScroll) / strataCell) - 1;
+      var lastStrata = Math.ceil((x1 + materialScroll) / strataCell) + 1;
+      for (var by = 20, strataRow = 0; by < Math.min(h, 600); by += 29, strataRow++) {
+        for (var bs = firstStrata; bs <= lastStrata; bs++) {
+          var bandSeed = hash(bs * 8.71 + strataRow * 13.27 + mountainIndex * 1.9);
+          if (bandSeed < 0.38) continue;
+          var bandX = Math.round(bs * strataCell - materialScroll + bandSeed * 13);
+          var bandW = 24 + Math.round(hash(bs * 4.39 + strataRow * 5.17) * 48);
+          var bandShade = bandSeed > 0.76 ? rockMid : rockDark;
+          var bandA = 0.12 + Math.min(0.11, by / Math.max(1, h) * 0.11);
+          g.fillStyle = css(bandShade, bandA);
+          g.fillRect(bandX, by, bandW, bandSeed > 0.90 ? 2 : 1);
+          if (bandSeed > 0.68) {
+            var echoW = Math.max(6, Math.round(bandW * (0.28 + bandSeed * 0.22)));
+            g.fillRect(bandX + 4, by + 2, echoW, 1);
+          }
+        }
+      }
+
+      // Sparse world-locked chips. Features translate with the exact ground
+      // scroll, so the material never swims beneath the character.
+      var cellW = 32, rowH = 24;
+      var firstCell = Math.floor((x0 + materialScroll) / cellW) - 1;
+      var lastCell = Math.ceil((x1 + materialScroll) / cellW) + 1;
+      for (var ry = 0; ry < Math.min(h, 560); ry += rowH) {
+        for (var rc = firstCell; rc <= lastCell; rc++) {
+          var seedR = hash(rc * 7.91 + ry * 2.37 + mountainIndex * 11.3);
+          if (seedR < 0.78) continue;
+          var pxR = Math.round(rc * cellW - materialScroll + hash(rc * 3.11 + ry) * 7);
+          var pyR = Math.round(6 + ry + hash(rc * 5.17 + ry * 1.9) * 5);
+          var pwR = seedR > 0.94 ? 8 : (seedR > 0.86 ? 6 : 4);
+          g.fillStyle = css(seedR > 0.92 ? rockHigh : rockDark, 0.72);
+          g.fillRect(pxR, pyR, pwR, seedR > 0.90 ? 2 : 1);
+          if (seedR > 0.86) {
+            g.fillStyle = css(rockDark, 0.52);
+            g.fillRect(pxR + 1, pyR + 2, Math.max(1, pwR - 2), 1);
+          }
+        }
+      }
+
+      // A few larger embedded plates survive the upper-mountain zoom. They use
+      // the same stepped grammar as the small chips, but remain part of the
+      // material rather than becoming repeated objects perched on the lip.
+      var plateScale = 1 + smoother01(clamp01((altitude - 2500) / 3600));
+      var plateCellW = Math.round(104 * plateScale);
+      var plateCellH = Math.round(72 * plateScale);
+      var plateFirst = Math.floor((x0 + materialScroll) / plateCellW) - 1;
+      var plateLast = Math.ceil((x1 + materialScroll) / plateCellW) + 1;
+      for (var pry = 42, plateRow = 0; pry < Math.min(h, 640); pry += plateCellH, plateRow++) {
+        for (var pc = plateFirst; pc <= plateLast; pc++) {
+          var plateSeed = hash(pc * 10.71 + plateRow * 19.43 + mountainIndex * 4.9);
+          if (plateSeed < 0.72) continue;
+          var plateX = Math.round(pc * plateCellW - materialScroll + plateSeed * 18);
+          var plateW = Math.round((14 + plateSeed * 20) * plateScale);
+          var plateH = plateSeed > 0.9 ? 3 : 2;
+          g.fillStyle = css(rockDark, 0.18 + plateSeed * 0.12);
+          g.fillRect(plateX, pry, plateW, plateH);
+          g.fillRect(plateX + 4, pry - 3, Math.max(5, Math.round(plateW * 0.58)), 3);
+          g.fillStyle = css(rockHigh, 0.12 + plateSeed * 0.08);
+          g.fillRect(plateX + 5, pry - 4, Math.max(3, Math.round(plateW * 0.34)), 1);
+        }
+      }
+      g.restore();
+    }
     // EXOTIC-REALM ROCK: the rock atlas's embossed stone lozenges, once bare + strongly
     // hue-cast (esp. the purple galaxy/void), read as harsh repetitive dark lumps. Fade
     // the atlas down in those realms so the smooth solid base (groundDark) dominates and
@@ -8489,11 +8570,18 @@
     var nightGround = customize.look === "noir" && nightGroundReady;
     var grassTex = nightGround ? nightGroundTex : grassGroundTex;
     var grassA = (nightGround || grassGroundReady) ? grassGroundReveal() : 0;
+    // V5 gives each major realm one owned material. The recurring waterfall
+    // signal may still place bridges and scenery, but it no longer recolors the
+    // canyon/Greek/storm ground with the low-mountain grass atlas.
+    grassA *= 1 - smoother01(clamp01((altitude - 980) / 180));
     if (customize.look === "void") grassA = 0;   // void: no grass — just dark rock-in-shadow
+    var v5RockT = smoother01(clamp01((altitude - 820) / 330)) * (1 - Math.min(1, grassA));
+    drawV5RockMaterial(v5RockT);
     if (grassA > 0.002) {
       drawAtlasTiles(grassTex, Math.min(0.985, grassA));
     }
     var flowerA = flowerGroundReady ? flowerGroundReveal() : 0;
+    flowerA *= 1 - smoother01(clamp01((altitude - 960) / 160));
     if (flowerA > 0.002) {
       drawAtlasTiles(flowerGroundTex, Math.min(0.96, flowerA));
     }
@@ -8508,7 +8596,10 @@
     // Macro-value pass: quiet the repeated atlas detail in the exotic realms and
     // replace it with broad, slow tonal variation. The terrain still has texture,
     // but it now reads as a mountain first and a repeating tile second.
-    if (day && exoticRock > 0.08) {
+    // The V5 material above already supplies broad depth bands and sparse strata.
+    // Do not lay V4's smoothing macro over it; that pass erased the intentional
+    // grid detail and turned later realms into featureless tinted planes.
+    if (false && day && exoticRock > 0.08) {
       var macroA = clamp01(exoticRock) * 0.40;
       var macroCol = mix(day.ground || [76, 72, 68], day.groundDark || [34, 34, 38], 0.34);
       g.fillStyle = css(macroCol, macroA);
@@ -10049,6 +10140,251 @@
       g.imageSmoothingEnabled = false;
       g.restore();
     }
+  }
+  function drawV5RealmProps(wxL, wxR, day) {
+    var reveal = smoother01(clamp01((altitude - 930) / 220));
+    if (reveal <= 0.01 || gameState === "title" || playMode === "run") return;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
+    var deepId = "", deepT = 0;
+    if (day.r4) {
+      for (var di = 0; di < REALM4_DEFS.length; di++) {
+        var dt = day.r4[REALM4_DEFS[di].id] || 0;
+        if (dt > deepT) { deepT = dt; deepId = REALM4_DEFS[di].id; }
+      }
+    }
+    var realm = deepT > 0.34 ? deepId
+      : (day.greek || 0) > 0.18 && altitude > 2850 ? "greek"
+      : (day.galaxy || 0) > 0.38 && altitude > 1450 ? "galaxy"
+      : (day.snow || 0) > 0.34 ? "snow"
+      : "rock";
+    var spacing = realm === "thevoid" ? 420
+      : realm === "bones" ? 430
+      : realm === "storm" || realm === "volcanic" ? 360
+      : realm === "aurora" || realm === "obsidian" ? 340
+      : (deepT > 0.34 ? 310 : (realm === "greek" || realm === "ruins" ? 260 : 224));
+    var first = Math.floor((scroll + wxL - spacing) / spacing);
+    var last = Math.ceil((scroll + wxR + spacing) / spacing);
+    var palettes = {
+      rock:     [[38, 39, 43], [86, 84, 80], [142, 136, 122]],
+      snow:     [[52, 62, 74], [116, 136, 151], [202, 216, 222]],
+      galaxy:   [[24, 27, 48], [70, 83, 126], [156, 178, 208]],
+      greek:    [[58, 48, 43], [132, 111, 86], [214, 187, 140]],
+      storm:    [[24, 27, 34], [67, 74, 88], [128, 138, 154]],
+      ruins:    [[48, 46, 43], [116, 106, 91], [192, 171, 136]],
+      volcanic: [[20, 19, 22], [66, 51, 47], [150, 91, 58]],
+      aurora:   [[36, 48, 64], [88, 116, 137], [178, 211, 219]],
+      bones:    [[61, 58, 53], [145, 134, 113], [218, 204, 173]],
+      obsidian: [[8, 10, 15], [34, 38, 51], [112, 124, 151]],
+      elysium:  [[59, 55, 48], [145, 132, 104], [226, 204, 158]],
+      thevoid:  [[4, 5, 7], [27, 29, 35], [94, 97, 106]]
+    };
+    var pal = palettes[realm] || palettes.rock;
+    var dark = pal[0], mid = pal[1], high = pal[2];
+
+    function contact(x, y, w) {
+      g.fillStyle = css([0, 0, 0], 0.34);
+      g.fillRect(x - w + 2, y, Math.max(3, w * 2 - 3), 1);
+    }
+    function steppedRock(x, y, w, h, seed) {
+      contact(x, y, w);
+      // Broad, low outcrop. The irregular stepped rows read as a boulder at the
+      // game's zoom levels; a tall rectangular rock reads like a stump or marker.
+      var hh = Math.max(11, Math.round(h * (0.52 + seed * 0.14)));
+      var shoulder = Math.max(3, Math.round(w * 0.22));
+      g.fillStyle = css(dark);
+      g.fillRect(x - w, y - 3, w * 2 + 1, 3);
+      g.fillRect(x - w + 1, y - 7, w * 2 - 2, 4);
+      g.fillRect(x - w + shoulder, y - 11, w * 2 - shoulder - 3, 4);
+      g.fillRect(x - w + shoulder + 3, y - hh, Math.max(5, w * 2 - shoulder - 8), Math.max(3, hh - 11));
+      g.fillStyle = css(mid);
+      g.fillRect(x - w + 3, y - 7, Math.max(5, w - 1), 3);
+      g.fillRect(x - w + shoulder + 2, y - 11, Math.max(4, w - shoulder + 1), 3);
+      g.fillRect(x - w + shoulder + 5, y - hh + 2, Math.max(3, w - shoulder - 1), Math.max(2, hh - 14));
+      g.fillStyle = css(high);
+      g.fillRect(x - w + shoulder + 5, y - hh + 1, Math.max(3, Math.round(w * 0.48)), 1);
+      if (seed > 0.58) {
+        var pebW = Math.max(4, Math.round(w * 0.38));
+        g.fillStyle = css(dark);
+        g.fillRect(x + w - pebW, y - 5, pebW * 2, 5);
+        g.fillStyle = css(mid);
+        g.fillRect(x + w - pebW + 2, y - 5, Math.max(2, pebW - 1), 2);
+        g.fillStyle = css(high);
+        g.fillRect(x + w - pebW + 3, y - 6, Math.max(2, pebW - 2), 1);
+      }
+    }
+    function brokenColumn(x, y, h, seed) {
+      var w = seed > 0.72 ? 14 : 11;
+      contact(x, y, w + 3);
+      g.fillStyle = css(dark);
+      g.fillRect(x - w - 5, y - 5, w * 2 + 11, 5);
+      g.fillRect(x - w - 2, y - 8, w * 2 + 5, 3);
+      g.fillRect(x - w, y - h + 6, w * 2 + 1, h - 14);
+      g.fillRect(x - w - 5, y - h + 2, w * 2 + 10, 5);
+      g.fillStyle = css(mid);
+      g.fillRect(x - w + 3, y - h + 7, w + 2, h - 18);
+      g.fillRect(x - w - 2, y - h + 3, w * 2 + 3, 3);
+      g.fillRect(x - w - 2, y - 4, w * 2 + 5, 2);
+      g.fillStyle = css(high);
+      g.fillRect(x - w + 4, y - h + 7, 3, Math.max(7, h - 20));
+      g.fillRect(x - w - 1, y - h + 2, w + (seed > 0.82 ? 2 : 6), 2);
+      g.fillStyle = css(dark);
+      g.fillRect(x + 1, y - Math.round(h * 0.58), w - 1, 2);
+      g.fillRect(x - 3, y - Math.round(h * 0.34), 5, 1);
+      g.fillRect(x + Math.round(w * 0.55), y - h + 9, 1, Math.max(5, h - 23));
+      if (seed > 0.82) {
+        g.fillStyle = css(mid);
+        g.fillRect(x + w + 5, y - 6, 11, 5);
+        g.fillRect(x + w + 8, y - 11, 8, 5);
+        g.fillStyle = css(high);
+        g.fillRect(x + w + 9, y - 11, 5, 1);
+      }
+    }
+    function crystalCluster(x, y, h, seed) {
+      var w = Math.max(5, Math.round(h * 0.18));
+      var sideH = Math.round(h * (0.48 + seed * 0.12));
+      contact(x, y, w + 7);
+      g.fillStyle = css(dark);
+      g.fillRect(x - w, y - h + 7, w * 2 + 1, h - 7);
+      g.fillRect(x - w + 2, y - h + 4, w * 2 - 3, 3);
+      g.fillRect(x - w + 4, y - h + 2, w * 2 - 7, 2);
+      g.fillRect(x - 1, y - h, 3, 2);
+      g.fillRect(x + w + 1, y - sideH + 5, 7, sideH - 5);
+      g.fillRect(x + w + 3, y - sideH + 2, 5, 3);
+      g.fillRect(x + w + 5, y - sideH, 2, 2);
+      g.fillStyle = css(mid);
+      g.fillRect(x - w + 2, y - h + 7, w, h - 10);
+      g.fillRect(x - w + 4, y - h + 4, Math.max(2, w - 2), 3);
+      g.fillRect(x + w + 3, y - sideH + 5, 3, sideH - 8);
+      g.fillStyle = css(high);
+      g.fillRect(x - w + 3, y - h + 7, 2, Math.max(6, h - 12));
+      g.fillRect(x - w + 5, y - h + 4, 2, 3);
+      g.fillRect(x, y - h + 1, 1, 3);
+      g.fillRect(x + w + 4, y - sideH + 5, 1, Math.max(4, sideH - 11));
+      if (seed > 0.72) {
+        var leftH = Math.round(h * 0.42);
+        g.fillStyle = css(dark);
+        g.fillRect(x - w - 7, y - leftH + 4, 5, leftH - 4);
+        g.fillRect(x - w - 5, y - leftH, 2, 4);
+        g.fillStyle = css(mid);
+        g.fillRect(x - w - 6, y - leftH + 5, 2, leftH - 8);
+      }
+    }
+    function basaltStack(x, y, h, seed) {
+      var w = 10 + Math.round(seed * 4);
+      var leftH = Math.round(h * (0.58 + seed * 0.10));
+      var rightH = Math.round(h * (0.46 + seed * 0.08));
+      contact(x, y, w + 8);
+      g.fillStyle = css(dark);
+      g.fillRect(x - w - 6, y - 6, w * 2 + 13, 6);
+      g.fillRect(x - 5, y - h + 6, 11, h - 6);
+      g.fillRect(x - 3, y - h + 2, 7, 4);
+      g.fillRect(x - 1, y - h, 3, 2);
+      g.fillRect(x - w - 3, y - leftH + 5, 9, leftH - 5);
+      g.fillRect(x - w - 1, y - leftH + 2, 6, 3);
+      g.fillRect(x + w - 3, y - rightH + 4, 8, rightH - 4);
+      g.fillRect(x + w - 1, y - rightH + 1, 5, 3);
+      g.fillStyle = css(mid);
+      g.fillRect(x - 3, y - h + 7, 4, h - 12);
+      g.fillRect(x - w - 1, y - leftH + 6, 3, leftH - 10);
+      g.fillRect(x + w - 1, y - rightH + 5, 2, rightH - 9);
+      g.fillStyle = css(high);
+      g.fillRect(x - 2, y - h + 5, 3, 1);
+      g.fillRect(x - w, y - leftH + 5, 2, 1);
+      if (realm === "volcanic") {
+        g.fillStyle = css([222, 104, 44]);
+        g.fillRect(x + 2, y - Math.round(h * 0.48), 2, Math.max(3, Math.round(h * 0.20)));
+        g.fillRect(x + 3, y - Math.round(h * 0.29), 5, 2);
+      }
+    }
+    function boneCluster(x, y, h, seed) {
+      var boneDark = dark;
+      var bone = high;
+      contact(x, y, 18);
+      if (seed > 0.66) {
+        // Half-buried skull, reduced to the few planes that survive the camera.
+        g.fillStyle = css(boneDark);
+        g.fillRect(x - 9, y - 11, 18, 9);
+        g.fillRect(x - 6, y - 15, 12, 4);
+        g.fillRect(x - 6, y - 3, 12, 3);
+        g.fillStyle = css(bone);
+        g.fillRect(x - 6, y - 12, 10, 7);
+        g.fillRect(x - 4, y - 14, 7, 2);
+        g.fillStyle = css(boneDark);
+        g.fillRect(x - 4, y - 9, 3, 3);
+        g.fillRect(x + 3, y - 9, 3, 3);
+        g.fillRect(x, y - 5, 2, 2);
+      } else {
+        // Rib arch and spine, planted into the slope as a single fossil fragment.
+        var ribH = Math.max(12, Math.round(h * 0.38));
+        g.fillStyle = css(boneDark);
+        g.fillRect(x - 18, y - 4, 36, 4);
+        for (var rbi = -12; rbi <= 8; rbi += 7) {
+          var thisH = ribH - Math.abs(rbi + 2) / 3;
+          g.fillRect(x + rbi - 1, y - thisH, 4, thisH - 2);
+          g.fillRect(x + rbi + 2, y - thisH, 7, 3);
+          g.fillRect(x + rbi + 7, y - thisH + 2, 3, Math.max(4, Math.round(thisH * 0.58)));
+        }
+        g.fillStyle = css(bone);
+        g.fillRect(x - 16, y - 3, 31, 2);
+        for (var rbh = -12; rbh <= 8; rbh += 7) g.fillRect(x + rbh, y - ribH + Math.abs(rbh + 2) / 3 + 2, 2, Math.max(4, Math.round(ribH * 0.48)));
+      }
+    }
+    function altarStone(x, y, h, seed) {
+      var w = 13 + Math.round(seed * 4);
+      contact(x, y, w + 4);
+      g.fillStyle = css(dark);
+      g.fillRect(x - w - 3, y - 6, w * 2 + 7, 6);
+      g.fillRect(x - w, y - h + 5, w * 2 + 1, h - 11);
+      g.fillRect(x - w - 4, y - h + 1, w * 2 + 9, 5);
+      g.fillStyle = css(mid);
+      g.fillRect(x - w + 3, y - h + 7, w + 4, h - 16);
+      g.fillRect(x - w - 1, y - h + 2, w * 2 + 2, 3);
+      g.fillStyle = css(high);
+      g.fillRect(x - w + 4, y - h + 7, 3, Math.max(4, h - 19));
+      g.fillRect(x - w + 1, y - h + 1, w, 1);
+      g.fillStyle = css(dark);
+      g.fillRect(x + 2, y - Math.round(h * 0.55), w - 3, 2);
+    }
+    g.save();
+    g.globalAlpha = reveal * (deepT > 0.30 ? deepT : 0.96);
+    for (var i = first; i <= last; i++) {
+      if (hash(i * 7.47 + mountainIndex) < 0.10) continue;
+      var x = i * spacing - scroll + Math.round((hash(i * 4.11 + 8) - 0.5) * 34);
+      if (x < wxL - 24 || x > wxR + 24 || Math.abs(x - ANCHOR_X) < 88) continue;
+      if (bridgeGapActiveAt(x, 28) || treeOnBridge(x - 18, x + 18)) continue;
+      var y = Math.round(terrainLipAt(x)) - 1;
+      var propScale = deepT > 0.34 ? (realm === "bones" ? 2.30
+        : realm === "storm" || realm === "volcanic" ? 1.90
+        : realm === "aurora" || realm === "obsidian" ? 1.65
+        : realm === "thevoid" ? 1.35 : 1.52) : (realm === "greek" ? 1.16 : 1);
+      var size = Math.round((22 + hash(i * 5.83 + 2) * 14) * propScale);
+      var kind = hash(i * 9.13 + 5);
+      var propSlope = Math.atan2(terrainLipAt(x + 10) - terrainLipAt(x - 10), 20);
+      if ((realm === "greek" || realm === "ruins") && kind > 0.34) {
+        brokenColumn(x, y, size + 14, kind);
+      } else if (realm === "elysium") {
+        if (kind > 0.48) brokenColumn(x, y, size + 10, kind);
+        else altarStone(x, y, Math.max(22, Math.round(size * 0.72)), kind);
+      } else if ((realm === "galaxy" || realm === "aurora" || realm === "obsidian" || realm === "thevoid") && kind > 0.30) {
+        g.save(); g.translate(x, y); g.rotate(propSlope);
+        crystalCluster(0, 0, size + 8, kind);
+        g.restore();
+      } else if ((realm === "volcanic" || realm === "storm") && kind > 0.26) {
+        g.save(); g.translate(x, y); g.rotate(propSlope);
+        basaltStack(0, 0, size + 8, kind);
+        g.restore();
+      } else if (realm === "bones") {
+        g.save(); g.translate(x, y); g.rotate(propSlope);
+        g.scale(1.32, 1.32);
+        boneCluster(0, 0, size, kind);
+        g.restore();
+      } else {
+        g.save(); g.translate(x, y); g.rotate(propSlope);
+        steppedRock(0, 0, Math.max(7, Math.round(size * 0.62)), size, kind);
+        g.restore();
+      }
+    }
+    g.restore();
   }
 
   function drawSnowSurface(wxL, wxR, day) {
@@ -11674,10 +12010,24 @@
     var drift = REDUCED ? 0 : (tSec * 4 + altitude * 0.2 + mountainIndex * 43);
     var galaxyCloudDim = 1 - (day.galaxy || 0) * 0.88;
     var aboveCloudsCloudDim = 1 - (day.aboveClouds || 0) * 0.42;
-    var cl = css(day.cloud, (gameState === "title" ? 0.18 : 1) * galaxyCloudDim * aboveCloudsCloudDim);
+    var r4CloudDim = 1;
+    if (day.r4) {
+      r4CloudDim = 1 - Math.max(
+        (day.r4.storm || 0) * 0.18,
+        (day.r4.ruins || 0) * 0.46,
+        (day.r4.volcanic || 0) * 0.68,
+        (day.r4.aurora || 0) * 0.58,
+        (day.r4.bones || 0) * 0.72,
+        (day.r4.obsidian || 0) * 0.90,
+        (day.r4.elysium || 0) * 0.34,
+        (day.r4.thevoid || 0) * 0.995
+      );
+    }
+    var cloudSceneDim = galaxyCloudDim * aboveCloudsCloudDim * clamp01(r4CloudDim);
+    var cl = css(day.cloud, (gameState === "title" ? 0.18 : 1) * cloudSceneDim);
     var cx = [60, 200, 350, 130, 430, 280], cy = [44, 30, 56, 70, 24, 84], cs = [1.5, 1.9, 1.3, 1.1, 1.4, 1.2];
     if ((day.galaxy || 0) < 0.35) {
-      var usedCloudSprites = drawMovingCloudSprites(day, galaxyCloudDim * aboveCloudsCloudDim);
+      var usedCloudSprites = cloudSceneDim > 0.025 && drawMovingCloudSprites(day, cloudSceneDim);
       if (!usedCloudSprites) {
         for (var c = 0; c < cx.length; c++) {
           var x0 = ((cx[c] - drift) % (VW + 80) + (VW + 80)) % (VW + 80) - 40;
@@ -11757,6 +12107,7 @@
       g.fillStyle = css([98, 100, 106], 0.25 + 0.65 * voidT4);
       for (var vlx = wxL; vlx <= wxR; vlx += 4) g.fillRect(vlx, Math.round(terrainLipAt(vlx)), 3, 1);
     }
+    drawV5RealmProps(wxL, wxR, day); // canonical-grid rocks, crystals, and masonry
     // The old flower patch read as stray posts/crosses at night, especially near signs.
     drawEffortParticles(day);
     var footDig = clamp01(strain + slideEffort * 0.65);
