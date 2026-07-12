@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { copyFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,10 @@ const groundSource = path.join(sourceDir, "v5-meadow-ground-imagegen-source.png"
 const legacyGround = path.resolve(assetDir, "../../assets/wower-ground-pixel-crisp.png");
 const treeSource = path.join(sourceDir, "v5-pine-family-alpha-source.png");
 const propSource = path.join(sourceDir, "v5-ground-props-alpha-source.png");
+
+// This is the user-approved meadow exactly as generated. Keep an explicit final
+// copy so later experiments cannot silently replace it with a blended derivative.
+await copyFile(groundSource, path.join(assetDir, "v5-meadow-ground-approved.png"));
 
 // Keep the generated meadow's palette and broad forms, but borrow a restrained
 // amount of the previous ground's smaller structure. This avoids both extremes:
