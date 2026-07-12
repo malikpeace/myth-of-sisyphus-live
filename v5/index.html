@@ -2689,12 +2689,12 @@
   // atlas order: 0 flowerRed 1 flowerWhite 2 flowerYellow 3 rock 4 stump 5 bush 6 skull 7 mushroom
   var groundPropsImg = new Image(), groundPropsReady = false;
   groundPropsImg.onload = function () { groundPropsReady = true; };
-  groundPropsImg.src = "assets/ground-props-atlas.png";
+  groundPropsImg.src = "v5/assets/v5-ground-props-atlas.png";
   // 0 flowerRed 1 flowerWhite 2 flowerYellow 3 rock 4 stump 5 bush 6 skull 7 mushroom
   // 8 bushBig 9 bushLow 10 grassRockA 11 grassRockB 12 grassRockC
-  var PROP_H = 120;
-  var PROP_AX = [0, 151, 357, 537, 757, 980, 1186, 1433, 1623, 1855, 2129, 2388, 2677];
-  var PROP_AW = [149, 204, 178, 218, 221, 204, 245, 188, 230, 272, 257, 287, 290];
+  var PROP_H = 96;
+  var PROP_AX = [0, 128, 256, 384, 512, 640, 768, 896, 1024, 1152, 1280, 1408, 1536];
+  var PROP_AW = [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128];
   var PROP_BASE_H = [14, 14, 14, 20, 22, 21, 19, 15, 24, 20, 20, 22, 22];   // per-prop world height
   var groundPropTintC = document.createElement("canvas"), groundPropTintG = groundPropTintC.getContext("2d");
   var groundPropTintKey = "";
@@ -2718,7 +2718,7 @@
   // band; the rock atlas takes over higher up. Crossfaded on top of the rock base.
   var grassGroundTex = new Image(), grassGroundReady = false;
   grassGroundTex.onload = function () { grassGroundReady = true; };
-  grassGroundTex.src = "assets/wower-ground-pixel-crisp.png";
+  grassGroundTex.src = "v5/assets/v5-meadow-ground-master-v4.png";
   // Dark moonlit version of the grass ground, used when the "night" (noir) theme is on.
   var nightGroundTex = new Image(), nightGroundReady = false;
   nightGroundTex.onload = function () { nightGroundReady = true; };
@@ -2766,8 +2766,11 @@
   // Foreground depth tree (transparent PNG) — scattered + parallaxed in front of
   // the action so trees sweep past the camera as you climb.
   var foregroundTreeImg = new Image(), foregroundTreeReady = false;
+  var foregroundTreeVariants = [foregroundTreeImg, new Image(), new Image()];
   foregroundTreeImg.onload = function () { foregroundTreeReady = true; };
-  foregroundTreeImg.src = "assets/foreground-tree-solid-v1.png";
+  foregroundTreeImg.src = "v5/assets/v5-pine-tree-1.png";
+  foregroundTreeVariants[1].src = "v5/assets/v5-pine-tree-2.png";
+  foregroundTreeVariants[2].src = "v5/assets/v5-pine-tree-3.png";
   var fgTreeC = document.createElement("canvas"), fgTreeCtx = fgTreeC.getContext("2d");
   var voidReflC = document.createElement("canvas"), voidReflCtx = voidReflC.getContext("2d");
   var darkRockC = document.createElement("canvas"), darkRockG = darkRockC.getContext("2d");   // isolated night-darkened boulder copy
@@ -8946,6 +8949,8 @@
       var localW = iw * sc, localH = ih * sc;
       var treeWorldX = i * spacing - scroll + jitterX;
       var treeWorldCenter = treeWorldX + localW * 0.5;
+      var treeVariant = foregroundTreeVariants[Math.floor(hash(i * 5.83 + cfg.seed) * foregroundTreeVariants.length)];
+      if (!treeVariant || !treeVariant.complete || !treeVariant.naturalWidth) treeVariant = foregroundTreeImg;
       var tw = Math.round(localW * curCamZoom), th = Math.round(localH * curCamZoom);
       var sx = Math.round(curCamZtxBase + treeWorldX * curCamZoom);
       var logicalPad = blurPad / RES;
@@ -8977,7 +8982,7 @@
       fg.globalAlpha = treeRevealA;
       fg.translate(sx, baseY - th);
       if (hash(i * 9.71 + cfg.seed) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
-      fg.drawImage(foregroundTreeImg, 0, 0, tw, th);
+      fg.drawImage(treeVariant, 0, 0, tw, th);
       fg.restore();
       drew++;
     }
