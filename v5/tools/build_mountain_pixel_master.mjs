@@ -13,7 +13,7 @@ const skyOutput = path.join(projectDir, "v5/assets/mountain-bg-sky-v5.png");
 const mountainsOutput = path.join(projectDir, "v5/assets/mountain-bg-mountains-v5.png");
 const redrawSource = path.join(projectDir, "v5/assets/source/v5-mountain-redraw-alpha-source.png");
 const redrawSkyOutput = path.join(projectDir, "v5/assets/mountain-bg-sky-imagegen-v2.png");
-const redrawMountainsOutput = path.join(projectDir, "v5/assets/mountain-bg-mountains-imagegen-v2.png");
+const redrawMountainsOutput = path.join(projectDir, "v5/assets/mountain-bg-mountains-imagegen-v4.png");
 
 const reduced = await sharp(source)
   .resize(384, 256, {
@@ -134,7 +134,19 @@ for (let pixel = 0; pixel < REDRAW_W * REDRAW_H; pixel += 1) {
   const i = pixel * 4;
   const opaque = redrawRaw.data[i + 3] >= 128;
   redrawRaw.data[i + 3] = opaque ? 255 : 0;
-  if (!opaque) {
+  if (opaque) {
+    const r = redrawRaw.data[i];
+    const g = redrawRaw.data[i + 1];
+    const b = redrawRaw.data[i + 2];
+    // The chroma-key source can leave desaturated magenta spill that reads as
+    // isolated brown pixels on blue ridges. Keep the whole mountain palette cool.
+    if (r < 210 && b < r + 20) {
+      const value = Math.round((r + g + b) / 3);
+      redrawRaw.data[i] = Math.round(value * 0.72);
+      redrawRaw.data[i + 1] = Math.round(value * 0.88);
+      redrawRaw.data[i + 2] = Math.min(255, Math.round(value * 1.16));
+    }
+  } else {
     redrawRaw.data[i] = 0;
     redrawRaw.data[i + 1] = 0;
     redrawRaw.data[i + 2] = 0;
