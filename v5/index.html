@@ -10996,7 +10996,9 @@
     // to a cool mid-grey — clearly readable, still darker than the bright boulder.
     var voidLook = customize.look === "void";
     var figInk = selectedCosmetic === "bronze" ? "#3f4b41" : (voidLook ? "#6b707a" : INK);
-    var figHeadInk = selectedCosmetic === "bronze" ? "#47544b" : (voidLook ? "#767b85" : HEAD_INK);
+    // Keep the face as the visual anchor of the silhouette in every biome and
+    // cosmetic. Body treatments may change, but the head is always pure black.
+    var figHeadInk = HEAD_INK;
 
     // drawn in a local flat frame: feet stand on floorY, hip at baseX (caller rotates onto slope)
     var ax = baseX, gY = floorY;
@@ -11190,7 +11192,7 @@
   // rotates it onto the slope identically.
   function sisyphusCheer(baseX, floorY, s, release, armsUp, jump) {
     var figInk = selectedCosmetic === "bronze" ? "#3f4b41" : INK;
-    var figHeadInk = selectedCosmetic === "bronze" ? "#47544b" : HEAD_INK;
+    var figHeadInk = HEAD_INK;
     var lw = Math.max(3, Math.round(4.3 * s));
     var bw = Math.max(4, Math.round(6.0 * s));
     var jy = jump * 22 * s;                       // how high he is off the ground (a real hop)
