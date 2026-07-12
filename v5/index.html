@@ -13,7 +13,8 @@
 <title>Myth of Sisyphus</title>
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
-<link rel="preload" as="image" href="v5/assets/mountain-bg-pixel-master-v5.png">
+<link rel="preload" as="image" href="v5/assets/mountain-bg-sky-v5.png">
+<link rel="preload" as="image" href="v5/assets/mountain-bg-mountains-v5.png">
 <style>
   :root { color-scheme: dark; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2645,12 +2646,15 @@
     } catch (e) { return null; }
   }
   var mtBgBottomCol = null, nightBgBottomCol = null;
+  var mtSky = new Image(), mtSkyReady = false;
+  mtSky.onload = function () { mtSkyReady = true; };
+  mtSky.src = "v5/assets/mountain-bg-sky-v5.png";
   var mtBg = new Image(), mtBgReady = false, mtBgFailed = false;
   mtBg.onload = function () { mtBgReady = true; mtBgBottomCol = sampleBottomCol(mtBg); };
   mtBg.onerror = function () { mtBgFailed = true; };
-  // V5-only canonical pixel master: 384×256, 32 colors, no dithering or soft
-  // source texture. Preloaded in <head> so the matching sky appears immediately.
-  mtBg.src = "v5/assets/mountain-bg-pixel-master-v5.png";
+  // V5-only transparent mountain plate. A separate pixel sky sits behind it so
+  // the slow cloud layer can pass naturally behind the peaks.
+  mtBg.src = "v5/assets/mountain-bg-mountains-v5.png";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
@@ -8697,9 +8701,28 @@
       }
     }
   }
-  function drawMovingCloudSprites(day, atmosphereDim) {
+  function cloudAtmosphereDim(day) {
+    var galaxyCloudDim = 1 - (day.galaxy || 0) * 0.88;
+    var aboveCloudsCloudDim = 1 - (day.aboveClouds || 0) * 0.42;
+    var r4CloudDim = 1;
+    if (day.r4) {
+      r4CloudDim = 1 - Math.max(
+        (day.r4.storm || 0) * 0.18,
+        (day.r4.ruins || 0) * 0.46,
+        (day.r4.volcanic || 0) * 0.68,
+        (day.r4.aurora || 0) * 0.58,
+        (day.r4.bones || 0) * 0.72,
+        (day.r4.obsidian || 0) * 0.90,
+        (day.r4.elysium || 0) * 0.34,
+        (day.r4.thevoid || 0) * 0.995
+      );
+    }
+    return galaxyCloudDim * aboveCloudsCloudDim * clamp01(r4CloudDim);
+  }
+  function drawMovingCloudSprites(day, atmosphereDim, layer) {
     if (customize.look === "noir") return false;
-    var count = VW < 300 ? 7 : 11;
+    var behind = layer === "behind";
+    var count = behind ? (VW < 300 ? 5 : 8) : (VW < 300 ? 6 : 9);
     var titleA = gameState === "title" ? 0.96 : 0.84;
     var dim = atmosphereDim == null ? 1 : atmosphereDim;
     var cloudBase = day.cloud || [232, 240, 248];
@@ -8712,18 +8735,26 @@
     g.save();
     g.imageSmoothingEnabled = false;
     for (var i = 0; i < count; i++) {
-      var pattern = V5_CLOUD_PATTERNS[i % V5_CLOUD_PATTERNS.length];
-      var block = i % 7 === 0 ? 3 : (hash(i * 5.37 + 4) > 0.46 ? 2 : 1);
+      var cloudIndex = i + (behind ? 31 : 0);
+      var pattern = V5_CLOUD_PATTERNS[cloudIndex % V5_CLOUD_PATTERNS.length];
+      var block = behind
+        ? (hash(cloudIndex * 5.37 + 4) > 0.66 ? 2 : 1)
+        : (cloudIndex % 7 === 0 ? 3 : (hash(cloudIndex * 5.37 + 4) > 0.46 ? 2 : 1));
       var cloudW = pattern[0].length * block;
       var cloudH = pattern.length * block;
-      var direction = i % 4 === 0 ? 1 : -1;
-      var speed = 0.55 + hash(i * 3.91 + 7) * 0.72;
+      var direction = cloudIndex % 4 === 0 ? 1 : -1;
+      var speed = behind
+        ? 0.18 + hash(cloudIndex * 3.91 + 7) * 0.26
+        : 0.55 + hash(cloudIndex * 3.91 + 7) * 0.72;
       var cycle = VW + cloudW + 44;
-      var phase = hash(i * 11.17 + 5) * cycle;
-      var progressDrift = gameState === "title" ? 0 : altitude * 0.010 * direction;
+      var phase = hash(cloudIndex * 11.17 + 5) * cycle;
+      var progressDrift = gameState === "title" ? 0 : altitude * (behind ? 0.004 : 0.010) * direction;
       var x = ((phase + direction * travel * speed + progressDrift) % cycle + cycle) % cycle - cloudW - 22;
-      var y = Math.round(VH * (0.025 + hash(i * 8.43 + 13) * 0.31) - cloudH * 0.5);
-      g.globalAlpha = titleA * dim * (block === 1 ? 0.72 : 0.90);
+      var yBandStart = behind ? 0.13 : 0.025;
+      var yBandSize = behind ? 0.31 : 0.29;
+      var y = Math.round(VH * (yBandStart + hash(cloudIndex * 8.43 + 13) * yBandSize) - cloudH * 0.5);
+      var layerAlpha = behind ? (block === 1 ? 0.48 : 0.62) : (block === 1 ? 0.72 : 0.90);
+      g.globalAlpha = titleA * dim * layerAlpha;
       drawV5Cloud(pattern, x, y, block, palette);
     }
     g.globalAlpha = 1;
@@ -11771,6 +11802,25 @@
       // deep realm owns its own sky/ground above this).
       var mountainLayerAlpha = 1.0 * bgMountainFade * mountainWaterfallFade * bandGate(altitude, 0, 1750, 520);
       if (customize.look === "void") mountainLayerAlpha *= 0.06;   // void theme: no mountains, just the dark
+      // The daytime plate is split into sky and transparent mountains. Slow
+      // clouds drawn between them disappear behind the peaks with real
+      // occlusion, rather than fading against a fake mask.
+      if (bgImg === mtBg && mountainLayerAlpha > 0.01) {
+        if (mtSkyReady) {
+          g.save();
+          g.imageSmoothingEnabled = false;
+          g.globalAlpha = mountainLayerAlpha;
+          for (var skyK = bgK0; skyK <= bgK1; skyK++) {
+            var skyTileX = bgBaseX + skyK * bgW - bgShift;
+            drawMirroredImageCropTo(g, mtSky, 0, bgSrcY, mtSky.naturalWidth, bgSrcH, skyTileX, bgY, bgW, bgH, Math.abs(skyK % 2) === 1);
+          }
+          g.restore();
+        }
+        var rearCloudDim = cloudAtmosphereDim(day) * mountainLayerAlpha;
+        if ((day.galaxy || 0) < 0.35 && rearCloudDim > 0.025) {
+          drawMovingCloudSprites(day, rearCloudDim, "behind");
+        }
+      }
       // Recomposite the far-mountain layer only when its inputs actually move:
       // the parallax shift advances <0.3px per frame, so most frames can reuse
       // the previous composite untouched.
@@ -11899,26 +11949,11 @@
     curCamZtyBase = zty - shakeY;
     // clouds (in front of background)
     var drift = REDUCED ? 0 : (tSec * 4 + altitude * 0.2 + mountainIndex * 43);
-    var galaxyCloudDim = 1 - (day.galaxy || 0) * 0.88;
-    var aboveCloudsCloudDim = 1 - (day.aboveClouds || 0) * 0.42;
-    var r4CloudDim = 1;
-    if (day.r4) {
-      r4CloudDim = 1 - Math.max(
-        (day.r4.storm || 0) * 0.18,
-        (day.r4.ruins || 0) * 0.46,
-        (day.r4.volcanic || 0) * 0.68,
-        (day.r4.aurora || 0) * 0.58,
-        (day.r4.bones || 0) * 0.72,
-        (day.r4.obsidian || 0) * 0.90,
-        (day.r4.elysium || 0) * 0.34,
-        (day.r4.thevoid || 0) * 0.995
-      );
-    }
-    var cloudSceneDim = galaxyCloudDim * aboveCloudsCloudDim * clamp01(r4CloudDim);
+    var cloudSceneDim = cloudAtmosphereDim(day);
     var cl = css(day.cloud, (gameState === "title" ? 0.18 : 1) * cloudSceneDim);
     var cx = [60, 200, 350, 130, 430, 280], cy = [44, 30, 56, 70, 24, 84], cs = [1.5, 1.9, 1.3, 1.1, 1.4, 1.2];
     if ((day.galaxy || 0) < 0.35) {
-      var usedCloudSprites = cloudSceneDim > 0.025 && drawMovingCloudSprites(day, cloudSceneDim);
+      var usedCloudSprites = cloudSceneDim > 0.025 && drawMovingCloudSprites(day, cloudSceneDim, "front");
       if (!usedCloudSprites) {
         for (var c = 0; c < cx.length; c++) {
           var x0 = ((cx[c] - drift) % (VW + 80) + (VW + 80)) % (VW + 80) - 40;

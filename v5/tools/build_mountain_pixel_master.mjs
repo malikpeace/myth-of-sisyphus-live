@@ -9,6 +9,8 @@ const toolDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(toolDir, "../..");
 const source = path.join(projectDir, "assets/mountain-bg-noclouds.png");
 const output = path.join(projectDir, "v5/assets/mountain-bg-pixel-master-v5.png");
+const skyOutput = path.join(projectDir, "v5/assets/mountain-bg-sky-v5.png");
+const mountainsOutput = path.join(projectDir, "v5/assets/mountain-bg-mountains-v5.png");
 
 const reduced = await sharp(source)
   .resize(384, 256, {
@@ -44,11 +46,18 @@ const skyBands = Array.from({ length: 22 }, (_, index) => {
     Math.round(236 + (251 - 236) * t),
   ];
 });
+const skyMask = new Uint8Array(info.width * info.height);
+const skyData = Buffer.alloc(info.width * info.height * 3);
 
 for (let y = 0; y < info.height; y += 1) {
   const band = skyBands[Math.min(skyBands.length - 1, Math.floor(y / 6))];
   for (let x = 0; x < info.width; x += 1) {
+    const pixel = y * info.width + x;
     const i = (y * info.width + x) * info.channels;
+    const skyI = pixel * 3;
+    skyData[skyI] = band[0];
+    skyData[skyI + 1] = band[1];
+    skyData[skyI + 2] = band[2];
     let isSky = false;
     for (const color of skySource) {
       const distance = Math.abs(data[i] - color[0])
@@ -60,6 +69,7 @@ for (let y = 0; y < info.height; y += 1) {
       }
     }
     if (!isSky) continue;
+    skyMask[pixel] = 1;
     data[i] = band[0];
     data[i + 1] = band[1];
     data[i + 2] = band[2];
@@ -76,4 +86,34 @@ await sharp(data, {
   .png({ palette: false, compressionLevel: 9 })
   .toFile(output);
 
-console.log(output);
+await sharp(skyData, {
+  raw: {
+    width: info.width,
+    height: info.height,
+    channels: 3,
+  },
+})
+  .png({ palette: false, compressionLevel: 9 })
+  .toFile(skyOutput);
+
+const mountainsData = Buffer.alloc(info.width * info.height * 4);
+for (let pixel = 0; pixel < info.width * info.height; pixel += 1) {
+  const sourceI = pixel * info.channels;
+  const targetI = pixel * 4;
+  mountainsData[targetI] = data[sourceI];
+  mountainsData[targetI + 1] = data[sourceI + 1];
+  mountainsData[targetI + 2] = data[sourceI + 2];
+  mountainsData[targetI + 3] = skyMask[pixel] ? 0 : 255;
+}
+
+await sharp(mountainsData, {
+  raw: {
+    width: info.width,
+    height: info.height,
+    channels: 4,
+  },
+})
+  .png({ palette: false, compressionLevel: 9 })
+  .toFile(mountainsOutput);
+
+console.log([output, skyOutput, mountainsOutput].join("\n"));
