@@ -11,6 +11,9 @@ const source = path.join(projectDir, "assets/mountain-bg-noclouds.png");
 const output = path.join(projectDir, "v5/assets/mountain-bg-pixel-master-v5.png");
 const skyOutput = path.join(projectDir, "v5/assets/mountain-bg-sky-v5.png");
 const mountainsOutput = path.join(projectDir, "v5/assets/mountain-bg-mountains-v5.png");
+const redrawSource = path.join(projectDir, "v5/assets/source/v5-mountain-redraw-alpha-source.png");
+const redrawSkyOutput = path.join(projectDir, "v5/assets/mountain-bg-sky-imagegen-v2.png");
+const redrawMountainsOutput = path.join(projectDir, "v5/assets/mountain-bg-mountains-imagegen-v2.png");
 
 const reduced = await sharp(source)
   .resize(384, 256, {
@@ -116,4 +119,55 @@ await sharp(mountainsData, {
   .png({ palette: false, compressionLevel: 9 })
   .toFile(mountainsOutput);
 
-console.log([output, skyOutput, mountainsOutput].join("\n"));
+// Image-generated V5 redraw. It arrives with chroma-key transparency already
+// removed; reduce it to a true 16:9 canonical grid and harden every alpha edge
+// so browser scaling can never introduce a soft fringe around the peaks.
+const REDRAW_W = 384;
+const REDRAW_H = 216;
+const redrawRaw = await sharp(redrawSource)
+  .resize(REDRAW_W, REDRAW_H, { fit: "fill", kernel: sharp.kernel.nearest })
+  .ensureAlpha()
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+
+for (let pixel = 0; pixel < REDRAW_W * REDRAW_H; pixel += 1) {
+  const i = pixel * 4;
+  const opaque = redrawRaw.data[i + 3] >= 128;
+  redrawRaw.data[i + 3] = opaque ? 255 : 0;
+  if (!opaque) {
+    redrawRaw.data[i] = 0;
+    redrawRaw.data[i + 1] = 0;
+    redrawRaw.data[i + 2] = 0;
+  }
+}
+
+await sharp(redrawRaw.data, {
+  raw: { width: REDRAW_W, height: REDRAW_H, channels: 4 },
+})
+  .png({ palette: true, colours: 32, dither: 0, effort: 10 })
+  .toFile(redrawMountainsOutput);
+
+const redrawSky = Buffer.alloc(REDRAW_W * REDRAW_H * 3);
+for (let y = 0; y < REDRAW_H; y += 1) {
+  const t = y / Math.max(1, REDRAW_H - 1);
+  const bandT = Math.floor(t * 27) / 27;
+  const col = [
+    Math.round(58 + (144 - 58) * bandT),
+    Math.round(148 + (212 - 148) * bandT),
+    Math.round(236 + (251 - 236) * bandT),
+  ];
+  for (let x = 0; x < REDRAW_W; x += 1) {
+    const i = (y * REDRAW_W + x) * 3;
+    redrawSky[i] = col[0];
+    redrawSky[i + 1] = col[1];
+    redrawSky[i + 2] = col[2];
+  }
+}
+
+await sharp(redrawSky, {
+  raw: { width: REDRAW_W, height: REDRAW_H, channels: 3 },
+})
+  .png({ palette: true, colours: 28, dither: 0, effort: 10 })
+  .toFile(redrawSkyOutput);
+
+console.log([output, skyOutput, mountainsOutput, redrawSkyOutput, redrawMountainsOutput].join("\n"));

@@ -13,8 +13,8 @@
 <title>Myth of Sisyphus</title>
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
-<link rel="preload" as="image" href="v5/assets/mountain-bg-sky-v5.png">
-<link rel="preload" as="image" href="v5/assets/mountain-bg-mountains-v5.png">
+<link rel="preload" as="image" href="v5/assets/mountain-bg-sky-imagegen-v2.png">
+<link rel="preload" as="image" href="v5/assets/mountain-bg-mountains-imagegen-v2.png">
 <style>
   :root { color-scheme: dark; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2648,13 +2648,13 @@
   var mtBgBottomCol = null, nightBgBottomCol = null;
   var mtSky = new Image(), mtSkyReady = false;
   mtSky.onload = function () { mtSkyReady = true; };
-  mtSky.src = "v5/assets/mountain-bg-sky-v5.png";
+  mtSky.src = "v5/assets/mountain-bg-sky-imagegen-v2.png";
   var mtBg = new Image(), mtBgReady = false, mtBgFailed = false;
   mtBg.onload = function () { mtBgReady = true; mtBgBottomCol = sampleBottomCol(mtBg); };
   mtBg.onerror = function () { mtBgFailed = true; };
   // V5-only transparent mountain plate. A separate pixel sky sits behind it so
   // the slow cloud layer can pass naturally behind the peaks.
-  mtBg.src = "v5/assets/mountain-bg-mountains-v5.png";
+  mtBg.src = "v5/assets/mountain-bg-mountains-imagegen-v2.png";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
@@ -8747,8 +8747,8 @@
       var cloudH = pattern.length * block;
       var direction = cloudIndex % 4 === 0 ? 1 : -1;
       var speed = behind
-        ? 0.18 + hash(cloudIndex * 3.91 + 7) * 0.26
-        : 0.55 + hash(cloudIndex * 3.91 + 7) * 0.72;
+        ? 3.4 + hash(cloudIndex * 3.91 + 7) * 3.2
+        : 8.0 + hash(cloudIndex * 3.91 + 7) * 6.5;
       var cycle = VW + cloudW + 44;
       var phase = hash(cloudIndex * 11.17 + 5) * cycle;
       var progressDrift = gameState === "title" ? 0 : altitude * (behind ? 0.004 : 0.010) * direction;
