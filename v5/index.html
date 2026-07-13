@@ -2719,16 +2719,6 @@
   var grassGroundTex = new Image(), grassGroundReady = false;
   grassGroundTex.onload = function () { grassGroundReady = true; };
   grassGroundTex.src = "v5/assets/v5-meadow-ground-approved.png";
-  // V5-native meadow tiles are authored directly at the game's logical pixel
-  // resolution. The large approved atlas remains available as a fallback, but
-  // is no longer enlarged, overlap-blended, or filtered during normal play.
-  var USE_NATIVE_MEADOW_TILES = true;
-  var nativeMeadowSurface = new Image(), nativeMeadowSurfaceReady = false;
-  nativeMeadowSurface.onload = function () { nativeMeadowSurfaceReady = true; };
-  nativeMeadowSurface.src = "v5/assets/v5-meadow-surface-tile.png";
-  var nativeMeadowSoil = new Image(), nativeMeadowSoilReady = false;
-  nativeMeadowSoil.onload = function () { nativeMeadowSoilReady = true; };
-  nativeMeadowSoil.src = "v5/assets/v5-meadow-soil-tile.png";
   // Dark moonlit version of the grass ground, used when the "night" (noir) theme is on.
   var nightGroundTex = new Image(), nightGroundReady = false;
   nightGroundTex.onload = function () { nightGroundReady = true; };
@@ -7125,7 +7115,10 @@
     var down = 1 - smoother01(clamp01((altitude - 1310) / 220));
     var snowDim = 1 - 0.92 * snowCoverFor(altitude);
     var deepDim = 1 - 0.86 * realm4Max(altitude);
-    return up * down * snowDim * deepDim;
+    // Do not show the pale rocky-pass sheets through the meadow. They only
+    // belong after the grassy ground has faded into the actual rock chapter.
+    var grassBlock = smoother01(clamp01((grassGroundReveal() - 0.10) / 0.25));
+    return up * down * snowDim * deepDim * (1 - grassBlock);
   }
 
   function drawBackgroundRockSpines(day) {
@@ -8367,28 +8360,6 @@
 
   var groundBendC = document.createElement("canvas");
   var groundBendCtx = groundBendC.getContext("2d");
-  function drawNativeMeadowTiles(x0, x1, h, scroll, alphaMul) {
-    if (!nativeMeadowSurfaceReady || !nativeMeadowSoilReady) return false;
-    var tileW = nativeMeadowSurface.naturalWidth;
-    var surfaceH = nativeMeadowSurface.naturalHeight;
-    var soilH = nativeMeadowSoil.naturalHeight;
-    var phase = Math.round(scroll) % tileW;
-    if (phase < 0) phase += tileW;
-    var k0 = Math.floor((x0 + phase) / tileW) - 1;
-    var k1 = Math.ceil((x1 + phase) / tileW) + 1;
-    g.save();
-    g.imageSmoothingEnabled = false;
-    g.globalAlpha = alphaMul == null ? 1 : alphaMul;
-    for (var k = k0; k <= k1; k++) {
-      var tileX = Math.round(k * tileW - phase);
-      g.drawImage(nativeMeadowSurface, tileX, 0);
-      for (var tileY = surfaceH; tileY < h; tileY += soilH) {
-        g.drawImage(nativeMeadowSoil, tileX, tileY);
-      }
-    }
-    g.restore();
-    return true;
-  }
   function drawSlopeAlignedGroundAtlas(wxL, wxR, worldBottom, day) {
     if (!groundTexReady) return;
     // SUMMIT BEND: near the crest the surface is a curved dome but the rock atlas
@@ -8509,20 +8480,10 @@
     var grassTex = nightGround ? nightGroundTex : grassGroundTex;
     var grassA = (nightGround || grassGroundReady) ? grassGroundReveal() : 0;
     if (customize.look === "void") grassA = 0;   // void: no grass — just dark rock-in-shadow
-    var useNativeMeadow = USE_NATIVE_MEADOW_TILES && !nightGround &&
-      nativeMeadowSurfaceReady && nativeMeadowSoilReady;
     if (grassA > 0.002) {
-      if (useNativeMeadow) {
-        // Make the fully revealed meadow opaque so the old large atlas cannot
-        // bleed through and soften these one-logical-pixel details.
-        drawNativeMeadowTiles(x0, x1, h, scroll, grassA > 0.94 ? 1 : grassA);
-      } else {
-        drawAtlasTiles(grassTex, Math.min(0.985, grassA));
-      }
+      drawAtlasTiles(grassTex, Math.min(0.985, grassA));
     }
-    // The old flower atlas contains oversized baked detail. Native meadow tiles
-    // already include tiny flowers; separate props and grass tufts still render.
-    var flowerA = (!useNativeMeadow && flowerGroundReady) ? flowerGroundReveal() : 0;
+    var flowerA = flowerGroundReady ? flowerGroundReveal() : 0;
     if (flowerA > 0.002) {
       drawAtlasTiles(flowerGroundTex, Math.min(0.96, flowerA));
     }
@@ -9075,9 +9036,9 @@
   // Every tree shares the terrain's world scroll. Depth comes from size, draw order,
   // and blur; never from sliding a trunk independently of the ground beneath it.
   var TREES_BG = { anchor: "ground", spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.35 };
-  // Camera-near conifers: rooted below the frame and moving at faster parallax.
-  // They intentionally occlude the actor and boulder as he walks behind them.
-  var TREES_NEAR = { anchor: "screen", par: 1.7, spacing: 520, skip: 0.50, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.30, tint: 0.06, seed: 0, phase: 360, blur: 1.5 };
+  // Large camera-close conifers, restored to fixed terrain positions. They pass
+  // in front of the actor without sliding independently from the hillside.
+  var TREES_NEAR = { anchor: "ground", spacing: 520, densityStart: 0.10, densityEnd: 0.90, treeH: 1.48, scaleLo: 1.05, scaleHi: 1.62, jitter: 280, darken: 0.24, tint: 0.05, seed: 0, phase: 360, blur: 0.55 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
@@ -10087,14 +10048,11 @@
       var idx = -1;
       if (deep) { if (roll > 0.80) idx = 6; }                                     // sparse skulls on the dark void ground
       else if (meadow) {
-        // flowers + varied bushes + mossy grass-rock clusters + stump/mushroom, plus a
-        // rare eerie skull and the odd bare boulder. (Grass-rock clusters read on grass
-        // where a bare boulder would; the skull pops bone-white on green.)
+        // Keep the meadow botanical. Rocks, skulls, and grass-rock clusters
+        // belong to later chapters and looked like debris on the grass.
         if (roll > 0.46) idx = pick < 0.15 ? 0 : pick < 0.27 ? 1 : pick < 0.39 ? 2
-          : pick < 0.50 ? 5 : pick < 0.59 ? 8 : pick < 0.67 ? 9        // bushes
-          : pick < 0.75 ? 4 : pick < 0.82 ? 7                          // stump, mushroom
-          : pick < 0.88 ? 10 : pick < 0.93 ? 11 : pick < 0.965 ? 12    // grass-rock clusters
-          : pick < 0.99 ? 6 : 3;                                       // rare skull, rare bare boulder
+          : pick < 0.56 ? 5 : pick < 0.70 ? 8 : pick < 0.82 ? 9        // bushes
+          : pick < 0.91 ? 4 : 7;                                       // stump, mushroom
       }   // bare rock band: no props (a grey boulder just camouflages against grey rock)
       if (idx < 0) continue;
       var x = c * cell - scroll + Math.round((hash(c * 6.7) - 0.5) * (cell * 0.5));
@@ -10145,6 +10103,11 @@
       : (day.galaxy || 0) > 0.38 && altitude > 1450 ? "galaxy"
       : (day.snow || 0) > 0.34 ? "snow"
       : "rock";
+    if (realm === "rock") {
+      var meadowBlock = smoother01(clamp01((grassGroundReveal() - 0.10) / 0.25));
+      reveal *= (1 - meadowBlock);
+      if (reveal <= 0.01) return;
+    }
     var spacing = realm === "thevoid" ? 420
       : realm === "bones" ? 430
       : realm === "storm" || realm === "volcanic" ? 360
