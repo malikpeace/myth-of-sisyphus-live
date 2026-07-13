@@ -9036,9 +9036,10 @@
   // Every tree shares the terrain's world scroll. Depth comes from size, draw order,
   // and blur; never from sliding a trunk independently of the ground beneath it.
   var TREES_BG = { anchor: "ground", spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.35 };
-  // Large camera-close conifers, restored to fixed terrain positions. They pass
-  // in front of the actor without sliding independently from the hillside.
-  var TREES_NEAR = { anchor: "ground", spacing: 520, densityStart: 0.10, densityEnd: 0.90, treeH: 1.48, scaleLo: 1.05, scaleHi: 1.62, jitter: 280, darken: 0.24, tint: 0.05, seed: 0, phase: 360, blur: 0.55 };
+  // Extreme foreground conifers: larger than the viewport at close pass so the
+  // actor briefly disappears behind a trunk/canopy and the mountain gains scale.
+  // They remain fixed to terrain; wider spacing prevents constant obstruction.
+  var TREES_NEAR = { anchor: "ground", spacing: 760, densityStart: 0.06, densityEnd: 0.68, treeH: 3.20, scaleLo: 1.10, scaleHi: 1.65, jitter: 380, darken: 0.25, tint: 0.05, seed: 0, phase: 360, blur: 0.95 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
   function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
   function drawSnow(day) {
