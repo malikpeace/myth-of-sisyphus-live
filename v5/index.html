@@ -8960,9 +8960,18 @@
       var sc = baseScale * (cfg.scaleLo + hash(i * 7.27 + cfg.seed) * (cfg.scaleHi - cfg.scaleLo));
       var localW = iw * sc, localH = ih * sc;
       var treeWorldX = screenAnchored ? 0 : i * spacing - scroll + jitterX;
-      var treeWorldCenter = treeWorldX + localW * 0.5;
-      var treeVariant = foregroundTreeVariants[Math.floor(hash(i * 5.83 + cfg.seed) * foregroundTreeVariants.length)];
+      var treeVariantIndex = Math.floor(hash(i * 5.83 + cfg.seed) * foregroundTreeVariants.length);
+      var treeVariant = foregroundTreeVariants[treeVariantIndex];
       if (!treeVariant || !treeVariant.complete || !treeVariant.naturalWidth) treeVariant = foregroundTreeImg;
+      // The pine sprites do not all have their trunk at the image center. At the
+      // extreme foreground scale, sampling the hill beneath the image center can
+      // lift a trunk dozens of pixels off a steep slope. Anchor every variant at
+      // its actual bottom contact point, and mirror that point with the sprite.
+      var trunkAnchors = [144 / 289, 144 / 289, 123 / 289];
+      var trunkAnchor = trunkAnchors[treeVariantIndex] == null ? 0.5 : trunkAnchors[treeVariantIndex];
+      var flipTree = hash(i * 9.71 + cfg.seed) > 0.5;
+      if (flipTree) trunkAnchor = 1 - trunkAnchor;
+      var treeWorldBase = treeWorldX + localW * trunkAnchor;
       var tw = Math.round(localW * (screenAnchored ? 1 : curCamZoom));
       var th = Math.round(localH * (screenAnchored ? 1 : curCamZoom));
       var sx = screenAnchored
@@ -8986,8 +8995,8 @@
         bridgeTestL = bridgeWorldCenter - bridgeWorldHalf;
         bridgeTestR = bridgeWorldCenter + bridgeWorldHalf;
       } else {
-        bridgeTestL = treeWorldCenter - 12;
-        bridgeTestR = treeWorldCenter + 12;
+        bridgeTestL = treeWorldBase - 12;
+        bridgeTestR = treeWorldBase + 12;
       }
       var bridgeFade = treeBridgeFade(bridgeTestL, bridgeTestR);
       if (bridgeFade < 0.995) continue;                                          // hard cull near a gorge: never render a translucent tree
@@ -8999,12 +9008,12 @@
         // in the camera's zoom space, so map this tree's screen-x back to world-x, look
         // up the real surface there, and map it back to screen. (A screen-space slope
         // guess floated the trees on mobile, where the zoom/offset differ.)
-        baseY = curCamZtyBase + terrainLipAt(treeWorldCenter) * curCamZoom + 6 * curCamZoom;
+        baseY = curCamZtyBase + terrainLipAt(treeWorldBase) * curCamZoom + 6 * curCamZoom;
       }
       fg.save();
       fg.globalAlpha = treeRevealA;
       fg.translate(sx, baseY - th);
-      if (hash(i * 9.71 + cfg.seed) > 0.5) { fg.translate(tw, 0); fg.scale(-1, 1); }
+      if (flipTree) { fg.translate(tw, 0); fg.scale(-1, 1); }
       fg.drawImage(treeVariant, 0, 0, tw, th);
       fg.restore();
       drew++;
