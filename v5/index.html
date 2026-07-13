@@ -7125,7 +7125,10 @@
     var down = 1 - smoother01(clamp01((altitude - 1310) / 220));
     var snowDim = 1 - 0.92 * snowCoverFor(altitude);
     var deepDim = 1 - 0.86 * realm4Max(altitude);
-    return up * down * snowDim * deepDim;
+    // Keep the rocky chapter out of the authored meadow. Its large spires read
+    // as random pasted-on rocks while the grass was still present.
+    var grassBlock = smoother01(clamp01((grassGroundReveal() - 0.10) / 0.25));
+    return up * down * snowDim * deepDim * (1 - grassBlock);
   }
 
   function drawBackgroundRockSpines(day) {
@@ -8381,9 +8384,22 @@
     g.globalAlpha = alphaMul == null ? 1 : alphaMul;
     for (var k = k0; k <= k1; k++) {
       var tileX = Math.round(k * tileW - phase);
-      g.drawImage(nativeMeadowSurface, tileX, 0);
-      for (var tileY = surfaceH; tileY < h; tileY += soilH) {
-        g.drawImage(nativeMeadowSoil, tileX, tileY);
+      var flipX = Math.abs(k) % 2 === 1;
+      g.save();
+      g.translate(tileX + (flipX ? tileW : 0), 0);
+      g.scale(flipX ? -1 : 1, 1);
+      g.drawImage(nativeMeadowSurface, 0, 0);
+      g.restore();
+      var soilRow = 0;
+      for (var tileY = surfaceH; tileY < h; tileY += soilH, soilRow++) {
+        // Matching mirrored edges make the approved painting loop without a
+        // blended strip or visible seam.
+        var flipY = soilRow % 2 === 0;
+        g.save();
+        g.translate(tileX + (flipX ? tileW : 0), tileY + (flipY ? soilH : 0));
+        g.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+        g.drawImage(nativeMeadowSoil, 0, 0);
+        g.restore();
       }
     }
     g.restore();
@@ -10087,14 +10103,11 @@
       var idx = -1;
       if (deep) { if (roll > 0.80) idx = 6; }                                     // sparse skulls on the dark void ground
       else if (meadow) {
-        // flowers + varied bushes + mossy grass-rock clusters + stump/mushroom, plus a
-        // rare eerie skull and the odd bare boulder. (Grass-rock clusters read on grass
-        // where a bare boulder would; the skull pops bone-white on green.)
+        // Keep the meadow botanical. Rocks, skulls, and grass-rock clusters
+        // belong to later chapters and made this landscape feel cluttered.
         if (roll > 0.46) idx = pick < 0.15 ? 0 : pick < 0.27 ? 1 : pick < 0.39 ? 2
-          : pick < 0.50 ? 5 : pick < 0.59 ? 8 : pick < 0.67 ? 9        // bushes
-          : pick < 0.75 ? 4 : pick < 0.82 ? 7                          // stump, mushroom
-          : pick < 0.88 ? 10 : pick < 0.93 ? 11 : pick < 0.965 ? 12    // grass-rock clusters
-          : pick < 0.99 ? 6 : 3;                                       // rare skull, rare bare boulder
+          : pick < 0.56 ? 5 : pick < 0.70 ? 8 : pick < 0.82 ? 9        // bushes
+          : pick < 0.91 ? 4 : 7;                                       // stump, mushroom
       }   // bare rock band: no props (a grey boulder just camouflages against grey rock)
       if (idx < 0) continue;
       var x = c * cell - scroll + Math.round((hash(c * 6.7) - 0.5) * (cell * 0.5));
@@ -10145,6 +10158,11 @@
       : (day.galaxy || 0) > 0.38 && altitude > 1450 ? "galaxy"
       : (day.snow || 0) > 0.34 ? "snow"
       : "rock";
+    if (realm === "rock") {
+      var meadowBlock = smoother01(clamp01((grassGroundReveal() - 0.10) / 0.25));
+      reveal *= (1 - meadowBlock);
+      if (reveal <= 0.01) return;
+    }
     var spacing = realm === "thevoid" ? 420
       : realm === "bones" ? 430
       : realm === "storm" || realm === "volcanic" ? 360
