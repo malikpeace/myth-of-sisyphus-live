@@ -10326,9 +10326,7 @@
         if (kind > 0.48) brokenColumn(x, y, size + 10, kind);
         else altarStone(x, y, Math.max(22, Math.round(size * 0.72)), kind);
       } else if ((realm === "galaxy" || realm === "aurora" || realm === "obsidian" || realm === "thevoid") && kind > 0.30) {
-        g.save(); g.translate(x, y); g.rotate(propSlope);
-        crystalCluster(0, 0, size + 8, kind);
-        g.restore();
+        continue; // crystal spikes removed: they read as stray blue lines at gameplay scale
       } else if ((realm === "volcanic" || realm === "storm") && kind > 0.26) {
         g.save(); g.translate(x, y); g.rotate(propSlope);
         basaltStack(0, 0, size + 8, kind);
@@ -12074,7 +12072,7 @@
       g.fillStyle = css([98, 100, 106], 0.25 + 0.65 * voidT4);
       for (var vlx = wxL; vlx <= wxR; vlx += 4) g.fillRect(vlx, Math.round(terrainLipAt(vlx)), 3, 1);
     }
-    drawV5RealmProps(wxL, wxR, day); // canonical-grid rocks, crystals, and masonry
+    drawV5RealmProps(wxL, wxR, day); // canonical-grid rocks and masonry
     // The old flower patch read as stray posts/crosses at night, especially near signs.
     drawEffortParticles(day);
     var footDig = clamp01(strain + slideEffort * 0.65);
