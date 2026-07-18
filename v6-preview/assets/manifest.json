@@ -43,10 +43,10 @@
       "role": "boulder-rotation-atlas",
       "status": "candidate",
       "nativeFrame": [64, 64],
-      "frames": 8,
+      "frames": 64,
       "smoothing": false,
       "rotationAllowed": false,
-      "notes": "Offline nearest-neighbor frames preserve the approved V5 boulder while removing runtime texture rotation."
+      "notes": "64 offline nearest-neighbor frames preserve the approved V5 boulder, improve roll cadence, and avoid runtime texture rotation."
     },
     {
       "id": "v6-mountain-plate-candidate",

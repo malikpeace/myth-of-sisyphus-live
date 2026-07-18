@@ -6,11 +6,12 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "assets" / "boulder-granite-sprite-v2.png"
 OUTPUT = ROOT / "v6-preview" / "assets" / "boulder-frames-v5-approved.png"
+FRAME_COUNT = 64
 
 source = Image.open(SOURCE).convert("RGBA").resize((64, 64), Image.Resampling.NEAREST)
-atlas = Image.new("RGBA", (64 * 8, 64), (0, 0, 0, 0))
-for frame in range(8):
-    rotated = source.rotate(-frame * 45, resample=Image.Resampling.NEAREST, expand=False)
+atlas = Image.new("RGBA", (64 * FRAME_COUNT, 64), (0, 0, 0, 0))
+for frame in range(FRAME_COUNT):
+    rotated = source.rotate(-frame * (360 / FRAME_COUNT), resample=Image.Resampling.NEAREST, expand=False)
     pixels = rotated.load()
     for y in range(rotated.height):
         for x in range(rotated.width):

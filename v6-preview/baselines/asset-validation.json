@@ -41,7 +41,7 @@
     {
       "id": "v6-boulder-frames-v5-approved",
       "size": [
-        512,
+        4096,
         64
       ],
       "partialAlpha": 0,
