@@ -115,6 +115,9 @@
     let effort = 0;
     let roll = 0;
     let pushPulse = 0;
+    let walkPhase = 0;
+    let actorActivity = 0;
+    let actorBrace = 0;
     let side = 0;
     let elapsed = 0;
     let last = performance.now();
@@ -180,6 +183,19 @@
       let n = Math.imul((a | 0) ^ 0x9e3779b9, 1597334677) ^ Math.imul((b | 0) + 31, 3812015801);
       n = Math.imul(n ^ (n >>> 15), 2246822519);
       return ((n ^ (n >>> 13)) >>> 0) / 4294967295;
+    }
+
+    function clamp01(value) {
+      return Math.max(0, Math.min(1, value));
+    }
+
+    function smoother01(value) {
+      const t = clamp01(value);
+      return t * t * (3 - 2 * t);
+    }
+
+    function lerp(a, b, amount) {
+      return a + (b - a) * amount;
     }
 
     function climbHeight(world) {
@@ -408,52 +424,112 @@
 
     function drawActor() {
       const ground = screenTerrain(actorX);
-      const boulderX = actorX + 45;
-      const boulderY = screenTerrain(boulderX) - 29;
-      drawShadows(boulderX, screenTerrain(boulderX));
+      const sample = 10;
+      const theta = Math.atan2(screenTerrain(actorX - sample) - screenTerrain(actorX + sample), sample * 2);
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      const s = 1.32;
+      const brad = 32;
+      const boulderLocalX = Math.round(19 * s) + brad;
+      const boulderLocalY = -brad + Math.round(2 * s);
 
-      const motion = Math.min(1, Math.max(0, Math.abs(velocity) / 5));
-      const gait = worldX * .34;
-      const stride = Math.round(Math.sin(gait) * 4 * motion);
-      const liftBack = Math.max(0, Math.round(Math.sin(gait + Math.PI) * 3 * motion));
-      const liftFront = Math.max(0, Math.round(Math.sin(gait) * 3 * motion));
-      const bob = Math.round(Math.abs(Math.sin(gait)) * motion);
-      const pulse = pushPulse * pushPulse * (3 - 2 * pushPulse);
-      const lean = 6 + Math.round(pulse * 3 + motion);
-      const hipX = actorX - 5 + lean;
-      const hipY = ground - 21 + bob + Math.round(pulse);
-      const shoulderX = hipX + 1;
-      const shoulderY = hipY - 15;
-      const headX = shoulderX + 1;
-      const headY = shoulderY - 7;
-      const rearFootX = actorX - 15 - stride;
-      const frontFootX = actorX + 7 + stride;
-      const rearFootY = screenTerrain(rearFootX) - 2 - liftBack;
-      const frontFootY = screenTerrain(frontFootX) - 2 - liftFront;
-      const upperContactX = boulderX - 25;
-      const upperContactY = boulderY - 4 + Math.round(pulse * 2);
-      const lowerContactX = boulderX - 25;
-      const lowerContactY = boulderY + 7 + Math.round(pulse * 2);
-      const upperElbowX = Math.round((shoulderX + upperContactX) / 2) - 1;
-      const upperElbowY = shoulderY + 5 - Math.round(Math.sin(gait) * motion);
-      const lowerElbowX = Math.round((shoulderX + lowerContactX) / 2) - 2;
-      const lowerElbowY = shoulderY + 11 + Math.round(Math.sin(gait) * motion);
+      function localPoint(x, y) {
+        return {
+          x: actorX + x * cos + y * sin,
+          y: ground - x * sin + y * cos
+        };
+      }
 
-      ctx.fillStyle = P.ink[0];
-      linePixels(ctx, hipX, hipY, rearFootX, rearFootY, 6, P.ink[0]);
-      linePixels(ctx, hipX + 2, hipY, frontFootX, frontFootY, 6, P.ink[0]);
-      linePixels(ctx, hipX, hipY, shoulderX, shoulderY, 6, P.ink[0]);
-      ctx.fillRect(headX - 5, headY - 6, 10, 11);
-      linePixels(ctx, shoulderX, shoulderY + 2, upperElbowX, upperElbowY, 5, P.ink[0]);
-      linePixels(ctx, upperElbowX, upperElbowY, upperContactX, upperContactY, 5, P.ink[0]);
-      linePixels(ctx, shoulderX, shoulderY + 6, lowerElbowX, lowerElbowY, 4, P.ink[0]);
-      linePixels(ctx, lowerElbowX, lowerElbowY, lowerContactX, lowerContactY, 4, P.ink[0]);
+      function localLimb(x0, y0, x1, y1, width, color) {
+        const a = localPoint(x0, y0);
+        const b = localPoint(x1, y1);
+        linePixels(ctx, a.x, a.y, b.x, b.y, Math.max(1, Math.round(width)), color);
+      }
+
+      function localDisc(x, y, radius, color) {
+        const point = localPoint(x, y);
+        pixelEllipse(ctx, point.x, point.y, Math.max(1, Math.round(radius)), Math.max(1, Math.round(radius)), color);
+      }
+
+      const boulderPoint = localPoint(boulderLocalX, boulderLocalY);
+      drawShadows(boulderPoint.x, screenTerrain(Math.round(boulderPoint.x)));
+      const pushDrive = smoother01(clamp01(pushPulse / .72));
       if (boulderAtlas.complete && boulderAtlas.naturalWidth) {
         const frame = Math.abs(Math.floor(roll)) % 8;
-        ctx.drawImage(boulderAtlas, frame * 64, 0, 64, 64, boulderX - 32, boulderY - 32, 64, 64);
+        const squash = pushDrive > .02 ? Math.min(2, Math.round(pushDrive * 2)) : 0;
+        ctx.drawImage(boulderAtlas, frame * 64, 0, 64, 64,
+          Math.round(boulderPoint.x - 32 - squash), Math.round(boulderPoint.y - 32 + squash),
+          64 + squash * 2, 64 - squash * 2);
       } else {
-        pixelEllipse(ctx, boulderX, boulderY, 30, 30, "#51585a");
+        pixelEllipse(ctx, boulderPoint.x, boulderPoint.y, 30, 30, "#51585a");
       }
+
+      // V5 actor geometry, retained as the animation source of truth.
+      const brace = actorBrace;
+      const bob = Math.sin(walkPhase * Math.PI * 2) * .8 * actorActivity * s * (1 - brace * .55);
+      const hipX = -brace * 4 * s + pushDrive * 1.15 * s;
+      const hipY = -14 * s + bob + brace * 2 * s + pushDrive * .75 * s;
+      const shoulderX = hipX + (9 + brace * 4 + pushDrive * 1.85) * s;
+      const shoulderY = hipY - (13 - brace * 1.5 - pushDrive * .5) * s + bob * .5;
+      const limbWidth = Math.max(3, Math.round(4.3 * s));
+      const torsoWidth = Math.max(4, Math.round(6 * s));
+
+      if (brace > .08) {
+        const backFootX = hipX - (19 + brace * 3 + pushDrive * 1.15) * s;
+        const frontFootX = hipX - (7 + brace * 2 + pushDrive * .35) * s;
+        const backKneeX = hipX - 12 * s;
+        const backKneeY = hipY + 6 * s;
+        const frontKneeX = hipX - s;
+        const frontKneeY = hipY + 7 * s;
+        localLimb(hipX, hipY, backKneeX, backKneeY, limbWidth, P.ink[0]);
+        localLimb(backKneeX, backKneeY, backFootX, 0, limbWidth, P.ink[0]);
+        localLimb(hipX, hipY, frontKneeX, frontKneeY, limbWidth, P.ink[0]);
+        localLimb(frontKneeX, frontKneeY, frontFootX, 0, limbWidth, P.ink[0]);
+        localLimb(backFootX - 6 * s, -s, backFootX + 4 * s, -s, 3 * s, P.ink[0]);
+        localLimb(frontFootX - 5 * s, -s, frontFootX + 4 * s, -s, 3 * s, P.ink[0]);
+      } else {
+        const stepReach = 5 * s;
+        const stepLift = 4 * s;
+        const kneeBend = 3 * s;
+        for (let leg = 0; leg < 2; leg += 1) {
+          const phase = (walkPhase + leg * .5) * Math.PI * 2;
+          const forward = Math.cos(phase);
+          const lift = Math.max(0, Math.sin(phase)) * stepLift * actorActivity;
+          const footX = hipX - 2 * s - forward * stepReach;
+          const footY = -lift;
+          const kneeX = (hipX + footX) / 2 + kneeBend;
+          const kneeY = (hipY + footY) / 2 + s;
+          localLimb(hipX, hipY, kneeX, kneeY, limbWidth, P.ink[0]);
+          localLimb(kneeX, kneeY, footX, footY, limbWidth, P.ink[0]);
+          localLimb(footX - 2 * s, footY - s, footX + 3 * s, footY - s, 2 * s, P.ink[0]);
+        }
+      }
+
+      const idleBreath = actorActivity < .035 && effort < .055
+        ? (Math.sin(elapsed * 2.05) * .5 + .5) : 0;
+      localLimb(hipX, hipY, shoulderX, shoulderY, torsoWidth + idleBreath * .56 * s, P.ink[0]);
+      const idleHead = 1 - smoother01(clamp01(actorActivity / .06));
+      const neckX = shoulderX - .1 * s;
+      const neckY = shoulderY - (1.35 + 1.25 * idleHead) * s;
+      localLimb(shoulderX, shoulderY, neckX, neckY, 2 * s, P.ink[0]);
+      const headRadius = Math.max(4, Math.round(5.8 * s));
+      const headX = neckX - .5 * s;
+      const headY = neckY - headRadius - .1 * s;
+      localDisc(shoulderX + s, shoulderY, torsoWidth * .62, P.ink[0]);
+
+      const boulderRatio = brad / (22 * s);
+      const smallGrip = 1 - smoother01(clamp01((boulderRatio - 1) / .72));
+      const handY = shoulderY + lerp(-s, 4.7 * s, smallGrip);
+      const relativeY = Math.max(-brad + 3, Math.min(brad - 3, handY - boulderLocalY));
+      const halfWidth = Math.sqrt(Math.max(0, brad * brad - relativeY * relativeY));
+      const handX = boulderLocalX - halfWidth + s;
+      const elbowX = shoulderX + (handX - shoulderX) * (.48 + pushDrive * .05);
+      const elbowY = (shoulderY + handY) / 2 + (1.4 + pushDrive * .8) * s;
+      const armWidth = Math.max(4, Math.round(5.4 * s));
+      localLimb(shoulderX, shoulderY, elbowX, elbowY, armWidth, P.ink[0]);
+      localLimb(elbowX, elbowY, handX, handY, armWidth, P.ink[0]);
+      localDisc(handX, handY, 2 * s, P.ink[0]);
+      localDisc(headX, headY, headRadius, "#000000");
     }
 
     function flower(wx, colorIndex, size = 1) {
@@ -563,9 +639,18 @@
       velocity *= Math.pow(.91, dt * 10);
       velocity = Math.max(-2.1, velocity);
       worldX = Math.max(0, worldX + velocity * dt * 7.2);
-      roll += velocity * dt * .9;
+      const activityTarget = clamp01(effort * 1.6);
+      actorActivity += (activityTarget - actorActivity) * Math.min(1, 8 * dt);
+      const braceTarget = worldX > .5 && velocity < -.25 ? clamp01(-velocity / 2.1) : 0;
+      actorBrace += (braceTarget - actorBrace) * Math.min(1, (braceTarget > actorBrace ? 14 : 7) * dt);
+      if (Math.abs(velocity) > .5) walkPhase += velocity * dt * .10;
+      else {
+        const nearestStep = Math.round(walkPhase * 2) / 2;
+        walkPhase += (nearestStep - walkPhase) * Math.min(1, 5 * dt);
+      }
+      roll += velocity * dt * (velocity < 0 ? .52 : .13);
       effort = Math.max(0, effort - dt * .18);
-      pushPulse = Math.max(0, pushPulse - dt * 5.5);
+      pushPulse = Math.max(0, pushPulse - dt * 2.7);
       metresEl.textContent = `${String(Math.round(worldX)).padStart(4, "0")}m`;
     }
 
@@ -590,6 +675,10 @@
         cinematic,
         logical: `${W}x${H}`,
         displayScale: scale,
+        animationSource: "v5",
+        actorActivity: Number(actorActivity.toFixed(3)),
+        actorBrace: Number(actorBrace.toFixed(3)),
+        walkPhase: Number(walkPhase.toFixed(3)),
         frameAvg: Number(avg.toFixed(2)),
         frameMax: Number(Math.max(...frameMs).toFixed(2)),
         drawAvg: Number(drawAvg.toFixed(2)),
@@ -635,7 +724,7 @@
     });
     document.getElementById("reset").addEventListener("click", (event) => {
       event.stopPropagation();
-      worldX = 0; velocity = 0; effort = 0; roll = 0; elapsed = 0;
+      worldX = 0; velocity = 0; effort = 0; roll = 0; walkPhase = 0; actorActivity = 0; actorBrace = 0; elapsed = 0;
     });
     addEventListener("resize", resize);
     addEventListener("orientationchange", () => setTimeout(resize, 180));
