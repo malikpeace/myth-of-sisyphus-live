@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sisyphus V6">
+  <meta name="theme-color" content="#76c5ee">
+  <title>Myth of Sisyphus V6 Preview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #080b0d; }
+    body { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #11171a; }
+    #stage { position: fixed; inset: 0; height: 100vh; height: 100lvh; overflow: hidden; touch-action: none; background: #080b0d; }
+    #world {
+      position: absolute;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #hud { position: fixed; inset: 0; z-index: 4; pointer-events: none; padding-top: max(18px, calc(env(safe-area-inset-top) + 12px)); }
+    #title { text-align: center; font-size: clamp(9px, 1.3vw, 14px); font-weight: 700; letter-spacing: 0.34em; text-indent: 0.34em; color: rgba(17,23,26,.82); text-shadow: 0 1px rgba(255,255,255,.22); }
+    #distance { position: absolute; top: max(18px, calc(env(safe-area-inset-top) + 12px)); right: max(18px, calc(env(safe-area-inset-right) + 15px)); text-align: right; font-size: clamp(9px, 1.05vw, 12px); line-height: 1.35; letter-spacing: .14em; color: rgba(17,23,26,.78); }
+    #distance small { display: block; font-size: .68em; letter-spacing: .11em; }
+    #pause { position: fixed; z-index: 6; left: max(12px, calc(env(safe-area-inset-left) + 10px)); top: max(12px, calc(env(safe-area-inset-top) + 10px)); width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.42); background: rgba(21,30,34,.58); color: #fff; font: 700 17px/1 ui-monospace, monospace; cursor: pointer; }
+    #hint { position: fixed; z-index: 5; left: 50%; top: 43%; transform: translate(-50%,-50%); padding: 7px 11px; border: 1px solid rgba(255,255,255,.4); background: rgba(15,20,23,.58); color: rgba(255,255,255,.92); text-align: center; font-size: 11px; line-height: 1.35; letter-spacing: .06em; pointer-events: none; transition: opacity .3s linear; }
+    #hint.hidden { opacity: 0; }
+    #qa {
+      display: none;
+      position: fixed;
+      z-index: 8;
+      left: max(8px, env(safe-area-inset-left));
+      bottom: max(8px, env(safe-area-inset-bottom));
+      width: min(330px, calc(100vw - 16px));
+      padding: 9px;
+      background: rgba(11,16,18,.9);
+      border: 1px solid rgba(255,255,255,.38);
+      color: #fff;
+      font-size: 10px;
+    }
+    body.qa #qa { display: block; }
+    #qa strong { display: block; margin-bottom: 7px; letter-spacing: .16em; }
+    #qa .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    #qa button { min-height: 30px; border: 1px solid rgba(255,255,255,.36); background: #1c2528; color: #fff; font: 10px ui-monospace, monospace; }
+    #qa button.active { background: #f4f1df; color: #11171a; }
+    #qa pre { margin-top: 7px; white-space: pre-wrap; line-height: 1.3; color: rgba(255,255,255,.76); }
+    @media (max-width: 520px) and (orientation: portrait) {
+      #title { font-size: 9px; letter-spacing: .26em; text-indent: .26em; }
+      #distance { font-size: 9px; }
+      #hint { top: 46%; }
+    }
+  </style>
+</head>
+<body>
+  <main id="stage" aria-label="Myth of Sisyphus pixel renderer preview">
+    <canvas id="world"></canvas>
+  </main>
+  <div id="hud" aria-hidden="true">
+    <div id="title">MYTH OF SISYPHUS</div>
+    <div id="distance"><span id="metres">0000m</span><small>V6 RENDERER</small></div>
+  </div>
+  <button id="pause" type="button" aria-label="Pause">Ⅱ</button>
+  <div id="hint">push the stone<br><span>tap anywhere</span></div>
+  <section id="qa" aria-label="V6 renderer lab">
+    <strong>V6 RENDERER LAB</strong>
+    <div class="controls">
+      <button type="button" data-terrain="curve" class="active">pixel curve</button>
+      <button type="button" data-terrain="steps">slope tiles</button>
+      <button type="button" id="cinematic" class="active">cinematic</button>
+      <button type="button" id="grid">grid</button>
+      <button type="button" id="auto" class="active">auto push</button>
+      <button type="button" id="reset">reset</button>
+    </div>
+    <pre id="stats"></pre>
+  </section>
+  <script>
+  (() => {
+    "use strict";
+    const params = new URLSearchParams(location.search);
+    const qa = params.get("qa") === "1";
+    if (qa && params.get("clean") !== "1") document.body.classList.add("qa");
+
+    const canvas = document.getElementById("world");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const stage = document.getElementById("stage");
+    const metresEl = document.getElementById("metres");
+    const hint = document.getElementById("hint");
+    const pauseButton = document.getElementById("pause");
+    const statsEl = document.getElementById("stats");
+
+    const P = {
+      ink: ["#080b0d", "#11171a", "#1c2528"],
+      sky: ["#76c5ee", "#5eb1e4", "#438fd0", "#3272b5"],
+      far: ["#9fc8df", "#7daaca", "#608db8", "#4d73a0"],
+      near: ["#476b91", "#345477", "#263f61", "#1b304e"],
+      snow: ["#f4f1df", "#d9e4e8", "#b8cfdf", "#8fb1cc"],
+      grass: ["#172d18", "#25451d", "#366323", "#4f8428", "#70a72e", "#9ac23b", "#c0d85a"],
+      flowers: ["#f2eee0", "#e7a6bd", "#c95e89", "#e8554f", "#f1c84b"]
+    };
+
+    let W = 480;
+    let H = 270;
+    let scale = 3;
+    let actorX = 202;
+    let anchorY = 170;
+    let terrainMode = params.get("terrain") === "steps" ? "steps" : "curve";
+    let cinematic = params.get("strict") !== "1";
+    let showGrid = false;
+    let autoPush = qa;
+    let paused = false;
+    let worldX = 0;
+    let velocity = 0;
+    let effort = 0;
+    let roll = 0;
+    let pushPulse = 0;
+    let side = 0;
+    let elapsed = 0;
+    let last = performance.now();
+    let frameMs = [];
+    let drawMs = [];
+    let resizeKey = "";
+
+    const terrainCanvas = document.createElement("canvas");
+    const terrainCtx = terrainCanvas.getContext("2d");
+    const shadowCanvas = document.createElement("canvas");
+    const shadowCtx = shadowCanvas.getContext("2d");
+    const treeCanvas = document.createElement("canvas");
+    const treeCtx = treeCanvas.getContext("2d");
+
+    const tileAtlas = new Image();
+    const boulderAtlas = new Image();
+    const mountainPlate = new Image();
+    const foregroundTree = new Image();
+    const sun = new Image();
+    tileAtlas.src = "assets/meadow-tiles-v1.png";
+    boulderAtlas.src = "assets/boulder-frames-v5-approved.png";
+    mountainPlate.src = "assets/mountain-plate-v6-candidate.png";
+    foregroundTree.src = "../v5/assets/v5-pine-tree-1.png";
+    sun.src = "../assets/sun-pixel.png";
+
+    function chooseScale(width, height) {
+      const portrait = height > width * 1.35;
+      if (portrait) return 1;
+      if (height < 520) return 2;
+      return Math.max(2, Math.min(5, Math.floor(height / 270)));
+    }
+
+    function resize() {
+      const rect = stage.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width || innerWidth));
+      const height = Math.max(1, Math.round(rect.height || innerHeight));
+      const nextScale = chooseScale(width, height);
+      const nextW = Math.ceil(width / nextScale);
+      const nextH = Math.ceil(height / nextScale);
+      const key = [width, height, nextScale, nextW, nextH].join(":");
+      if (key === resizeKey) return;
+      resizeKey = key;
+      scale = nextScale;
+      W = nextW;
+      H = nextH;
+      canvas.width = W;
+      canvas.height = H;
+      canvas.style.width = `${W * scale}px`;
+      canvas.style.height = `${H * scale}px`;
+      canvas.style.left = `${Math.floor((width - W * scale) / 2)}px`;
+      canvas.style.top = `${Math.floor((height - H * scale) / 2)}px`;
+      ctx.imageSmoothingEnabled = false;
+      terrainCanvas.width = shadowCanvas.width = W;
+      terrainCanvas.height = shadowCanvas.height = H;
+      terrainCtx.imageSmoothingEnabled = false;
+      shadowCtx.imageSmoothingEnabled = false;
+      actorX = Math.round(W * (height > width * 1.35 ? 0.46 : 0.42));
+      anchorY = Math.round(H * (height > width * 1.35 ? 0.56 : 0.67));
+      buildTree();
+    }
+
+    function hash(a, b = 0) {
+      let n = Math.imul((a | 0) ^ 0x9e3779b9, 1597334677) ^ Math.imul((b | 0) + 31, 3812015801);
+      n = Math.imul(n ^ (n >>> 15), 2246822519);
+      return ((n ^ (n >>> 13)) >>> 0) / 4294967295;
+    }
+
+    function terrainY(world) {
+      const broad = Math.sin(world * 0.0065) * 20 + Math.sin(world * 0.017 + 1.8) * 7;
+      const rise = -world * 0.105;
+      let y = rise + broad;
+      if (terrainMode === "steps") y = Math.round(y / 4) * 4;
+      return Math.round(y);
+    }
+
+    function screenTerrain(sx) {
+      const cameraY = terrainY(worldX) - anchorY;
+      return Math.round(terrainY(worldX + sx - actorX) - cameraY);
+    }
+
+    function scanPolygon(target, points, color) {
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const point of points) {
+        minY = Math.min(minY, point[1]);
+        maxY = Math.max(maxY, point[1]);
+      }
+      target.fillStyle = color;
+      for (let y = Math.ceil(minY); y <= Math.floor(maxY); y += 1) {
+        const intersections = [];
+        for (let i = 0; i < points.length; i += 1) {
+          const a = points[i];
+          const b = points[(i + 1) % points.length];
+          if ((a[1] <= y && b[1] > y) || (b[1] <= y && a[1] > y)) {
+            intersections.push(a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+          }
+        }
+        intersections.sort((a, b) => a - b);
+        for (let i = 0; i + 1 < intersections.length; i += 2) {
+          const x0 = Math.ceil(intersections[i]);
+          const x1 = Math.floor(intersections[i + 1]);
+          if (x1 >= x0) target.fillRect(x0, y, x1 - x0 + 1, 1);
+        }
+      }
+    }
+
+    function drawSky() {
+      ctx.fillStyle = P.sky[0];
+      ctx.fillRect(0, 0, W, H);
+      const bands = [
+        [Math.round(H * 0.24), P.sky[1]],
+        [Math.round(H * 0.48), P.sky[2]]
+      ];
+      for (const [y, color] of bands) {
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = color;
+        ctx.fillRect(0, y, W, Math.max(1, Math.round(H * 0.24)));
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawCloud(x, y, unit, color, alpha = 1) {
+      x = Math.round(x);
+      y = Math.round(y);
+      unit = Math.max(1, Math.round(unit));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      const blocks = [[0,3,9,2],[1,2,7,2],[2,1,3,2],[5,2,3,2],[3,0,2,2],[8,4,4,1]];
+      for (const b of blocks) ctx.fillRect(x + b[0] * unit, y + b[1] * unit, b[2] * unit, b[3] * unit);
+      ctx.globalAlpha = 1;
+    }
+
+    function drawClouds(layer) {
+      const speed = layer === 0 ? 1.8 : -2.6;
+      const unit = layer === 0 ? 1 : 2;
+      const span = W + 180;
+      for (let i = 0; i < 5; i += 1) {
+        const raw = i * span / 4 + elapsed * speed * (layer + 1) + (layer ? 80 : 0);
+        const x = ((raw % span) + span) % span - 90;
+        const y = Math.round(H * (layer === 0 ? 0.12 : 0.22) + hash(i, layer) * H * 0.18);
+        drawCloud(x, y, unit, layer === 0 ? P.snow[1] : P.snow[0], layer === 0 ? 0.68 : 0.94);
+      }
+    }
+
+    function mountain(centerX, baseY, width, height, color, snowColor, ridgeShift = 0) {
+      centerX = Math.round(centerX);
+      baseY = Math.round(baseY);
+      width = Math.round(width);
+      height = Math.round(height);
+      const left = centerX - Math.floor(width / 2);
+      const right = centerX + Math.ceil(width / 2);
+      const peakX = centerX + ridgeShift;
+      const points = [[left, baseY],[left + width * .18, baseY - height * .28],[left + width * .34, baseY - height * .42],[peakX, baseY - height],[right - width * .24, baseY - height * .36],[right, baseY]];
+      scanPolygon(ctx, points, color);
+      const snow = [[peakX, baseY - height],[peakX - width * .12, baseY - height * .66],[peakX - width * .02, baseY - height * .71],[peakX + width * .05, baseY - height * .56],[peakX + width * .12, baseY - height * .61],[peakX + width * .19, baseY - height * .44]];
+      scanPolygon(ctx, snow, snowColor);
+      scanPolygon(ctx, [[peakX,baseY-height],[peakX + width*.19,baseY-height*.44],[right-width*.24,baseY-height*.36],[right,baseY],[centerX+width*.08,baseY]], color === P.far[2] ? P.far[3] : P.near[3]);
+    }
+
+    function drawMountainLayer(layer) {
+      const far = layer === 0;
+      const spacing = far ? 122 : 178;
+      const parallax = far ? 0.035 : 0.08;
+      const offset = -Math.round(worldX * parallax) % spacing;
+      const base = Math.round(H * (far ? 0.60 : 0.72));
+      for (let i = -2; i < Math.ceil(W / spacing) + 3; i += 1) {
+        const seed = i + Math.floor(worldX * parallax / spacing);
+        const h = Math.round(H * (far ? 0.30 : 0.38) * (0.74 + hash(seed, layer) * 0.34));
+        const w = Math.round(spacing * (1.18 + hash(seed, layer + 7) * .35));
+        mountain(i * spacing + offset, base, w, h, far ? P.far[2] : P.near[1], far ? P.snow[2] : P.snow[3], Math.round((hash(seed, 91) - .5) * 18));
+      }
+    }
+
+    function drawAuthoredMountains() {
+      if (!mountainPlate.complete || !mountainPlate.naturalWidth) return false;
+      const x = Math.round((W - 480) / 2);
+      const y = Math.round(screenTerrain(actorX) - 240);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(mountainPlate, x, y);
+      return true;
+    }
+
+    function drawSun() {
+      const portrait = H > W * 1.35;
+      const x = Math.round(W * (portrait ? .28 : .27));
+      const y = Math.round(H * (portrait ? .13 : .16));
+      const size = portrait ? 58 : 44;
+      if (cinematic) {
+        pixelEllipse(ctx, x, y, Math.round(size * .82), Math.round(size * .66), "rgba(255,241,177,.035)");
+        pixelEllipse(ctx, x, y, Math.round(size * .67), Math.round(size * .54), "rgba(255,241,177,.045)");
+        pixelEllipse(ctx, x, y, Math.round(size * .55), Math.round(size * .45), "rgba(255,241,177,.055)");
+      }
+      if (sun.complete && sun.naturalWidth) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sun, x - size / 2, y - size / 2, size, size);
+      }
+    }
+
+    function drawDistantTrees() {
+      const spacing = 84;
+      const first = Math.floor((worldX - actorX) / spacing) - 2;
+      for (let i = first; i < first + Math.ceil(W / spacing) + 5; i += 1) {
+        const wx = i * spacing + Math.round(hash(i, 12) * 32);
+        const sx = Math.round(actorX + (wx - worldX));
+        const sy = screenTerrain(sx) + 2;
+        drawPine(ctx, sx, sy, 34 + Math.round(hash(i, 13) * 22), P.near[3], P.near[2]);
+      }
+    }
+
+    function drawPine(target, baseX, baseY, height, dark, light) {
+      const trunkW = Math.max(2, Math.round(height * .08));
+      target.fillStyle = dark;
+      target.fillRect(Math.round(baseX - trunkW / 2), Math.round(baseY - height * .35), trunkW, Math.round(height * .35));
+      for (let tier = 0; tier < 5; tier += 1) {
+        const top = Math.round(baseY - height + tier * height * .15);
+        const half = Math.round(height * (.13 + tier * .055));
+        scanPolygon(target, [[baseX,top],[baseX-half,top+Math.round(height*.28)],[baseX+half,top+Math.round(height*.28)]], dark);
+        scanPolygon(target, [[baseX,top+2],[baseX-half+3,top+Math.round(height*.22)],[baseX-1,top+Math.round(height*.18)]], light);
+      }
+    }
+
+    function drawTerrain() {
+      const t = terrainCtx;
+      t.clearRect(0, 0, W, H);
+      t.imageSmoothingEnabled = false;
+      if (tileAtlas.complete && tileAtlas.naturalWidth) {
+        const minY = Math.max(0, Math.min(...Array.from({length: Math.ceil(W / 16) + 2}, (_, i) => screenTerrain(i * 16))) - 16);
+        for (let y = Math.floor(minY / 16) * 16; y < H + 16; y += 16) {
+          for (let x = -16; x < W + 16; x += 16) {
+            const wx = Math.floor(worldX + x - actorX);
+            const variant = Math.abs(Math.floor(wx / 16) + Math.floor(y / 16) * 3) % 4;
+            t.drawImage(tileAtlas, variant * 16, 16, 16, 16, x, y, 16, 16);
+          }
+        }
+        for (let x = 0; x < W; x += 1) t.clearRect(x, 0, 1, Math.max(0, screenTerrain(x)));
+        for (let x = -1; x < W + 1; x += 1) {
+          const wx = Math.floor(worldX + x - actorX);
+          const variant = Math.abs(Math.floor(wx / 16)) % 4;
+          const sy = screenTerrain(x);
+          t.drawImage(tileAtlas, variant * 16 + ((wx % 16 + 16) % 16), 0, 1, 16, x, sy - 5, 1, 16);
+        }
+      } else {
+        t.fillStyle = P.grass[3];
+        for (let x = 0; x < W; x += 1) t.fillRect(x, screenTerrain(x), 1, H - screenTerrain(x));
+      }
+      ctx.drawImage(terrainCanvas, 0, 0);
+    }
+
+    function pixelEllipse(target, cx, cy, rx, ry, color) {
+      target.fillStyle = color;
+      for (let y = -ry; y <= ry; y += 1) {
+        const span = Math.floor(rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry))));
+        target.fillRect(Math.round(cx - span), Math.round(cy + y), span * 2 + 1, 1);
+      }
+    }
+
+    function drawShadows(boulderX, groundY) {
+      const s = shadowCtx;
+      s.clearRect(0, 0, W, H);
+      const sunX = W * .27;
+      const direction = boulderX < sunX ? 1 : -1;
+      const length = 72 + Math.abs(boulderX - sunX) * .08;
+      pixelEllipse(s, boulderX + direction * length * .38, groundY + 6, Math.round(length * .52), 8, "rgba(9,21,13,.22)");
+      pixelEllipse(s, actorX + direction * 28, groundY + 5, 39, 5, "rgba(9,21,13,.25)");
+      pixelEllipse(s, boulderX, groundY + 2, 27, 6, "rgba(6,15,9,.36)");
+      for (let x = 0; x < W; x += 1) s.clearRect(x, 0, 1, Math.max(0, screenTerrain(x)));
+      ctx.drawImage(shadowCanvas, 0, 0);
+    }
+
+    function linePixels(target, x0, y0, x1, y1, thickness, color) {
+      x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+      const dx = Math.abs(x1 - x0);
+      const sx = x0 < x1 ? 1 : -1;
+      const dy = -Math.abs(y1 - y0);
+      const sy = y0 < y1 ? 1 : -1;
+      let err = dx + dy;
+      target.fillStyle = color;
+      while (true) {
+        target.fillRect(x0 - Math.floor(thickness / 2), y0 - Math.floor(thickness / 2), thickness, thickness);
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+      }
+    }
+
+    function drawActor() {
+      const ground = screenTerrain(actorX);
+      const boulderX = actorX + 45;
+      const boulderY = screenTerrain(boulderX) - 29;
+      drawShadows(boulderX, screenTerrain(boulderX));
+      const lean = 6 + Math.round(pushPulse * 3);
+      const hipX = actorX - 5 + lean;
+      const hipY = ground - 21;
+      const headX = hipX + 1;
+      const headY = ground - 42;
+      ctx.fillStyle = P.ink[0];
+      ctx.fillRect(headX - 5, headY - 6, 10, 11);
+      linePixels(ctx, hipX, hipY, headX, headY, 6, P.ink[0]);
+      linePixels(ctx, hipX, hipY, actorX - 15, ground - 2, 6, P.ink[0]);
+      linePixels(ctx, hipX + 2, hipY, actorX + 7, ground - 2, 6, P.ink[0]);
+      linePixels(ctx, headX + 1, headY + 7, boulderX - 24, boulderY - 2 + Math.round(pushPulse * 2), 5, P.ink[0]);
+      linePixels(ctx, headX + 2, headY + 11, boulderX - 24, boulderY + 7 + Math.round(pushPulse * 2), 4, P.ink[0]);
+      if (boulderAtlas.complete && boulderAtlas.naturalWidth) {
+        const frame = Math.abs(Math.floor(roll)) % 8;
+        ctx.drawImage(boulderAtlas, frame * 64, 0, 64, 64, boulderX - 32, boulderY - 32, 64, 64);
+      } else {
+        pixelEllipse(ctx, boulderX, boulderY, 30, 30, "#51585a");
+      }
+    }
+
+    function flower(wx, colorIndex, size = 1) {
+      const sx = Math.round(actorX + wx - worldX);
+      if (sx < -10 || sx > W + 10) return;
+      const sy = screenTerrain(sx);
+      ctx.fillStyle = P.grass[1];
+      ctx.fillRect(sx, sy - 6 * size, size, 6 * size);
+      ctx.fillStyle = P.flowers[colorIndex % P.flowers.length];
+      ctx.fillRect(sx - 2 * size, sy - 8 * size, 2 * size, 2 * size);
+      ctx.fillRect(sx + size, sy - 8 * size, 2 * size, 2 * size);
+      ctx.fillRect(sx, sy - 10 * size, 2 * size, 2 * size);
+    }
+
+    function drawProps() {
+      const start = Math.floor((worldX - actorX - 40) / 52) - 1;
+      for (let i = start; i < start + Math.ceil(W / 52) + 4; i += 1) {
+        const wx = i * 52 + Math.round(hash(i, 4) * 24);
+        if (hash(i, 8) > .43) flower(wx, Math.floor(hash(i, 9) * P.flowers.length), hash(i, 10) > .86 ? 2 : 1);
+      }
+    }
+
+    function buildTree() {
+      treeCanvas.width = Math.max(260, Math.round(Math.min(W * .85, H * 1.12)));
+      treeCanvas.height = Math.max(330, Math.round(H * 1.45));
+      treeCtx.clearRect(0, 0, treeCanvas.width, treeCanvas.height);
+      treeCtx.imageSmoothingEnabled = false;
+      const baseX = Math.round(treeCanvas.width * .5);
+      const baseY = treeCanvas.height - 2;
+      const height = Math.round(treeCanvas.height * .92);
+      treeCtx.fillStyle = "#3a2b21";
+      treeCtx.fillRect(baseX - 14, baseY - Math.round(height * .47), 28, Math.round(height * .47));
+      for (let tier = 0; tier < 8; tier += 1) {
+        const top = Math.round(baseY - height + tier * height * .09);
+        const half = Math.round(height * (.12 + tier * .038));
+        scanPolygon(treeCtx, [[baseX,top],[baseX-half,top+Math.round(height*.23)],[baseX+half,top+Math.round(height*.23)]], tier % 2 ? "#16231a" : "#1d2c1d");
+        scanPolygon(treeCtx, [[baseX-3,top+5],[baseX-half+8,top+Math.round(height*.18)],[baseX-3,top+Math.round(height*.15)]], "#354a25");
+      }
+    }
+
+    function drawForegroundTree() {
+      const cycle = 760;
+      if (worldX < 280) return;
+      const local = ((worldX - 260) % cycle + cycle) % cycle;
+      const sx = Math.round(W + 120 - local);
+      const tree = foregroundTree.complete && foregroundTree.naturalWidth ? foregroundTree : treeCanvas;
+      const treeWidth = tree.naturalWidth || tree.width;
+      const treeHeight = tree.naturalHeight || tree.height;
+      const nearScale = 2;
+      const renderWidth = treeWidth * nearScale;
+      const renderHeight = treeHeight * nearScale;
+      if (sx < -renderWidth || sx > W + renderWidth) return;
+      const baseY = H + Math.round(renderHeight * .55);
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, Math.max(0, (W + renderWidth - Math.abs(sx - W / 2) * 1.5) / 120));
+      if (cinematic) ctx.filter = `blur(${Math.max(.35, 1 / scale)}px)`;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(tree, Math.round(sx - renderWidth / 2), Math.round(baseY - renderHeight), renderWidth, renderHeight);
+      ctx.restore();
+    }
+
+    function drawGrid() {
+      if (!showGrid) return;
+      ctx.globalAlpha = .18;
+      ctx.fillStyle = "#fff";
+      for (let x = 0; x < W; x += 16) ctx.fillRect(x, 0, 1, H);
+      for (let y = 0; y < H; y += 16) ctx.fillRect(0, y, W, 1);
+      ctx.globalAlpha = 1;
+    }
+
+    function draw() {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.imageSmoothingEnabled = false;
+      drawSky();
+      drawSun();
+      drawClouds(0);
+      drawMountainLayer(0);
+      drawClouds(1);
+      if (!drawAuthoredMountains()) drawMountainLayer(1);
+      drawDistantTrees();
+      drawTerrain();
+      drawProps();
+      drawActor();
+      drawForegroundTree();
+      drawGrid();
+    }
+
+    function push() {
+      if (paused) return;
+      side = 1 - side;
+      velocity = Math.min(15, velocity + 1.8);
+      effort = Math.min(1, effort + .16);
+      pushPulse = 1;
+      hint.classList.add("hidden");
+    }
+
+    function update(dt) {
+      if (paused) return;
+      elapsed += dt;
+      if (autoPush && Math.floor(elapsed * 7) !== Math.floor((elapsed - dt) * 7)) push();
+      velocity += (-0.92 - Math.max(0, Math.sin(worldX * .0065)) * .18) * dt;
+      velocity *= Math.pow(.91, dt * 10);
+      velocity = Math.max(-2.1, velocity);
+      worldX = Math.max(0, worldX + velocity * dt * 7.2);
+      roll += velocity * dt * .9;
+      effort = Math.max(0, effort - dt * .18);
+      pushPulse = Math.max(0, pushPulse - dt * 5.5);
+      metresEl.textContent = `${String(Math.round(worldX)).padStart(4, "0")}m`;
+    }
+
+    function frame(now) {
+      const raw = Math.min(50, now - last);
+      const dt = raw / 1000;
+      last = now;
+      frameMs.push(raw);
+      if (frameMs.length > 240) frameMs.shift();
+      update(dt);
+      const drawStart = performance.now();
+      draw();
+      const drawCost = performance.now() - drawStart;
+      drawMs.push(drawCost);
+      if (drawMs.length > 240) drawMs.shift();
+      const avg = frameMs.reduce((sum, value) => sum + value, 0) / Math.max(1, frameMs.length);
+      const drawAvg = drawMs.reduce((sum, value) => sum + value, 0) / Math.max(1, drawMs.length);
+      const state = {
+        worldX: Number(worldX.toFixed(2)),
+        velocity: Number(velocity.toFixed(2)),
+        terrainMode,
+        cinematic,
+        logical: `${W}x${H}`,
+        displayScale: scale,
+        frameAvg: Number(avg.toFixed(2)),
+        frameMax: Number(Math.max(...frameMs).toFixed(2)),
+        drawAvg: Number(drawAvg.toFixed(2)),
+        drawMax: Number(Math.max(...drawMs).toFixed(2))
+      };
+      document.body.dataset.v6State = JSON.stringify(state);
+      if (qa && statsEl) statsEl.textContent = `grid ${W}x${H} @ ${scale}x\nframe ${state.frameAvg}ms / draw ${state.drawAvg}ms\nworld ${state.worldX}  velocity ${state.velocity}`;
+      requestAnimationFrame(frame);
+    }
+
+    stage.addEventListener("pointerdown", (event) => { event.preventDefault(); push(); });
+    addEventListener("keydown", (event) => {
+      if (["ArrowLeft", "ArrowRight", " ", "a", "d", "A", "D"].includes(event.key)) {
+        event.preventDefault();
+        push();
+      }
+    }, { passive: false });
+    pauseButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      paused = !paused;
+      pauseButton.textContent = paused ? "▶" : "Ⅱ";
+      pauseButton.setAttribute("aria-label", paused ? "Resume" : "Pause");
+    });
+    document.querySelectorAll("[data-terrain]").forEach((button) => button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      terrainMode = button.dataset.terrain;
+      document.querySelectorAll("[data-terrain]").forEach((item) => item.classList.toggle("active", item === button));
+    }));
+    document.getElementById("cinematic").addEventListener("click", (event) => {
+      event.stopPropagation();
+      cinematic = !cinematic;
+      event.currentTarget.classList.toggle("active", cinematic);
+    });
+    document.getElementById("grid").addEventListener("click", (event) => {
+      event.stopPropagation();
+      showGrid = !showGrid;
+      event.currentTarget.classList.toggle("active", showGrid);
+    });
+    document.getElementById("auto").addEventListener("click", (event) => {
+      event.stopPropagation();
+      autoPush = !autoPush;
+      event.currentTarget.classList.toggle("active", autoPush);
+    });
+    document.getElementById("reset").addEventListener("click", (event) => {
+      event.stopPropagation();
+      worldX = 0; velocity = 0; effort = 0; roll = 0; elapsed = 0;
+    });
+    addEventListener("resize", resize);
+    addEventListener("orientationchange", () => setTimeout(resize, 180));
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+    resize();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>

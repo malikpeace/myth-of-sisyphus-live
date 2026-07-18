@@ -1,0 +1,4 @@
+{
+  "frame": "{\"avg\":1.36,\"max\":2.7,\"samples\":240}",
+  "state": "{\"state\":\"playing\",\"mode\":\"endless\",\"burden\":\"\",\"phase\":\"play\",\"paused\":false,\"intro\":1,\"timer\":0,\"score\":46,\"baseline\":0,\"peak\":46,\"segmentGain\":46,\"oldBest\":2494,\"newBest\":false,\"oldSelfPassed\":false,\"ghostLoaded\":true,\"ghostSamples\":64,\"ghostScore\":1543,\"challengeScore\":0,\"challengeDone\":false,\"runControlStarted\":false,\"sharePrompt\":0,\"threat\":0,\"effort\":0.831,\"resolve\":0.387,\"brace\":0,\"heaveCooldown\":0,\"heaveFlash\":0,\"recoveryCue\":0,\"recoverySaved\":0,\"hazard\":\" 0.00\",\"cosmetic\":\"none\",\"achievements\":6,\"summitShape\":0,\"leanSlope\":0.027,\"loopError\":\"\"}"
+}

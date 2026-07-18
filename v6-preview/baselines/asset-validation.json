@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "errors": [],
+  "assets": [
+    {
+      "id": "v5-sun-reference",
+      "size": [
+        64,
+        64
+      ],
+      "partialAlpha": 544,
+      "status": "reference"
+    },
+    {
+      "id": "v5-boulder-reference",
+      "size": [
+        1586,
+        992
+      ],
+      "partialAlpha": 0,
+      "status": "reference"
+    },
+    {
+      "id": "v5-foreground-tree-reference",
+      "size": [
+        290,
+        482
+      ],
+      "partialAlpha": 2243,
+      "status": "reference"
+    },
+    {
+      "id": "v6-meadow-tiles",
+      "size": [
+        64,
+        32
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-frames-v5-approved",
+      "size": [
+        512,
+        64
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-mountain-plate-candidate",
+      "size": [
+        480,
+        300
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    }
+  ]
+}

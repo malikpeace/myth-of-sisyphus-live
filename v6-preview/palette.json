@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "myth-v6-daylight",
+  "transparent": "#00000000",
+  "colors": {
+    "ink": ["#080b0d", "#11171a", "#1c2528"],
+    "sky": ["#76c5ee", "#5eb1e4", "#438fd0", "#3272b5"],
+    "mountainFar": ["#9fc8df", "#7daaca", "#608db8", "#4d73a0"],
+    "mountainNear": ["#476b91", "#345477", "#263f61", "#1b304e"],
+    "snow": ["#f4f1df", "#d9e4e8", "#b8cfdf", "#8fb1cc"],
+    "grass": ["#172d18", "#25451d", "#366323", "#4f8428", "#70a72e", "#9ac23b", "#c0d85a"],
+    "soil": ["#17100e", "#261815", "#3a241c", "#543426", "#724936", "#95664a"],
+    "stone": ["#161a1c", "#252b2d", "#383f41", "#51585a", "#707676", "#929695"],
+    "wood": ["#241713", "#3a241a", "#583824", "#795032", "#9c7145", "#c09259"],
+    "sun": ["#f09d31", "#f7bd49", "#f9d66c", "#fff1b1", "#fff8d9"],
+    "flowers": ["#f2eee0", "#e7a6bd", "#c95e89", "#e8554f", "#f1c84b"]
+  },
+  "rules": {
+    "maxRampStepsPerMaterial": 7,
+    "partialAlphaAllowed": false,
+    "runtimePaletteSubstitutionAllowed": false
+  }
+}

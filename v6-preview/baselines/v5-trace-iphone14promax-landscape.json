@@ -1,0 +1,15 @@
+{
+  "canvas": {
+    "cssHeight": "440px",
+    "cssWidth": "932px",
+    "height": 220,
+    "width": 466
+  },
+  "frame": "{\"avg\":1.35,\"max\":5.7,\"samples\":205}",
+  "state": "{\"state\":\"playing\",\"mode\":\"endless\",\"burden\":\"\",\"phase\":\"play\",\"paused\":false,\"intro\":1,\"timer\":0,\"score\":12,\"baseline\":0,\"peak\":12,\"segmentGain\":12,\"oldBest\":2494,\"newBest\":false,\"oldSelfPassed\":false,\"ghostLoaded\":true,\"ghostSamples\":2,\"ghostScore\":6,\"challengeScore\":0,\"challengeDone\":false,\"runControlStarted\":false,\"sharePrompt\":0,\"threat\":0,\"effort\":0.831,\"resolve\":0.106,\"brace\":0,\"heaveCooldown\":0,\"heaveFlash\":0,\"recoveryCue\":0,\"recoverySaved\":0,\"hazard\":\" 0.00\",\"cosmetic\":\"none\",\"achievements\":6,\"summitShape\":0,\"leanSlope\":0.007,\"loopError\":\"\"}",
+  "viewport": {
+    "dpr": 1,
+    "height": 430,
+    "width": 932
+  }
+}

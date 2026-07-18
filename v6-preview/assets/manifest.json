@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "statusValues": ["reference", "candidate", "approved", "rejected"],
+  "assets": [
+    {
+      "id": "v5-sun-reference",
+      "path": "../../assets/sun-pixel.png",
+      "role": "protected-reference",
+      "status": "reference",
+      "smoothing": false,
+      "approvedException": "authored-alpha-glow",
+      "notes": "Keep the current hard sprite and compare strict versus atmospheric glow."
+    },
+    {
+      "id": "v5-boulder-reference",
+      "path": "../../render.png",
+      "role": "protected-reference",
+      "status": "reference",
+      "smoothing": false,
+      "notes": "Preserve the owner-approved V5 boulder appearance until staged frames win."
+    },
+    {
+      "id": "v5-foreground-tree-reference",
+      "path": "../../v5/assets/v5-pine-tree-1.png",
+      "role": "protected-reference",
+      "status": "reference",
+      "smoothing": false,
+      "approvedException": "slight-depth-blur"
+    },
+    {
+      "id": "v6-meadow-tiles",
+      "path": "meadow-tiles-v1.png",
+      "role": "terrain-atlas",
+      "status": "candidate",
+      "nativeTile": [16, 16],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-boulder-frames-v5-approved",
+      "path": "boulder-frames-v5-approved.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-rotation-atlas",
+      "status": "candidate",
+      "nativeFrame": [64, 64],
+      "frames": 8,
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Offline nearest-neighbor frames preserve the approved V5 boulder while removing runtime texture rotation."
+    },
+    {
+      "id": "v6-mountain-plate-candidate",
+      "path": "mountain-plate-v6-candidate.png",
+      "source": "mountain-source-imagegen-v1.png",
+      "role": "distant-mountain-plate",
+      "status": "candidate",
+      "nativeSize": [480, 300],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Generated source was chroma-keyed, cropped by an integer factor, palette-mapped, and hard-alpha cleaned before use."
+    }
+  ]
+}
