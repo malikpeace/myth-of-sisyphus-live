@@ -182,11 +182,16 @@
       return ((n ^ (n >>> 13)) >>> 0) / 4294967295;
     }
 
+    function climbHeight(world) {
+      const w = Math.max(0, world);
+      return w * .105
+        + (1 - Math.cos(w * .008)) * 5
+        + (1 - Math.cos(w * .021 + .7)) * 1.2;
+    }
+
     function terrainY(world) {
-      const broad = Math.sin(world * 0.0065) * 20 + Math.sin(world * 0.017 + 1.8) * 7;
-      const rise = -world * 0.105;
-      let y = rise + broad;
-      if (terrainMode === "steps") y = Math.round(y / 4) * 4;
+      let y = -climbHeight(world);
+      if (terrainMode === "steps") y = Math.floor(y / 4) * 4;
       return Math.round(y);
     }
 
@@ -406,18 +411,43 @@
       const boulderX = actorX + 45;
       const boulderY = screenTerrain(boulderX) - 29;
       drawShadows(boulderX, screenTerrain(boulderX));
-      const lean = 6 + Math.round(pushPulse * 3);
+
+      const motion = Math.min(1, Math.max(0, Math.abs(velocity) / 5));
+      const gait = worldX * .34;
+      const stride = Math.round(Math.sin(gait) * 4 * motion);
+      const liftBack = Math.max(0, Math.round(Math.sin(gait + Math.PI) * 3 * motion));
+      const liftFront = Math.max(0, Math.round(Math.sin(gait) * 3 * motion));
+      const bob = Math.round(Math.abs(Math.sin(gait)) * motion);
+      const pulse = pushPulse * pushPulse * (3 - 2 * pushPulse);
+      const lean = 6 + Math.round(pulse * 3 + motion);
       const hipX = actorX - 5 + lean;
-      const hipY = ground - 21;
-      const headX = hipX + 1;
-      const headY = ground - 42;
+      const hipY = ground - 21 + bob + Math.round(pulse);
+      const shoulderX = hipX + 1;
+      const shoulderY = hipY - 15;
+      const headX = shoulderX + 1;
+      const headY = shoulderY - 7;
+      const rearFootX = actorX - 15 - stride;
+      const frontFootX = actorX + 7 + stride;
+      const rearFootY = screenTerrain(rearFootX) - 2 - liftBack;
+      const frontFootY = screenTerrain(frontFootX) - 2 - liftFront;
+      const upperContactX = boulderX - 25;
+      const upperContactY = boulderY - 4 + Math.round(pulse * 2);
+      const lowerContactX = boulderX - 25;
+      const lowerContactY = boulderY + 7 + Math.round(pulse * 2);
+      const upperElbowX = Math.round((shoulderX + upperContactX) / 2) - 1;
+      const upperElbowY = shoulderY + 5 - Math.round(Math.sin(gait) * motion);
+      const lowerElbowX = Math.round((shoulderX + lowerContactX) / 2) - 2;
+      const lowerElbowY = shoulderY + 11 + Math.round(Math.sin(gait) * motion);
+
       ctx.fillStyle = P.ink[0];
+      linePixels(ctx, hipX, hipY, rearFootX, rearFootY, 6, P.ink[0]);
+      linePixels(ctx, hipX + 2, hipY, frontFootX, frontFootY, 6, P.ink[0]);
+      linePixels(ctx, hipX, hipY, shoulderX, shoulderY, 6, P.ink[0]);
       ctx.fillRect(headX - 5, headY - 6, 10, 11);
-      linePixels(ctx, hipX, hipY, headX, headY, 6, P.ink[0]);
-      linePixels(ctx, hipX, hipY, actorX - 15, ground - 2, 6, P.ink[0]);
-      linePixels(ctx, hipX + 2, hipY, actorX + 7, ground - 2, 6, P.ink[0]);
-      linePixels(ctx, headX + 1, headY + 7, boulderX - 24, boulderY - 2 + Math.round(pushPulse * 2), 5, P.ink[0]);
-      linePixels(ctx, headX + 2, headY + 11, boulderX - 24, boulderY + 7 + Math.round(pushPulse * 2), 4, P.ink[0]);
+      linePixels(ctx, shoulderX, shoulderY + 2, upperElbowX, upperElbowY, 5, P.ink[0]);
+      linePixels(ctx, upperElbowX, upperElbowY, upperContactX, upperContactY, 5, P.ink[0]);
+      linePixels(ctx, shoulderX, shoulderY + 6, lowerElbowX, lowerElbowY, 4, P.ink[0]);
+      linePixels(ctx, lowerElbowX, lowerElbowY, lowerContactX, lowerContactY, 4, P.ink[0]);
       if (boulderAtlas.complete && boulderAtlas.naturalWidth) {
         const frame = Math.abs(Math.floor(roll)) % 8;
         ctx.drawImage(boulderAtlas, frame * 64, 0, 64, 64, boulderX - 32, boulderY - 32, 64, 64);
@@ -526,7 +556,10 @@
       if (paused) return;
       elapsed += dt;
       if (autoPush && Math.floor(elapsed * 7) !== Math.floor((elapsed - dt) * 7)) push();
-      velocity += (-0.92 - Math.max(0, Math.sin(worldX * .0065)) * .18) * dt;
+      const previousHeight = climbHeight(Math.max(0, worldX - 4));
+      const nextHeight = climbHeight(worldX + 4);
+      const grade = Math.max(0, (nextHeight - previousHeight) / 8);
+      velocity += (-.8 - grade * 1.35) * dt;
       velocity *= Math.pow(.91, dt * 10);
       velocity = Math.max(-2.1, velocity);
       worldX = Math.max(0, worldX + velocity * dt * 7.2);
