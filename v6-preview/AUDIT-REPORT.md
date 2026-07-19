@@ -108,7 +108,15 @@ Owner visual approval of the published V6 preview remains intentionally separate
 
 ## Published Preview
 
-- RC3 publish commit and live verification: pending.
+- RC3 publish commit: `1e51dd6`.
+- RC3 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=1e51dd6`.
+- GitHub Pages served the expected `sisyphus6-release-candidate-3` marker.
+- The hosted 1143m transition was rechecked at the exact 430 x 932 phone
+  viewport with no terrain seam, overflow, loop error, browser warning, or
+  browser error.
+- The hosted blend remained continuous at 0.730 rock, 0.022 galaxy, and 0.248
+  meadow, and the progressive two-row forest rendered around the player.
+- Final live iPhone capture: `baselines/v6-live-1e51dd6-iphone-1143m.png`.
 
 ### Previous RC2
 
