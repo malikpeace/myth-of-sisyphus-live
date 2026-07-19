@@ -1,7 +1,10 @@
 {
-  "generatedAt": "2026-07-18T20:25:20Z",
+  "generatedAt": "2026-07-19T00:00:00Z",
+  "runtime": "sisyphus6-release-candidate-1",
+  "canonicalViewport": "bounded dynamic integer grid",
   "meadowTileSize": 16,
   "meadowVariants": 4,
   "boulderFrameSize": 64,
-  "boulderFrames": 64
+  "boulderFrames": 112,
+  "biomeGrounds": 13
 }
