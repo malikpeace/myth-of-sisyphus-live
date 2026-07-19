@@ -66,6 +66,10 @@ Owner visual approval of the published V6 preview remains intentionally separate
 
 ## Published Preview
 
-- RC2 publish commit: pending.
-- RC2 published URL: pending.
-- RC2 live iPhone verification: pending.
+- RC2 publish commit: `0436419`.
+- RC2 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=0436419`.
+- GitHub Pages served the expected `sisyphus6-release-candidate-2` marker.
+- The published meadow asset loaded at its exact 512 x 512 native size.
+- The published game retained the exact 430 x 932 phone presentation with no
+  overflow or loop errors.
+- Final live iPhone capture: `baselines/v6-live-0436419-iphone.png`.
