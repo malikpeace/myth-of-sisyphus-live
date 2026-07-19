@@ -46,8 +46,12 @@ current source evidence plus runtime evidence at every relevant target view.
 - [x] V5 title, six-mode menu, pause, settings, records, and achievements.
 - [x] V5 clouds, sun path, birds, weather, and lighting systems retained.
 - [x] World-stable distant trees, bushes, flowers, and landmarks retained.
+- [x] Progressive two-row background forest grows from sparse meadow edge to a
+  dense 1.1km stand without moving independently of the ground.
 - [x] Oversized low foreground trees match V5 placement, fade, opacity, and blur.
 - [x] Cliff edge, bridge, waterfall, and receiver-masked shadows retained.
+- [x] Mixed-width terrain masters mirror-wrap independently with no vertical
+  meadow/rock/realm strip at 1.05-1.25km or later biome handoffs.
 - [x] Settings and save persistence use isolated V6 storage with one-time V5 import.
 - [x] Audio, haptics, milestones, achievements, and toasts retain V5 logic; real-player settings persist.
 - [x] Continuous desktop playthrough to 707m with monotonic trace and no errors.
@@ -69,7 +73,7 @@ current source evidence plus runtime evidence at every relevant target view.
 
 - [x] Full regression matrix passes.
 - [x] Validated complete runtime promoted to `/v6-preview/index.html`.
-- [x] Fresh end-to-end audit one passed after the RC2 ground revision.
-- [x] Fresh end-to-end audit two passed independently after the RC2 ground revision.
+- [x] Fresh end-to-end audit one passed after the RC3 continuity/forest revision.
+- [x] Fresh end-to-end audit two passed independently after the RC3 continuity/forest revision.
 - [x] V5 checksum is unchanged at release.
 - [ ] Explicit final visual approval.

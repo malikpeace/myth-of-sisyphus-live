@@ -3,8 +3,8 @@
 ## Candidate
 
 - Entry: `/v6-preview/index.html`
-- Build: `sisyphus6-release-candidate-2`
-- Candidate checksum: `9393e5f044788f57dea44bfa35176f1ba607cb8bcf9540110a28534f0653ee82`
+- Build: `sisyphus6-release-candidate-3`
+- Candidate checksum: `e78db84cf779b81c7fd34be948619a90591a1fe1041647c6aa44b2d3e01a3412`
 - Protected V5 checksum: `3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f`
 
 ## RC2 Ground Revision
@@ -21,6 +21,48 @@
 - The new master has 25 controlled colors and zero partial-alpha pixels. Runtime
   smoothing and runtime texture rotation remain disabled.
 - The rejected V2 ground remains available for rollback; V5 was not edited.
+
+## RC3 Terrain Continuity And Forest Revision
+
+- Corrected mixed-width terrain sampling. The 512px meadow and 256px
+  rock/realm masters now mirror-wrap using their own native dimensions, so a
+  narrower material can never disappear as a vertical rectangular strip.
+- Rechecked the full 1050-1250m meadow/rock/galaxy blend and every later
+  biome handoff; all material weights remain continuous and sum to 1.0.
+- Broadened the low-mountain forest progression. Trees begin sparsely after the
+  opening meadow, reach a dense stand through the 1.1km climb, then ease away
+  before the first high realm.
+- Added a smaller, softer far-tree row behind the main ground-anchored row.
+  Both rows remain fixed to the hillside; the camera-near foreground trees and
+  bridge exclusion behavior are unchanged.
+
+## RC3 Audit One - Passed
+
+- Rechecked 250m, 650m, 900m, every 1050-1250m blend checkpoint, and all twelve
+  later biome handoff midpoints on an exact 430 x 932 phone viewport.
+- Every settled terrain sample reported a complete alpha sum of 1.0 and no loop
+  error; the meadow faded continuously from 0.788 at 1050m to 0.006 at 1250m.
+- Inspected fresh 1143m phone and desktop-framing comparisons. The former
+  rectangular material strip is absent and the hillside remains continuous.
+- Compared progressive forest frames at 250m, 650m, 900m, and 1143m. The opening
+  stays sparse, the bridge remains clear, and the upper low-mountain climb reads
+  as a layered forest.
+- Phone game work averaged about 1.2-1.9ms per frame in settled forest views.
+
+## RC3 Audit Two - Passed
+
+- Launched Daily, Endless, Absurd, Resolve, Timed, and Rush from fresh RC3 pages;
+  each entered the requested playing state with no loop errors.
+- Rechecked the 1143m transition from a fresh phone page and the 650m bridge from
+  a separate fresh page; the terrain seam stayed absent and no tree touched the
+  bridge deck.
+- Repeated portrait to landscape to portrait rotation at exact 430 x 932,
+  932 x 430, and 430 x 932 presentation with no overflow or state errors.
+- Twenty real alternating phone taps advanced a fresh Endless run to 70m with
+  responsive controls and 0.67ms average game work per frame.
+- Browser diagnostics were empty of warnings and errors on both audit tabs.
+- Asset verification, promoted-runtime equality, and the protected V5 checksum
+  passed again after the final code change.
 
 ## RC2 Audit One - Passed
 
@@ -61,10 +103,14 @@
 
 ## Remaining Approval
 
-The RC2 technical release gates and two independent post-change audits pass.
+The RC3 technical release gates and two independent post-change audits pass.
 Owner visual approval of the published V6 preview remains intentionally separate.
 
 ## Published Preview
+
+- RC3 publish commit and live verification: pending.
+
+### Previous RC2
 
 - RC2 publish commit: `0436419`.
 - RC2 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=0436419`.

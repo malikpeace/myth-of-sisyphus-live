@@ -1,6 +1,6 @@
 {
   "generatedAt": "2026-07-19T00:00:00Z",
-  "runtime": "sisyphus6-release-candidate-2",
+  "runtime": "sisyphus6-release-candidate-3",
   "canonicalViewport": "bounded dynamic integer grid",
   "meadowTileSize": 16,
   "meadowVariants": 4,

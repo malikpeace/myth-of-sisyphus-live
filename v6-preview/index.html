@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-2">
+<meta name="sisyphus-build" content="6-release-candidate-3">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2256,7 +2256,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-2");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-3");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -8517,9 +8517,6 @@
     if (!v6MeadowGroundReady || !v6MeadowGround.naturalWidth ||
         !v6RockGroundReady || !v6RockGround.naturalWidth) return false;
     var m = g.getTransform();
-    var sourceW = v6MeadowGround.naturalWidth;
-    var sourceH = v6MeadowGround.naturalHeight;
-    var mirrorPeriod = Math.max(1, sourceW * 2 - 2);
     var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
     var layers = v6TerrainLayers(day);
     g.save();
@@ -8529,22 +8526,32 @@
       var wx = (sx - m.e) / Math.max(0.01, m.a);
       var surfaceY = Math.round(terrainLipAt(wx) * m.d + m.f);
       if (surfaceY >= VH) continue;
-      var phase = Math.floor(((wx + scroll) % mirrorPeriod + mirrorPeriod) % mirrorPeriod);
-      var sourceX = phase < sourceW ? phase : mirrorPeriod - phase;
-      var sourceY = Math.max(0, -surfaceY);
       var destY = Math.max(0, surfaceY);
-      var visibleH = Math.min(sourceH - sourceY, VH - destY);
-      if (visibleH > 0) {
-        for (var layerIndex = 0; layerIndex < layers.length; layerIndex++) {
-          var layer = layers[layerIndex];
+      var visibleBottom = destY;
+      for (var layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+        var layer = layers[layerIndex];
+        var layerW = layer.image.naturalWidth;
+        var layerH = layer.image.naturalHeight;
+        if (!layerW || !layerH) continue;
+        // Every terrain master owns its own mirror period. Meadow V3 is 512px
+        // wide while the rock/realm masters are 256px; reusing the meadow's
+        // source coordinate made the narrower material vanish for half a cycle,
+        // producing a perfectly vertical realm seam on the hillside.
+        var layerPeriod = Math.max(1, layerW * 2 - 2);
+        var layerPhase = Math.floor(((wx + scroll) % layerPeriod + layerPeriod) % layerPeriod);
+        var layerSourceX = layerPhase < layerW ? layerPhase : layerPeriod - layerPhase;
+        var layerSourceY = Math.max(0, -surfaceY);
+        var layerVisibleH = Math.min(layerH - layerSourceY, VH - destY);
+        if (layerVisibleH > 0) {
           g.globalAlpha = layer.alpha;
-          g.drawImage(layer.image, sourceX, sourceY, 1, visibleH, sx, destY, 1, visibleH);
+          g.drawImage(layer.image, layerSourceX, layerSourceY, 1, layerVisibleH, sx, destY, 1, layerVisibleH);
+          visibleBottom = Math.max(visibleBottom, destY + layerVisibleH);
         }
       }
-      if (destY + visibleH < VH) {
+      if (visibleBottom < VH) {
         g.globalAlpha = 1;
         g.fillStyle = "#080b0d";
-        g.fillRect(sx, destY + visibleH, 1, VH - destY - visibleH);
+        g.fillRect(sx, visibleBottom, 1, VH - visibleBottom);
       }
     }
     g.globalAlpha = 1;
@@ -9094,7 +9101,13 @@
   }
   function drawTreeLayer(day, cfg) {
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
-    var wfa = waterfallSceneReveal();                // trees live only in the waterfall area
+    // The low-mountain forest is a journey, not a short bell around the gorge:
+    // start sparse after the opening meadow, hold a full dense stand through the
+    // 1.1km climb, then ease away before the first high realm takes over.
+    var forestEnter = smoother01(clamp01((altitude - 120) / 360));
+    var forestExit = 1 - smoother01(clamp01((altitude - 1320) / 380));
+    var forestJourney = forestEnter * forestExit;
+    var wfa = Math.max(waterfallSceneReveal(), forestJourney);
     if (wfa <= 0.02) return;
     // Ease the forest into view as its biome arrives so whole trees never pop into
     // a frame. The ramp ends early; once present, trees remain fully opaque and
@@ -9113,7 +9126,7 @@
     // meadow edge, then a dense stand farther along the mountain. Density belongs
     // to each fixed world slot, never to the player's current frame, so trees that
     // are already visible cannot appear, disappear, or reshuffle while he walks.
-    var forestStartM = WATERFALL_FIRST - WATERFALL_VIEW + 40;
+    var forestStartM = 120;
     var blurPad = Math.ceil(((cfg.blur || 0) * 8 + 28) * RES);
     var bufW = VW * RES + blurPad * 2;
     var bufH = VH * RES + blurPad * 2;
@@ -9144,7 +9157,7 @@
         if (hash(i * 12.91 + cfg.seed) < (cfg.skip || 0)) continue;
       } else {
         var slotMeters = (i * spacing + jitterX - cfg.seed) / GROUND_SCROLL;
-        var slotWalkT = smoother01(clamp01((slotMeters - forestStartM) / 520));
+        var slotWalkT = smoother01(clamp01((slotMeters - forestStartM) / 900));
         var slotDensity = lerp(cfg.densityStart, cfg.densityEnd, slotWalkT);
         var appearKey = hash(i * 12.91 + cfg.seed);
         if (appearKey > slotDensity) continue;
@@ -9231,17 +9244,20 @@
     g.globalAlpha = 1;
     g.restore();
   }
-  // BACKGROUND forest: ground-anchored on the hillside (anchor:"ground"), DENSE
-  // (~4x the old count) with wide scale/jitter variance so it reads as a real,
-  // random forest the figure climbs through — not a sparse line. Drawn behind him.
-  // Every tree shares the terrain's world scroll. Depth comes from size, draw order,
-  // and blur; never from sliding a trunk independently of the ground beneath it.
-  var TREES_BG = { anchor: "ground", spacing: 46, densityStart: 0.08, densityEnd: 0.96, treeH: 0.34, scaleLo: 0.42, scaleHi: 1.12, jitter: 70, darken: 0.20, tint: 0.08, seed: 333, blur: 0.35 };
+  // BACKGROUND forest: two ground-anchored depth rows. The smaller, softer row
+  // fills the gaps behind the main hillside trees so the result reads as forest,
+  // not a picket line. Both rows share the terrain's exact world scroll; depth
+  // comes from scale, draw order, tone, and blur rather than sliding trunks.
+  var TREES_FAR = { anchor: "ground", spacing: 38, densityStart: 0.08, densityEnd: 0.92, treeH: 0.23, scaleLo: 0.34, scaleHi: 0.82, jitter: 58, darken: 0.34, tint: 0.13, seed: 811, blur: 0.70 };
+  var TREES_BG = { anchor: "ground", spacing: 26, densityStart: 0.10, densityEnd: 1.00, treeH: 0.33, scaleLo: 0.40, scaleHi: 1.08, jitter: 38, darken: 0.20, tint: 0.08, seed: 333, blur: 0.35 };
   // Camera-near conifers: their trunks stay below the viewport so only the upper
   // canopy sweeps across the actor, matching the original foreground framing.
   var TREES_NEAR = { anchor: "screen", par: 1.7, spacing: 520, skip: 0.50, baseYFrac: 1.16, treeH: 0.92, scaleLo: 0.95, scaleHi: 1.45, jitter: 220, darken: 0.30, tint: 0.06, seed: 0, phase: 360, blur: 1.5 };
   function drawForegroundTrees(day) { drawTreeLayer(day, TREES_NEAR); }
-  function drawBackgroundTrees(day) { drawTreeLayer(day, TREES_BG); }
+  function drawBackgroundTrees(day) {
+    drawTreeLayer(day, TREES_FAR);
+    drawTreeLayer(day, TREES_BG);
+  }
   function drawSnow(day) {
     var snow = day.snow || 0;
     if (snow <= 0.002) return;
