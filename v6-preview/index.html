@@ -59,7 +59,7 @@
   </main>
   <div id="hud" aria-hidden="true">
     <div id="title">MYTH OF SISYPHUS</div>
-    <div id="distance"><span id="metres">0000m</span><small>V6 RENDERER</small></div>
+    <div id="distance"><span id="metres">0000m</span><small id="best">BEST 0000M</small></div>
   </div>
   <button id="pause" type="button" aria-label="Pause">Ⅱ</button>
   <div id="hint">push the stone<br><span>tap anywhere</span></div>
@@ -86,6 +86,7 @@
     const ctx = canvas.getContext("2d", { alpha: false });
     const stage = document.getElementById("stage");
     const metresEl = document.getElementById("metres");
+    const bestEl = document.getElementById("best");
     const hint = document.getElementById("hint");
     const pauseButton = document.getElementById("pause");
     const statsEl = document.getElementById("stats");
@@ -108,9 +109,21 @@
     let terrainMode = params.get("terrain") === "steps" ? "steps" : "curve";
     let cinematic = params.get("strict") !== "1";
     let showGrid = false;
-    let autoPush = qa;
+    let autoPush = qa && params.get("auto") !== "0";
     let paused = false;
     const GROUND_SCROLL = 7.2;
+    const IMPULSE = 0.5;
+    const DECAY = 1.85;
+    const CLIMB = 22.1;
+    const SLIP = 6.83;
+    const ROLLBACK_ACCEL = 2.0;
+    const ROLLBACK_CAP = 66.0;
+    const IDLE_GRACE = 0.45;
+    const BASE_SLOPE = 0;
+    const MAX_SLOPE = 0.62;
+    const SLOPE_GROW = 0.38 / 650;
+    const EXTRA_STEEP_START = 450;
+    const EXTRA_STEEP_RANGE = 1150;
     const SIM_STEP = 1 / 120;
     const MAX_SIM_STEPS = 8;
     let worldX = 0;
@@ -118,6 +131,18 @@
     let viewWorldX = 0;
     let velocity = 0;
     let effort = 0;
+    let energy = 1;
+    let slideVel = 0;
+    let idleGraceTimer = 0;
+    let idleRollbackTimer = 0;
+    let currentSlope = 0;
+    let braceHeld = false;
+    let bracePower = 0;
+    let lastKey = "";
+    let runPeak = 0;
+    let bestScore = 0;
+    let castShadowDirection = 1;
+    let castShadowStrength = 0;
     let roll = 0;
     let pushPulse = 0;
     let walkPhase = 0;
@@ -126,19 +151,34 @@
     let side = 0;
     let elapsed = 0;
     let last = performance.now();
+    let lastRenderAt = 0;
     let frameMs = [];
     let drawMs = [];
+    let drawBreakdown = {};
     let lastMetresShown = -1;
+    let lastBestShown = -1;
     let nextQaPublish = 0;
     let accumulator = 0;
     let simStepsLastFrame = 0;
     let droppedSimFrames = 0;
     let resizeKey = "";
 
+    try {
+      bestScore = Math.max(0, Number(localStorage.getItem("sisyphus6.best.endless")) || 0);
+    } catch (error) {}
+    if (qa && params.has("qaMeters")) {
+      worldX = Math.max(0, Number(params.get("qaMeters")) || 0);
+      previousWorldX = worldX;
+      runPeak = worldX;
+    }
+    bestEl.textContent = `BEST ${String(Math.round(bestScore)).padStart(4, "0")}M`;
+
     const terrainCanvas = document.createElement("canvas");
     const terrainCtx = terrainCanvas.getContext("2d");
     const shadowCanvas = document.createElement("canvas");
     const shadowCtx = shadowCanvas.getContext("2d");
+    const shadowStampCanvas = document.createElement("canvas");
+    const shadowStampCtx = shadowStampCanvas.getContext("2d");
     const treeCanvas = document.createElement("canvas");
     const treeCtx = treeCanvas.getContext("2d");
     const foregroundTreeCanvas = document.createElement("canvas");
@@ -214,26 +254,33 @@
       return ((value % divisor) + divisor) % divisor;
     }
 
-    function climbHeight(world) {
-      const w = Math.max(0, world);
-      return w * .105
-        + (1 - Math.cos(w * .008)) * 5
-        + (1 - Math.cos(w * .021 + .7)) * 1.2;
-    }
-
     function cameraWorld(metres) {
-      return metres * GROUND_SCROLL / scale;
+      return metres * GROUND_SCROLL;
     }
 
-    function terrainY(world) {
-      let y = -climbHeight(world);
-      if (terrainMode === "steps") y = Math.floor(y / 4) * 4;
-      return y;
+    function baseSlopeAt(metres) {
+      const m = Math.max(0, metres);
+      const early = Math.min(0.38, BASE_SLOPE + m * SLOPE_GROW);
+      let extra = clamp01((m - EXTRA_STEEP_START) / EXTRA_STEEP_RANGE);
+      extra = extra * extra * (3 - 2 * extra);
+      return Math.min(MAX_SLOPE, early + extra * (MAX_SLOPE - 0.38));
+    }
+
+    function terrainRough(world) {
+      const cell = 54;
+      const index = Math.floor(world / cell);
+      let local = (world - index * cell) / cell;
+      local = local * local * (3 - 2 * local);
+      const jitter = lerp(hash(index, 41) - .5, hash(index + 1, 41) - .5, local) * 1.35;
+      return Math.sin(world * .020 + .8) * .95 + Math.sin(world * .048 + 2.3) * .42 + jitter;
     }
 
     function screenTerrainFloat(sx) {
-      const cameraY = terrainY(viewWorldX) - anchorY;
-      return terrainY(viewWorldX + sx - actorX) - cameraY;
+      const world = viewWorldX + sx - actorX;
+      let y = anchorY - currentSlope * (sx - actorX)
+        + terrainRough(world) - terrainRough(viewWorldX);
+      if (terrainMode === "steps") y = Math.round(y / 4) * 4;
+      return y;
     }
 
     function screenTerrain(sx) {
@@ -388,7 +435,7 @@
       if (tileAtlas.complete && tileAtlas.naturalWidth) {
         const tileSize = 16;
         const cameraLeft = viewWorldX - actorX;
-        const cameraTop = terrainY(viewWorldX) - anchorY;
+        const cameraTop = cameraWorld(worldX) * currentSlope - anchorY;
         const startX = -Math.floor(positiveMod(cameraLeft, tileSize)) - tileSize;
         let minY = H;
         for (let x = 0; x <= W + tileSize; x += tileSize) minY = Math.min(minY, screenTerrain(x));
@@ -442,16 +489,92 @@
       foregroundTreeCtx.filter = "none";
     }
 
+    function buildShadowStamp() {
+      shadowStampCanvas.width = 64;
+      shadowStampCanvas.height = 20;
+      const pixels = shadowStampCtx.createImageData(64, 20);
+      for (let y = 0; y < 20; y += 1) {
+        for (let x = 0; x < 64; x += 1) {
+          const nx = (x - 31.5) / 31.5;
+          const ny = (y - 9.5) / 9.5;
+          const distance = Math.sqrt(nx * nx + ny * ny);
+          const falloff = Math.pow(Math.max(0, 1 - distance), 1.45);
+          const index = (y * 64 + x) * 4;
+          pixels.data[index] = 2;
+          pixels.data[index + 1] = 12;
+          pixels.data[index + 2] = 7;
+          pixels.data[index + 3] = Math.round(falloff * 255);
+        }
+      }
+      shadowStampCtx.putImageData(pixels, 0, 0);
+    }
+
     function drawShadows(boulderX, groundY) {
       const s = shadowCtx;
       s.clearRect(0, 0, W, H);
-      const sunX = W * .27;
-      const direction = boulderX < sunX ? 1 : -1;
-      const length = 72 + Math.abs(boulderX - sunX) * .08;
-      pixelEllipse(s, boulderX + direction * length * .38, groundY + 6, Math.round(length * .52), 8, "rgba(9,21,13,.22)");
-      pixelEllipse(s, actorX + direction * 28, groundY + 5, 39, 5, "rgba(9,21,13,.25)");
-      pixelEllipse(s, boulderX, groundY + 2, 27, 6, "rgba(6,15,9,.36)");
-      for (let x = 0; x < W; x += 1) s.clearRect(x, 0, 1, Math.max(0, screenTerrain(x)));
+      const portrait = H > W * 1.35;
+      const sunX = W * (portrait ? .28 : .27);
+      const sunY = H * (portrait ? .13 : .16);
+      const targetDirection = Math.max(-1, Math.min(1, (boulderX - sunX) / Math.max(54, W * .14)));
+      const targetStrength = 1;
+      castShadowDirection += (targetDirection - castShadowDirection) * .08;
+      castShadowStrength += (targetStrength - castShadowStrength) * .12;
+      const direction = Math.abs(castShadowDirection) < .025 ? 0 : castShadowDirection;
+      const lowLight = clamp01(sunY / Math.max(1, H * .34));
+      const length = (62 + lowLight * 58) * castShadowStrength;
+
+      function softEllipse(cx, cy, rx, ry, alpha) {
+        const width = Math.max(2, Math.round(rx * 2.32));
+        const height = Math.max(2, Math.round(ry * 2.7));
+        s.globalAlpha = Math.max(0, Math.min(1, alpha));
+        s.drawImage(shadowStampCanvas, Math.round(cx - width / 2), Math.round(cy - height / 2), width, height);
+        s.globalAlpha = 1;
+      }
+
+      s.save();
+      s.beginPath();
+      s.moveTo(0, screenTerrain(0));
+      for (let x = 4; x < W; x += 4) s.lineTo(x, screenTerrain(x));
+      s.lineTo(W, screenTerrain(W));
+      s.lineTo(W, H);
+      s.lineTo(0, H);
+      s.closePath();
+      s.clip();
+
+      const castReach = direction * length;
+      softEllipse(
+        boulderX + castReach * .34,
+        screenTerrain(Math.round(boulderX + castReach * .34)) + 4,
+        Math.max(18, Math.abs(castReach) * .46),
+        7.2,
+        .40 * castShadowStrength
+      );
+      softEllipse(
+        boulderX + castReach * .20,
+        screenTerrain(Math.round(boulderX + castReach * .20)) + 3,
+        Math.max(15, Math.abs(castReach) * .30),
+        6.1,
+        .34 * castShadowStrength
+      );
+
+      for (let i = 8; i >= 0; i -= 1) {
+        const u = i / 8;
+        const x = boulderX + direction * length * u;
+        const y = screenTerrain(Math.round(x)) + 3;
+        softEllipse(x, y, 25 - u * 13, 6.5 - u * 3.2, .72 * Math.pow(1 - u, .72));
+      }
+
+      const manLength = length * .62;
+      for (let i = 6; i >= 0; i -= 1) {
+        const u = i / 6;
+        const x = actorX - 8 + direction * manLength * u;
+        const y = screenTerrain(Math.round(x)) + 3;
+        softEllipse(x, y, 15 - u * 7, 4.2 - u * 1.8, .58 * Math.pow(1 - u, .8));
+      }
+
+      softEllipse(boulderX, groundY + 2, 25, 6, .82);
+      softEllipse(actorX - 7, screenTerrain(actorX - 7) + 2, 17, 3.5, .68);
+      s.restore();
       ctx.drawImage(shadowCanvas, 0, 0);
     }
 
@@ -503,11 +626,11 @@
 
       const boulderPoint = localPoint(boulderLocalX, boulderLocalY);
       drawShadows(boulderPoint.x, screenTerrain(Math.round(boulderPoint.x)));
-      const pushDrive = smoother01(clamp01(pushPulse / .72));
+      const pushDrive = smoother01(clamp01(pushPulse * .78));
       if (boulderAtlas.complete && boulderAtlas.naturalWidth) {
         const frameCount = Math.max(1, Math.floor(boulderAtlas.naturalWidth / 64));
         const frame = Math.floor(positiveMod(roll - theta, Math.PI * 2) / (Math.PI * 2) * frameCount) % frameCount;
-        const squash = pushDrive > .02 ? Math.min(2, Math.round(pushDrive * 2)) : 0;
+        const squash = 0;
         ctx.drawImage(boulderAtlas, frame * 64, 0, 64, 64,
           Math.round(boulderPoint.x - 32 - squash), Math.round(boulderPoint.y - 32 + squash),
           64 + squash * 2, 64 - squash * 2);
@@ -665,6 +788,7 @@
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
       ctx.imageSmoothingEnabled = false;
+      const backgroundStart = qa ? performance.now() : 0;
       drawSky();
       drawSun();
       drawClouds(0);
@@ -672,37 +796,113 @@
       drawClouds(1);
       if (!drawAuthoredMountains()) drawMountainLayer(1);
       drawDistantTrees();
+      const terrainStart = qa ? performance.now() : 0;
       drawTerrain();
       drawProps();
+      const actorStart = qa ? performance.now() : 0;
       drawActor();
+      const foregroundStart = qa ? performance.now() : 0;
       drawForegroundTree();
       drawGrid();
+      if (qa) {
+        const done = performance.now();
+        drawBreakdown = {
+          background: Number((terrainStart - backgroundStart).toFixed(2)),
+          terrain: Number((actorStart - terrainStart).toFixed(2)),
+          actor: Number((foregroundStart - actorStart).toFixed(2)),
+          foreground: Number((done - foregroundStart).toFixed(2))
+        };
+      }
     }
 
-    function push() {
+    function nextTapKey() {
+      return lastKey === "L" ? "R" : "L";
+    }
+
+    function startBrace() {
+      if (!paused) braceHeld = true;
+    }
+
+    function stopBrace() {
+      braceHeld = false;
+    }
+
+    function push(key = nextTapKey()) {
       if (paused) return;
       side = 1 - side;
-      velocity = Math.min(15, velocity + 1.8);
-      effort = Math.min(1, effort + .16);
-      pushPulse = 1;
+      if (key !== lastKey) {
+        effort = Math.min(1, effort + IMPULSE);
+        lastKey = key;
+        pushPulse = Math.max(pushPulse, .22);
+      } else {
+        effort = Math.min(1, effort + .05);
+      }
       hint.classList.add("hidden");
     }
 
     function update(dt) {
       if (paused) return;
       elapsed += dt;
-      if (autoPush && Math.floor(elapsed * 7) !== Math.floor((elapsed - dt) * 7)) push();
-      const previousCamera = cameraWorld(Math.max(0, worldX - 4));
-      const nextCamera = cameraWorld(worldX + 4);
-      const cameraSpan = Math.max(.001, nextCamera - previousCamera);
-      const grade = Math.max(0, (climbHeight(nextCamera) - climbHeight(previousCamera)) / cameraSpan);
-      velocity += (-.8 - grade * 1.35) * dt;
-      velocity *= Math.pow(.91, dt * 10);
-      velocity = Math.max(-2.1, velocity);
+      if (autoPush && Math.floor(elapsed * 7) !== Math.floor((elapsed - dt) * 7)) push(nextTapKey());
+
+      effort *= Math.exp(-DECAY * dt);
+      if (effort < .004) effort = 0;
+      bracePower += ((braceHeld ? 1 : 0) - bracePower) * Math.min(1, dt * (braceHeld ? 7.5 : 8.5));
+      if (braceHeld) energy = Math.max(0, energy - dt * .03);
+      currentSlope = baseSlopeAt(worldX);
+
+      const slip = SLIP * (.5 + currentSlope * 1.4);
+      const pushPower = effort * CLIMB * (.96 + energy * .06);
+      let net = pushPower - slip;
+      if (effort > .08 && net < 0) {
+        net = .08 + effort * .18;
+        slideVel = 0;
+      }
+      if (effort > .08) {
+        idleGraceTimer = IDLE_GRACE;
+        idleRollbackTimer = 0;
+      }
+
+      if (worldX <= 0 && net < 0) {
+        velocity = 0;
+        slideVel = 0;
+        idleRollbackTimer = 0;
+      } else if (net >= 0) {
+        idleRollbackTimer = Math.max(0, idleRollbackTimer - dt * 4);
+        slideVel = effort > .08 ? 0 : Math.max(0, slideVel - (18 + pushPower) * dt);
+        velocity = net;
+      } else if (idleGraceTimer > 0 && worldX > 0) {
+        idleGraceTimer = Math.max(0, idleGraceTimer - dt);
+        idleRollbackTimer = 0;
+        slideVel = 0;
+        velocity = 0;
+        if (idleGraceTimer < .3) bracePower = Math.max(bracePower, .42);
+      } else {
+        idleRollbackTimer = bracePower > .55
+          ? Math.max(0, idleRollbackTimer - dt * 2.5)
+          : Math.min(6, idleRollbackTimer + dt);
+        const idleRamp = clamp01(idleRollbackTimer / 3);
+        const recover = clamp01(bracePower * .52);
+        const downhill = -net * (1 - recover * .46) * (1 + idleRamp * idleRamp * 9);
+        const cap = Math.min(ROLLBACK_CAP * (1 + idleRamp * 9), 14 + currentSlope * 137 + idleRamp * 520);
+        slideVel = Math.min(cap, slideVel + downhill * ROLLBACK_ACCEL * dt);
+        velocity = -slideVel;
+      }
+
       worldX = Math.max(0, worldX + velocity * dt);
+      runPeak = Math.max(runPeak, worldX);
+      if (worldX > bestScore) {
+        bestScore = worldX;
+        try { localStorage.setItem("sisyphus6.best.endless", String(Math.round(bestScore))); } catch (error) {}
+      }
+
       const activityTarget = clamp01(effort * 1.6);
       actorActivity += (activityTarget - actorActivity) * Math.min(1, 8 * dt);
-      const braceTarget = worldX > .5 && velocity < -.25 ? clamp01(-velocity / 2.1) : 0;
+      const falling = worldX > .2 && velocity < -.6;
+      const braceTarget = Math.max(
+        falling ? clamp01(-velocity / 10) : 0,
+        falling && braceHeld ? bracePower * .35 : 0
+      );
       actorBrace += (braceTarget - actorBrace) * Math.min(1, (braceTarget > actorBrace ? 14 : 7) * dt);
       if (Math.abs(velocity) > .5) walkPhase += velocity * dt * .10;
       else {
@@ -710,17 +910,14 @@
         walkPhase += (nearestStep - walkPhase) * Math.min(1, 5 * dt);
       }
       roll += velocity * dt * (velocity < 0 ? .52 : .13);
-      effort = Math.max(0, effort - dt * .18);
-      pushPulse = Math.max(0, pushPulse - dt * 2.7);
+      const drain = effort * (.015 + currentSlope * .055 + .012);
+      energy = clamp01(energy - drain * dt + (effort < .09 ? .18 : .035) * dt);
+      pushPulse = Math.max(0, pushPulse - dt * 2.2);
     }
 
     function frame(now) {
       const raw = Math.min(50, Math.max(0, now - last));
       last = now;
-      if (qa) {
-        frameMs.push(raw);
-        if (frameMs.length > 240) frameMs.shift();
-      }
       if (!paused) accumulator += raw / 1000;
       simStepsLastFrame = 0;
       while (accumulator >= SIM_STEP && simStepsLastFrame < MAX_SIM_STEPS) {
@@ -733,12 +930,26 @@
         accumulator = 0;
         droppedSimFrames += 1;
       }
+      if (lastRenderAt && now - lastRenderAt < 15.5) {
+        requestAnimationFrame(frame);
+        return;
+      }
+      if (qa && lastRenderAt) {
+        frameMs.push(now - lastRenderAt);
+        if (frameMs.length > 240) frameMs.shift();
+      }
+      lastRenderAt = now;
       const renderAlpha = paused ? 1 : accumulator / SIM_STEP;
       viewWorldX = cameraWorld(lerp(previousWorldX, worldX, renderAlpha));
       const metresNow = Math.round(worldX);
       if (metresNow !== lastMetresShown) {
         lastMetresShown = metresNow;
         metresEl.textContent = `${String(metresNow).padStart(4, "0")}m`;
+      }
+      const bestNow = Math.round(bestScore);
+      if (bestNow !== lastBestShown) {
+        lastBestShown = bestNow;
+        bestEl.textContent = `BEST ${String(bestNow).padStart(4, "0")}M`;
       }
       const drawStart = qa ? performance.now() : 0;
       draw();
@@ -752,6 +963,11 @@
           const state = {
             worldX: Number(worldX.toFixed(2)),
             velocity: Number(velocity.toFixed(2)),
+            effort: Number(effort.toFixed(3)),
+            energy: Number(energy.toFixed(3)),
+            slope: Number(currentSlope.toFixed(3)),
+            peak: Number(runPeak.toFixed(2)),
+            best: Number(bestScore.toFixed(2)),
             terrainMode,
             cinematic,
             logical: `${W}x${H}`,
@@ -766,22 +982,70 @@
             frameAvg: Number(avg.toFixed(2)),
             frameMax: Number(Math.max(...frameMs).toFixed(2)),
             drawAvg: Number(drawAvg.toFixed(2)),
-            drawMax: Number(Math.max(...drawMs).toFixed(2))
+            drawMax: Number(Math.max(...drawMs).toFixed(2)),
+            drawBreakdown
           };
           document.body.dataset.v6State = JSON.stringify(state);
-          if (statsEl) statsEl.textContent = `grid ${W}x${H} @ ${scale}x\nframe ${state.frameAvg}ms / draw ${state.drawAvg}ms\nworld ${state.worldX}m / camera ${state.cameraX}px\nvelocity ${state.velocity} / sim ${state.simSteps}`;
+          if (statsEl) statsEl.textContent = `grid ${W}x${H} @ ${scale}x\nframe ${state.frameAvg}ms / draw ${state.drawAvg}ms\nscore ${state.worldX}m / peak ${state.peak}m\neffort ${state.effort} / speed ${state.velocity}\ncamera ${state.cameraX}px / sim ${state.simSteps}`;
         }
       }
       requestAnimationFrame(frame);
     }
 
-    stage.addEventListener("pointerdown", (event) => { event.preventDefault(); push(); });
-    addEventListener("keydown", (event) => {
-      if (["ArrowLeft", "ArrowRight", " ", "a", "d", "A", "D"].includes(event.key)) {
+    function shouldIgnorePressTarget(target) {
+      return !!(target && target.closest && target.closest("#pause, #qa"));
+    }
+
+    stage.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      push(nextTapKey());
+      startBrace();
+    }, { passive: false });
+    stage.addEventListener("pointerup", stopBrace, { passive: true });
+    stage.addEventListener("pointercancel", stopBrace, { passive: true });
+    document.addEventListener("pointerup", stopBrace, { passive: true });
+    document.addEventListener("pointercancel", stopBrace, { passive: true });
+    document.addEventListener("pointerdown", (event) => {
+      if (shouldIgnorePressTarget(event.target)) return;
+      push(nextTapKey());
+      startBrace();
+    }, { passive: true });
+    if (!window.PointerEvent) {
+      stage.addEventListener("mousedown", (event) => {
         event.preventDefault();
-        push();
+        event.stopPropagation();
+        push(nextTapKey());
+        startBrace();
+      }, { passive: false });
+      stage.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        push(nextTapKey());
+        startBrace();
+      }, { passive: false });
+      document.addEventListener("mouseup", stopBrace, { passive: true });
+      document.addEventListener("touchend", stopBrace, { passive: true });
+      document.addEventListener("touchcancel", stopBrace, { passive: true });
+    }
+    addEventListener("keydown", (event) => {
+      if (event.repeat) return;
+      if (["ArrowLeft", "a", "A"].includes(event.key)) {
+        event.preventDefault();
+        push("L");
+      } else if (["ArrowRight", "d", "D"].includes(event.key)) {
+        event.preventDefault();
+        push("R");
+      } else if (event.key === " " || event.key === "Spacebar" || event.code === "Space") {
+        event.preventDefault();
+        push(nextTapKey());
+        startBrace();
       }
     }, { passive: false });
+    addEventListener("keyup", (event) => {
+      if (event.key === " " || event.key === "Spacebar" || event.code === "Space") stopBrace();
+    }, { passive: true });
+    addEventListener("blur", stopBrace, { passive: true });
     pauseButton.addEventListener("click", (event) => {
       event.stopPropagation();
       paused = !paused;
@@ -810,13 +1074,14 @@
     });
     document.getElementById("reset").addEventListener("click", (event) => {
       event.stopPropagation();
-      worldX = 0; previousWorldX = 0; viewWorldX = 0; velocity = 0; effort = 0; roll = 0; walkPhase = 0; actorActivity = 0; actorBrace = 0; elapsed = 0; accumulator = 0; lastMetresShown = -1;
+      worldX = 0; previousWorldX = 0; viewWorldX = 0; velocity = 0; effort = 0; energy = 1; slideVel = 0; idleGraceTimer = 0; idleRollbackTimer = 0; currentSlope = 0; braceHeld = false; bracePower = 0; lastKey = ""; runPeak = 0; roll = 0; walkPhase = 0; actorActivity = 0; actorBrace = 0; elapsed = 0; accumulator = 0; lastMetresShown = -1;
     });
     addEventListener("resize", resize);
     addEventListener("orientationchange", () => setTimeout(resize, 180));
     foregroundTree.addEventListener("load", buildForegroundTreeCache);
     if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
     resize();
+    buildShadowStamp();
     requestAnimationFrame(frame);
   })();
   </script>
