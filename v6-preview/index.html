@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-1">
+<meta name="sisyphus-build" content="6-release-candidate-2">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
 <link rel="preload" as="image" href="v5/assets/mountain-bg-sky-imagegen-v2.png">
 <link rel="preload" as="image" href="v5/assets/mountain-bg-mountains-imagegen-v4.png">
-<link rel="preload" as="image" href="v6-preview/assets/meadow-ground-v2.png">
+<link rel="preload" as="image" href="v6-preview/assets/meadow-ground-v3.png">
 <link rel="preload" as="image" href="v6-preview/assets/rock-ground-v1.png">
 <style>
   :root { color-scheme: dark; }
@@ -2256,7 +2256,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-1");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-2");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2786,7 +2786,7 @@
   grassGroundTex.src = "v5/assets/v5-meadow-ground-approved.png";
   var v6MeadowGround = new Image(), v6MeadowGroundReady = false;
   v6MeadowGround.onload = function () { v6MeadowGroundReady = true; };
-  v6MeadowGround.src = "v6-preview/assets/meadow-ground-v2.png";
+  v6MeadowGround.src = "v6-preview/assets/meadow-ground-v3.png";
   var v6RockGround = new Image(), v6RockGroundReady = false;
   v6RockGround.onload = function () { v6RockGroundReady = true; };
   v6RockGround.src = "v6-preview/assets/rock-ground-v1.png";

@@ -42,11 +42,22 @@
       "path": "meadow-ground-v2.png",
       "source": "source/meadow-ground-imagegen-source-v2.png",
       "role": "terrain-master",
-      "status": "candidate",
+      "status": "rejected",
       "nativeSize": [256, 512],
       "smoothing": false,
       "rotationAllowed": false,
-      "notes": "V5-inspired generated source reduced, palette-mapped, cluster-cleaned, and extended into native logical-pixel soil. Rendered as world-locked mirrored columns so it follows terrain without rotated textures."
+      "notes": "Retained for rollback. Rejected because the narrow palette, shallow grass band, and procedural deep-soil extension felt flatter and less alive than V5."
+    },
+    {
+      "id": "v6-meadow-ground-v3",
+      "path": "meadow-ground-v3.png",
+      "source": "../../v5/assets/v5-meadow-ground-approved.png",
+      "role": "terrain-master",
+      "status": "candidate",
+      "nativeSize": [512, 512],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Rebuilt directly from the protected V5 meadow reference at native logical-pixel scale. Doubles horizontal variation, deepens the living grass layer, preserves organic roots and stones, uses 25 opaque colors, and remains world-locked with no runtime rotation or smoothing."
     },
     {
       "id": "v6-rock-ground-v1",
