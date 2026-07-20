@@ -75,5 +75,11 @@ current source evidence plus runtime evidence at every relevant target view.
 - [x] Validated complete runtime promoted to `/v6-preview/index.html`.
 - [x] Fresh end-to-end audit one passed after the RC3 continuity/forest revision.
 - [x] Fresh end-to-end audit two passed independently after the RC3 continuity/forest revision.
+- [x] Explicit Night style applies a clipped moonlit grade to terrain, bridges,
+  and later backdrops without softening or changing the native pixel grid.
+- [x] Automatic night stages fade the world palette and moonlight together;
+  daytime remains ungraded at the exact phone target.
+- [x] Night opening, bridge, progressive forest, snow transition, and deep-realm
+  checks retain readable silhouettes and authored biome identity.
 - [x] V5 checksum is unchanged at release.
 - [ ] Explicit final visual approval.

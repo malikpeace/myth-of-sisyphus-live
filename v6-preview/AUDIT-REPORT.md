@@ -3,8 +3,8 @@
 ## Candidate
 
 - Entry: `/v6-preview/index.html`
-- Build: `sisyphus6-release-candidate-3`
-- Candidate checksum: `e78db84cf779b81c7fd34be948619a90591a1fe1041647c6aa44b2d3e01a3412`
+- Build: `sisyphus6-release-candidate-4`
+- Candidate checksum: `e91705209dd7b1b67980f8bc5b2585060d74b9a2ecbf2b25468fe9153093144a`
 - Protected V5 checksum: `3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f`
 
 ## RC2 Ground Revision
@@ -35,6 +35,37 @@
 - Added a smaller, softer far-tree row behind the main ground-anchored row.
   Both rows remain fixed to the hillside; the camera-near foreground trees and
   bridge exclusion behavior are unchanged.
+
+## RC4 Moonlit World Revision
+
+- Recolored the complete V6 world at night instead of tinting the sky alone.
+  Grass now settles into a muted blue-green and exposed soil into deep navy,
+  while flowers, roots, stones, and terrain depth remain readable.
+- The night treatment is clipped to the exact terrain silhouette after the
+  hard-pixel terrain pass. It cannot create a floating rectangle, soften an
+  edge, or change the native pixel grid.
+- Added coordinated moonlight treatment for the gorge, waterfall, later
+  backdrops, and both bridge renderers so warm daytime materials do not remain
+  isolated inside a blue night scene.
+- Automatic night stages now retain their night strength through every realm
+  blend. The moon, stars, backdrop, and terrain fade together instead of
+  appearing or disappearing independently.
+- Snow, storm, volcanic, aurora, Elysium, galaxy, and void terrain preserve
+  their authored realm identity with a reduced adaptive night grade.
+- Explicit Night style and automatic night progression share the same palette
+  logic. The daytime Classic style remains completely ungraded.
+
+## RC4 Night Audit - Passed
+
+- Inspected fresh exact 430 x 932 phone captures at the opening, 650m bridge,
+  900m automatic night stage, and 1143m progressive forest.
+- Rechecked the 4175m snow/storm transition and the 8200m volcanic/aurora
+  transition; terrain detail stayed visible without reverting to warm brown.
+- The daytime control reported `0.000` terrain and backdrop night strength,
+  no document overflow, and about 1.1ms average game work per frame.
+- The RC4 runtime marker, asset verification, promoted-runtime equality, and
+  source whitespace checks pass with no loop error.
+- Phone captures are stored as `baselines/v6-night-rc4-*-phone.png`.
 
 ## RC3 Audit One - Passed
 
@@ -103,7 +134,7 @@
 
 ## Remaining Approval
 
-The RC3 technical release gates and two independent post-change audits pass.
+The RC4 technical release gates and the moonlit-world audit pass.
 Owner visual approval of the published V6 preview remains intentionally separate.
 
 ## Published Preview

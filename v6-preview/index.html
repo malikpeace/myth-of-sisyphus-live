@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-3">
+<meta name="sisyphus-build" content="6-release-candidate-4">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2256,7 +2256,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-3");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-4");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2583,6 +2583,7 @@
   // night/green/ember/void reset to classic every visit. Now they persist.
   var savedLook = storageGet("sisyphus5.look", storageGet("sisyphus.look", ""));
   if (/^(classic|noir|void)$/.test(savedLook)) customize.look = savedLook;   // green/ember removed — old saves fall back to classic
+  if (QA_STATE && /^(classic|noir|void)$/.test(params.get("qaLook") || "")) customize.look = params.get("qaLook");
   // FX picker retired — the game is locked to "calm" (the minimal effect level).
   customize.fx = "calm";
   storageRemove("sisyphus5.stone");
@@ -6464,6 +6465,7 @@
   function buildStageDay(st) {
     var day = sampleDay(st.cycle);
     day.stage = st.name;
+    day.night = st.name === "night" ? 1 : (st.name === "storm" ? 0.82 : 0);
     day.cycle = st.cycle;
     day.tint = st.tint;
     day.tintA = st.tintA || 0;
@@ -6502,6 +6504,7 @@
       tint: mix(a.tint, b.tint, t),
       tintA: lerp(a.tintA || 0, b.tintA || 0, t),
       rain: lerp(a.rain || 0, b.rain || 0, t),
+      night: lerp(a.night || 0, b.night || 0, t),
       sun: {
         a: lerp(a.sun.a, b.sun.a, t),
         y: lerp(a.sun.y, b.sun.y, t),
@@ -6717,6 +6720,26 @@
       day.tint = mix(day.tint || [210, 220, 228], [64, 38, 118], 0.72);
       day.tintA = Math.max(day.tintA || 0, 0.18 * gt);
       day.sun.a *= (1 - gt);
+    }
+    // Scene-specific atmosphere (mist, snow, above-clouds) can brighten the
+    // palette after the stage was classified as night. Reassert the nocturnal
+    // ambient at the end so automatic night and the selected Night style remain
+    // coherent through every realm instead of reverting to daylight-grey.
+    var finalNightA = customize.look === "noir" ? 1 : clamp01(day.night || 0);
+    var paletteNightA = finalNightA * (1 - 0.72 * v6IntrinsicNightRealm(day));
+    if (paletteNightA > 0.002) {
+      var nightSky = [[8, 12, 30], [14, 20, 44], [22, 30, 58], [30, 40, 70]];
+      for (var fns = 0; fns < day.sky.length; fns++) {
+        day.sky[fns] = mix(day.sky[fns], nightSky[fns], 0.62 * paletteNightA);
+      }
+      day.ground = mix(day.ground, [13, 18, 34], 0.58 * paletteNightA);
+      day.far = mix(day.far, [18, 25, 48], 0.62 * paletteNightA);
+      day.mid = mix(day.mid, [12, 18, 38], 0.64 * paletteNightA);
+      day.near = mix(day.near, [8, 13, 28], 0.66 * paletteNightA);
+      day.cloud = mix(day.cloud, [42, 50, 76], 0.72 * paletteNightA);
+      day.tint = mix(day.tint || [20, 28, 54], [10, 18, 42], 0.64 * paletteNightA);
+      day.tintA = Math.max(day.tintA || 0, 0.18 * paletteNightA);
+      day.sun.a *= (1 - finalNightA);
     }
     return day;
   }
@@ -8133,12 +8156,12 @@
       return { x: nmp.x, y: nmp.y, strength: 0.42 * rainDim * clamp01(1 - (day.galaxy || 0) * 0.7), col: [150, 172, 224] };
     }
     var sunGate = clamp01(((((day.sun && day.sun.a) || 0)) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
-    sunGate *= sunCycleVisibility(cycle);
+    sunGate *= sunCycleVisibility(cycle) * (1 - clamp01(day.night || 0));
     if (sunGate > 0.02) {
       var sp = sunArcPoint(clamp01(cycle / 0.72));
       return { x: sp.x, y: sp.y, strength: clamp01(sunGate * 2.2) * rainDim * (0.55 + 0.45 * sp.lift), col: [255, 238, 198] };
     }
-    var moonGate = clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20);
+    var moonGate = Math.max(clamp01(day.night || 0), clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20));
     if (moonGate > 0.02) {
       var moonPhase = cycle >= 0.72 ? (cycle - 0.72) / 0.46 : (cycle + 0.28) / 0.46;
       var mp = arcPoint(clamp01(moonPhase));
@@ -8153,8 +8176,8 @@
     var topLum = lum(day.sky[0]);
     var brightSky = Math.max(lum(day.sky[1]), lum(day.sky[2]), lum(day.sky[3]));
     var sunGate = clamp01((((day.sun && day.sun.a) || 0) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
-    sunGate *= sunCycleVisibility(cycle);
-    var moonGate = clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20);
+    sunGate *= sunCycleVisibility(cycle) * (1 - clamp01(day.night || 0));
+    var moonGate = Math.max(clamp01(day.night || 0), clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20));
     if (customize.look === "noir") {
       // NIGHT theme: a moon takes the sun's arc — always up, sweeping from the
       // top-left across the sky as you climb. (The day cycle reads "dawn" at the
@@ -8513,6 +8536,84 @@
     }
     return layers;
   }
+  function v6IntrinsicNightRealm(day) {
+    if (!day) return 0;
+    var r4 = day.r4 || {};
+    var luminousRealms = clamp01(((r4.volcanic || 0) + (r4.aurora || 0) + (r4.elysium || 0) + (r4.thevoid || 0)) * 0.9);
+    var pair = v6TerrainMaterialPair(altitude);
+    var authoredNightValue = { galaxy: 1, snow: 0.70, storm: 0.55, volcanic: 0.90, aurora: 0.90, elysium: 0.82, void: 1 };
+    var pairIdentity = (authoredNightValue[pair.first] || 0) * pair.firstW + (authoredNightValue[pair.second] || 0) * pair.secondW;
+    return clamp01(Math.max(day.galaxy || 0, (day.snow || 0) * 0.70, (r4.storm || 0) * 0.55, luminousRealms, pairIdentity));
+  }
+  function v6TerrainNightAmount(day) {
+    if (!day || customize.look === "void") return 0;
+    var explicitNight = customize.look === "noir" ? 1 : 0;
+    var skyNight = smoother01(clamp01((0.31 - lum(day.sky[1])) / 0.19));
+    return Math.max(explicitNight, clamp01(day.night || 0), skyNight * 0.82);
+  }
+  function drawV6TerrainNightGrade(day, worldTransform) {
+    var nightA = v6TerrainNightAmount(day) * (1 - 0.68 * v6IntrinsicNightRealm(day));
+    if (QA_STATE && document.body) {
+      document.body.setAttribute("data-v6-night-ground", nightA.toFixed(3));
+    }
+    if (nightA <= 0.002) return;
+
+    // Grade the already-rendered terrain instead of replacing it with the older
+    // night atlas. The clip follows the exact terrain lip, so no blue rectangle can
+    // spill into the sky, and the flat compositing passes preserve every hard pixel.
+    g.save();
+    g.beginPath();
+    g.moveTo(0, VH);
+    for (var sx = 0; sx <= VW; sx++) {
+      var wx = (sx - worldTransform.e) / Math.max(0.01, worldTransform.a);
+      var surfaceY = Math.round(terrainLipAt(wx) * worldTransform.d + worldTransform.f);
+      g.lineTo(sx, Math.max(0, Math.min(VH, surfaceY)));
+    }
+    g.lineTo(VW, VH);
+    g.closePath();
+    g.clip();
+
+    // Moonlit value first, then a restrained blue chroma cast. Soil stays deep
+    // and dimensional; grass becomes blue-green instead of fluorescent daytime
+    // green. A slight depth gradient gives the exposed earth a colder lower edge.
+    g.globalCompositeOperation = "multiply";
+    g.fillStyle = css([64, 82, 132], 0.68 * nightA);
+    g.fillRect(0, 0, VW, VH);
+    g.globalCompositeOperation = "color";
+    g.fillStyle = css([28, 46, 88], 0.30 * nightA);
+    g.fillRect(0, 0, VW, VH);
+    g.globalCompositeOperation = "source-over";
+    var depth = g.createLinearGradient(0, 0, 0, VH);
+    depth.addColorStop(0, css([14, 28, 60], 0.04 * nightA));
+    depth.addColorStop(0.48, css([10, 22, 50], 0.08 * nightA));
+    depth.addColorStop(1, css([6, 14, 34], 0.18 * nightA));
+    g.fillStyle = depth;
+    g.fillRect(0, 0, VW, VH);
+    g.restore();
+  }
+  function drawV6NightBackdropGrade(day) {
+    var nightA = v6TerrainNightAmount(day);
+    // The opening noir plate is already authored at night. As it gives way to the
+    // waterfall and later realm scenes, progressively take over their grading so
+    // no daylight-grey background can sit behind a moonlit foreground.
+    var authoredNightPlate = customize.look === "noir" ? clamp01(curMtAlpha || 0) : 0;
+    var gradeA = nightA * (1 - authoredNightPlate * 0.70) * (1 - 0.62 * v6IntrinsicNightRealm(day));
+    if (QA_STATE && document.body) {
+      document.body.setAttribute("data-v6-night-backdrop", gradeA.toFixed(3));
+    }
+    if (gradeA <= 0.002) return;
+    g.save();
+    g.globalCompositeOperation = "multiply";
+    g.fillStyle = css([48, 62, 108], 0.58 * gradeA);
+    g.fillRect(0, 0, VW, VH);
+    g.globalCompositeOperation = "color";
+    g.fillStyle = css([22, 38, 82], 0.28 * gradeA);
+    g.fillRect(0, 0, VW, VH);
+    g.globalCompositeOperation = "source-over";
+    g.fillStyle = css([7, 14, 34], 0.08 * gradeA);
+    g.fillRect(0, 0, VW, VH);
+    g.restore();
+  }
   function drawV6TerrainColumns(day) {
     if (!v6MeadowGroundReady || !v6MeadowGround.naturalWidth ||
         !v6RockGroundReady || !v6RockGround.naturalWidth) return false;
@@ -8555,6 +8656,7 @@
       }
     }
     g.globalAlpha = 1;
+    drawV6TerrainNightGrade(day, m);
     g.restore();
     return true;
   }
@@ -9289,7 +9391,7 @@
   function drawFireflies(day) {
     if (gameState === "title" || playMode === "run") return;
     if (customize.look === "void") return;
-    var night = customize.look === "noir" ? 1 : clamp01((0.30 - lum(day.sky[2])) / 0.18);
+    var night = v6TerrainNightAmount(day);
     if (night <= 0.02) return;
     var count = REDUCED ? 8 : 20;
     for (var i = 0; i < count; i++) {
@@ -10717,6 +10819,7 @@
         g.fillStyle = "rgba(" + day.tint[0] + "," + day.tint[1] + "," + day.tint[2] + "," + day.tintA + ")";
         g.fillRect(0, 0, VW, VH);
       }
+      drawV6NightBackdropGrade(day);
       // The sun/moon are part of the backdrop, so they must be repainted inside the
       // see-through hole too — otherwise the disc was erased wherever it overlapped the
       // gorge, leaving it sliced off at the bridge line. The opaque bridge deck/posts
@@ -10814,6 +10917,13 @@
     if (darkA > 0.01) {
       pg.globalCompositeOperation = "source-atop";
       pg.fillStyle = css((day && day.near) || [34, 38, 44], darkA);
+      pg.fillRect(0, 0, bw, bh);
+      pg.globalCompositeOperation = "source-over";
+    }
+    var nightA = v6TerrainNightAmount(day) * (1 - 0.48 * v6IntrinsicNightRealm(day));
+    if (nightA > 0.01) {
+      pg.globalCompositeOperation = "source-atop";
+      pg.fillStyle = css([22, 36, 68], 0.48 * nightA);
       pg.fillRect(0, 0, bw, bh);
       pg.globalCompositeOperation = "source-over";
     }
@@ -10980,6 +11090,13 @@
     var woodDark = mix([30, 20, 15], [45, 30, 20], woodBlend);
     var rope = mix([55, 40, 27], [86, 61, 36], woodBlend);
     var hi = mix([150, 104, 60], [190, 136, 76], woodBlend);
+    var nightA = v6TerrainNightAmount(day) * (1 - 0.48 * v6IntrinsicNightRealm(day));
+    if (nightA > 0.01) {
+      wood = mix(wood, [34, 48, 78], 0.58 * nightA);
+      woodDark = mix(woodDark, [12, 20, 38], 0.64 * nightA);
+      rope = mix(rope, [28, 38, 60], 0.56 * nightA);
+      hi = mix(hi, [74, 92, 132], 0.52 * nightA);
+    }
 
     for (var wi = 0; wi < 4; wi++) {
       var mark = WATERFALL_FIRST + (baseIdx + wi) * WATERFALL_SPACING;
@@ -12155,9 +12272,10 @@
     drawRealmSky(day, openingT);
     drawMemoryAfterglow(day);
     drawMythicEvents(day, "sky");
+    drawV6NightBackdropGrade(day);
 
     // stars (dark skies only)
-    var starA = clamp01((0.2 - lum(day.sky[0])) / 0.2) * 0.9;
+    var starA = Math.max(clamp01(day.night || 0) * 0.88, clamp01((0.2 - lum(day.sky[0])) / 0.2) * 0.9);
     if (starA > 0.02) {
       g.fillStyle = "rgba(255,255,255," + starA + ")";
       for (var i = 0; i < 22; i++) {
