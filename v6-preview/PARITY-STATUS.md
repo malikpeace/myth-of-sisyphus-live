@@ -97,5 +97,9 @@ current source evidence plus runtime evidence at every relevant target view.
   receivers with no rectangular cutoff.
 - [x] RC6 phone, landscape, desktop, bridge, night, overhead-light, steep-slope,
   and thirteen-realm checks retain stable framing and the integer pixel grid.
+- [x] RC7 rocky pass uses authored low path stones, world-locked background
+  crags, and occasional giant foreground formations with no forest overlap.
+- [x] RC7 phone altitude sweep, desktop framing, 700m bridge regression, asset
+  alpha validation, and browser error check pass.
 - [x] V5 checksum is unchanged at release.
 - [ ] Explicit final visual approval.

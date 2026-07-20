@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-07-19T12:00:00Z",
-  "runtime": "sisyphus6-release-candidate-6",
-  "runtimeChecksum": "3c7d231a34ae06a825035068aa9a7475f49c9f7667c1cbccc86bc9e9b28018c2",
+  "generatedAt": "2026-07-20T13:00:00Z",
+  "runtime": "sisyphus6-release-candidate-7",
+  "runtimeChecksum": "4ba147651856f0a69f64c75f620d386c317370df154bb72b59cac377bfee9bfe",
   "canonicalViewport": "bounded dynamic integer grid",
   "meadowTileSize": 16,
   "meadowVariants": 4,

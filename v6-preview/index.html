@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-6">
+<meta name="sisyphus-build" content="6-release-candidate-7">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2256,7 +2256,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-6");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-7");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2828,14 +2828,18 @@
   var galaxyWideImg = new Image(), galaxyWideReady = false;
   galaxyWideImg.onload = function () { galaxyWideReady = true; };
   galaxyWideImg.src = "v5/assets/galaxy-wide-v5.png";
-  // Generated environmental set: distant/foreground rock layers plus authored
-  // lightning and fire sheets. All cutout sheets are alpha-cleaned PNGs.
-  var rockySpireImg = new Image(), rockySpireReady = false;
-  rockySpireImg.onload = function () { rockySpireReady = true; };
-  rockySpireImg.src = "assets/rocky-spires-bg-alpha-v1.png";
-  var rockyPropImg = new Image(), rockyPropReady = false;
-  rockyPropImg.onload = function () { rockyPropReady = true; };
-  rockyPropImg.src = "assets/rocky-props-fg-alpha-v1.png";
+  // Rocky-pass v2: one restrained palette at three deliberate depth scales.
+  // Small path stones stay behind the actor, distant crags replace the forest,
+  // and monumental masses cross in front to give the barren pass real scale.
+  var rockyPathImg = new Image(), rockyPathReady = false;
+  rockyPathImg.onload = function () { rockyPathReady = true; };
+  rockyPathImg.src = "v6-preview/assets/rocky-path-props-v2.png";
+  var rockyBgImg = new Image(), rockyBgReady = false;
+  rockyBgImg.onload = function () { rockyBgReady = true; };
+  rockyBgImg.src = "v6-preview/assets/rocky-background-crags-v2.png";
+  var rockyFgImg = new Image(), rockyFgReady = false;
+  rockyFgImg.onload = function () { rockyFgReady = true; };
+  rockyFgImg.src = "v6-preview/assets/rocky-foreground-masses-v2.png";
   var lightningImg = new Image(), lightningReady = false;
   lightningImg.onload = function () { lightningReady = true; };
   lightningImg.src = "assets/lightning-strikes-alpha-v1.png";
@@ -7233,66 +7237,102 @@
 
   function drawBackgroundRockSpines(day) {
     var reveal = rockySceneryReveal() * (1 - 0.52 * (day.galaxy || 0));
-    if (!rockySpireReady || reveal <= 0.01) return;
-    var iw = rockySpireImg.naturalWidth || 1536;
-    var ih = rockySpireImg.naturalHeight || 1024;
-    var scroll = altitude * GROUND_SCROLL * 0.34 + mountainIndex * 137;
-    var dh = Math.round(VH * 0.41);
-    var dw = Math.round(dh * iw / ih);
-    var spacing = Math.max(420, Math.round(dw * 1.16));
-    var first = Math.floor((scroll - dw * 1.4) / spacing);
-    var last = Math.ceil((scroll + VW + dw * 1.4) / spacing);
+    if (!rockyBgReady || reveal <= 0.01) return;
+    var cellW = 192, cellH = 168;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 173;
+    var spacing = Math.max(190, Math.round(VW * 0.46));
+    var viewWorldL = -curCamZtxBase / Math.max(0.01, curCamZoom);
+    var viewWorldR = (VW - curCamZtxBase) / Math.max(0.01, curCamZoom);
+    var first = Math.floor((scroll + viewWorldL - 260) / spacing);
+    var last = Math.ceil((scroll + viewWorldR + 260) / spacing);
     g.save();
     g.imageSmoothingEnabled = false;
-    g.globalAlpha = reveal * 0.50;
+    g.globalAlpha = reveal * 0.76;
     for (var i = first; i <= last; i++) {
-      if (hash(i * 5.73 + 11) < 0.32) continue;
-      var sx = i * spacing - scroll + (hash(i * 8.31) - 0.5) * 170;
-      var worldX = (sx + dw * 0.5 - curCamZtxBase) / Math.max(0.01, curCamZoom);
-      if (treeOnBridge(worldX - 80, worldX + 80)) continue;
-      var baseY = curCamZtyBase + terrainLipAt(worldX) * curCamZoom + 14;
+      if (hash(i * 5.73 + 11) < 0.16) continue;
+      var worldX = i * spacing - scroll + (hash(i * 8.31) - 0.5) * 66;
+      if (treeOnBridge(worldX - 72, worldX + 72)) continue;
+      var variant = Math.floor(hash(i * 6.43 + 17) * 5) % 5;
+      var dh = Math.round(VH * (0.20 + hash(i * 3.27) * 0.13));
+      var dw = Math.round(dh * cellW / cellH);
+      var sx = curCamZtxBase + worldX * curCamZoom - dw * 0.5;
+      var baseY = curCamZtyBase + terrainLipAt(worldX) * curCamZoom + 10;
       g.save();
       if (hash(i * 7.19) > 0.5) { g.translate(Math.round(sx + dw), 0); g.scale(-1, 1); sx = 0; }
-      g.drawImage(rockySpireImg, Math.round(sx), Math.round(baseY - dh * 0.89), dw, dh);
+      g.drawImage(rockyBgImg, variant * cellW, 0, cellW, cellH,
+        Math.round(sx), Math.round(baseY - dh), dw, dh);
       g.restore();
     }
     g.globalAlpha = 1;
     g.restore();
   }
 
-  function drawForegroundRockProps(day) {
+  function drawForegroundRockMasses(day) {
     var reveal = rockySceneryReveal() * (1 - 0.68 * (day.galaxy || 0));
-    if (!rockyPropReady || reveal <= 0.01) return;
-    var iw = rockyPropImg.naturalWidth || 1984;
-    var ih = rockyPropImg.naturalHeight || 792;
-    var cellW = iw / 4;
-    var scroll = altitude * GROUND_SCROLL * 1.08 + mountainIndex * 211;
-    var spacing = Math.max(280, Math.round(VW * 0.28));
-    var first = Math.floor((scroll - spacing) / spacing);
-    var last = Math.ceil((scroll + VW + spacing) / spacing);
+    if (!rockyFgReady || reveal <= 0.01) return;
+    var cellW = 240, cellH = 320;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 211;
+    var spacing = Math.max(720, Math.round(VW * 1.75));
+    var viewWorldL = -curCamZtxBase / Math.max(0.01, curCamZoom);
+    var viewWorldR = (VW - curCamZtxBase) / Math.max(0.01, curCamZoom);
+    var first = Math.floor((scroll + viewWorldL - 720) / spacing);
+    var last = Math.ceil((scroll + viewWorldR + 720) / spacing);
     g.save();
     g.imageSmoothingEnabled = false;
-    g.globalAlpha = reveal * 0.76;
     for (var i = first; i <= last; i++) {
-      if (hash(i * 6.17 + 29) < 0.28) continue;
+      if (hash(i * 6.17 + 29) < 0.43) continue;
       var variant = Math.floor(hash(i * 4.91 + 3) * 4) % 4;
-      var dh = Math.round(VH * (0.25 + hash(i * 3.27) * 0.09));
-      var dw = Math.round(dh * cellW / ih);
-      var sx = i * spacing - scroll + (hash(i * 9.43) - 0.5) * spacing * 0.32;
-      if (sx + dw < -80 || sx > VW + 80) continue;
-      // Keep the immediate play silhouette readable. These are foreground depth
-      // forms, not obstacles, so they should frame the push rather than cover it.
-      if (sx < boulderSX + VW * 0.16 && sx + dw > boulderSX - VW * 0.14) continue;
-      var worldX = (sx + dw * 0.5 - curCamZtxBase) / Math.max(0.01, curCamZoom);
-      if (treeOnBridge(worldX - 54, worldX + 54)) continue;
-      var baseY = curCamZtyBase + terrainLipAt(worldX) * curCamZoom + 13;
+      var worldX = i * spacing - scroll + (hash(i * 9.43) - 0.5) * spacing * 0.18;
+      if (treeOnBridge(worldX - 96, worldX + 96)) continue;
+      var dw = Math.round(VW * (0.70 + hash(i * 3.27) * 0.22));
+      var dh = Math.round(dw * cellH / cellW);
+      var sx = curCamZtxBase + worldX * curCamZoom - dw * 0.5;
+      if (sx + dw < -100 || sx > VW + 100) continue;
+      var edgeIn = smoother01(clamp01((sx + dw + 36) / 150));
+      var edgeOut = smoother01(clamp01((VW + 36 - sx) / 150));
+      var massA = reveal * Math.min(edgeIn, edgeOut);
+      if (massA <= 0.01) continue;
+      var baseY = curCamZtyBase + terrainLipAt(worldX) * curCamZoom + Math.round(VH * 0.13);
       g.save();
       if (hash(i * 8.53) > 0.5) { g.translate(Math.round(sx + dw), 0); g.scale(-1, 1); sx = 0; }
-      g.drawImage(rockyPropImg, variant * cellW, 0, cellW, ih,
-        Math.round(sx), Math.round(baseY - dh * 0.86), dw, dh);
+      g.globalAlpha = massA;
+      g.drawImage(rockyFgImg, variant * cellW, 0, cellW, cellH,
+        Math.round(sx), Math.round(baseY - dh), dw, dh);
       g.restore();
     }
     g.globalAlpha = 1;
+    g.restore();
+  }
+
+  function drawRockyPathProps(wxL, wxR, day) {
+    var reveal = rockySceneryReveal() * (1 - 0.64 * (day.galaxy || 0));
+    if (!rockyPathReady || reveal <= 0.01) return;
+    var cellW = 128, cellH = 64;
+    var spacing = 152;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 371;
+    var first = Math.floor((scroll + wxL - spacing) / spacing);
+    var last = Math.ceil((scroll + wxR + spacing) / spacing);
+    g.save();
+    g.imageSmoothingEnabled = false;
+    g.globalAlpha = reveal * 0.92;
+    for (var i = first; i <= last; i++) {
+      if (hash(i * 5.61 + 41) < 0.34) continue;
+      var x = i * spacing - scroll + Math.round((hash(i * 8.17) - 0.5) * 44);
+      if (x < wxL - 60 || x > wxR + 60 || Math.abs(x - ANCHOR_X) < 76) continue;
+      if (bridgeGapActiveAt(x, 40) || treeOnBridge(x - 26, x + 26)) continue;
+      var variant = Math.floor(hash(i * 7.13 + 9) * 6) % 6;
+      var dh = Math.round(17 + hash(i * 3.79) * 11);
+      var dw = Math.round(dh * cellW / cellH);
+      var y = Math.round(terrainLipAt(x)) + 2;
+      var slope = Math.atan2(terrainLipAt(x + 12) - terrainLipAt(x - 12), 24);
+      g.save();
+      g.translate(Math.round(x), y);
+      g.rotate(slope);
+      if (hash(i * 9.37) > 0.5) g.scale(-1, 1);
+      g.drawImage(rockyPathImg, variant * cellW, 0, cellW, cellH,
+        Math.round(-dw * 0.5), -dh, dw, dh);
+      g.restore();
+    }
     g.restore();
   }
 
@@ -9230,9 +9270,11 @@
     // start sparse after the opening meadow, hold a full dense stand through the
     // 1.1km climb, then ease away before the first high realm takes over.
     var forestEnter = smoother01(clamp01((altitude - 120) / 360));
-    var forestExit = 1 - smoother01(clamp01((altitude - 1320) / 380));
+    // Hand the scene cleanly to the barren pass: the final pines disappear
+    // before the v2 crags become dominant, so the two biomes never stack.
+    var forestExit = 1 - smoother01(clamp01((altitude - 900) / 240));
     var forestJourney = forestEnter * forestExit;
-    var wfa = Math.max(waterfallSceneReveal(), forestJourney);
+    var wfa = Math.max(waterfallSceneReveal(), forestJourney) * forestExit;
     if (wfa <= 0.02) return;
     // Ease the forest into view as its biome arrives so whole trees never pop into
     // a frame. The ramp ends early; once present, trees remain fully opaque and
@@ -10489,6 +10531,7 @@
       var meadowBlock = smoother01(clamp01((grassGroundReveal() - 0.10) / 0.25));
       reveal *= (1 - meadowBlock);
       if (reveal <= 0.01) return;
+      return; // v2 authored path stones replace the old procedural ghost rocks
     }
     var spacing = realm === "thevoid" ? 420
       : realm === "bones" ? 430
@@ -12511,6 +12554,7 @@
       for (var vlx = wxL; vlx <= wxR; vlx += 4) g.fillRect(vlx, Math.round(terrainLipAt(vlx)), 3, 1);
     }
     drawV5RealmProps(wxL, wxR, day); // canonical-grid rocks and masonry
+    drawRockyPathProps(wxL, wxR, day); // low authored stones, always behind the actor
     // The old flower patch read as stray posts/crosses at night, especially near signs.
     drawEffortParticles(day);
     var footDig = clamp01(strain + slideEffort * 0.65);
@@ -13108,7 +13152,7 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
-    drawForegroundRockProps(day);   // close rock forms sweep in front through the barren band
+    drawForegroundRockMasses(day);   // monumental rocks sweep in front through the barren band
     drawForegroundTrees(day);   // close conifers sweeping IN FRONT of the figure (depth)
     drawRunAsh(day);
     drawRain(day);

@@ -271,6 +271,33 @@
       ],
       "partialAlpha": 0,
       "status": "candidate"
+    },
+    {
+      "id": "v6-rocky-path-props-v2",
+      "size": [
+        768,
+        64
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-rocky-background-crags-v2",
+      "size": [
+        960,
+        168
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-rocky-foreground-masses-v2",
+      "size": [
+        960,
+        320
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
     }
   ]
 }

@@ -3,8 +3,8 @@
 ## Candidate
 
 - Entry: `/v6-preview/index.html`
-- Build: `sisyphus6-release-candidate-6`
-- Candidate checksum: `3c7d231a34ae06a825035068aa9a7475f49c9f7667c1cbccc86bc9e9b28018c2`
+- Build: `sisyphus6-release-candidate-7`
+- Candidate checksum: `4ba147651856f0a69f64c75f620d386c317370df154bb72b59cac377bfee9bfe`
 - Protected V5 checksum: `3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f`
 
 ## RC2 Ground Revision
@@ -134,6 +134,30 @@
   recorded maximum after the shadow revision.
 - V5 remains byte-unchanged with checksum
   `3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f`.
+
+## RC7 Rocky Pass Revision
+
+- Replaced the pale oversized pathway pile with six low-profile dark-slate rock
+  variants that share the rocky ground palette and render behind the actor.
+- Replaced forest rows inside the barren chapter with five world-locked distant
+  crags. The final pines fade out by 1.14km while the earlier waterfall and
+  bridge forest remain unchanged.
+- Added four monumental camera-near formations after the actor layer so
+  Sisyphus and the boulder pass behind them for occasional scale moments.
+- Removed the old procedural rock-band props, eliminating duplicate and ghosted
+  stones beneath the authored set.
+- All three atlases use fixed cells, limited palettes, nearest-neighbor sampling,
+  hard alpha, and zero partially transparent pixels.
+
+## RC7 Rocky Pass Audit - Passed
+
+- Inspected exact 430 x 932 phone views from 1.05km through 1.45km and a
+  1440 x 900 desktop view at 1.325km.
+- Confirmed progressive rock entry, no rocky-biome trees, grounded path stones,
+  temporary foreground occlusion, and no browser warnings or errors.
+- Rechecked the 700m bridge and waterfall after the forest cutoff change; the
+  original forest framing and bridge scene remain intact.
+- Captures are stored as `baselines/v6-rocky-v2-*.png`.
 
 ## RC3 Audit One - Passed
 
