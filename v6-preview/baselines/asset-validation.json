@@ -36,6 +36,150 @@
         32
       ],
       "partialAlpha": 0,
+      "status": "reference"
+    },
+    {
+      "id": "v6-meadow-ground-v2",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "rejected"
+    },
+    {
+      "id": "v6-meadow-ground-v3",
+      "size": [
+        512,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-rock-ground-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-galaxy-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-valleys-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-canyon-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-greek-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-snow-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-storm-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-ruins-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-volcanic-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-aurora-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-bones-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-obsidian-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-elysium-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-ground-void-v1",
+      "size": [
+        256,
+        512
+      ],
+      "partialAlpha": 0,
       "status": "candidate"
     },
     {
@@ -45,10 +189,82 @@
         64
       ],
       "partialAlpha": 0,
+      "status": "reference"
+    },
+    {
+      "id": "v6-boulder-stage-0",
+      "size": [
+        832,
+        52
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-stage-1",
+      "size": [
+        1344,
+        84
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-stage-2",
+      "size": [
+        1840,
+        115
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-stage-3",
+      "size": [
+        2352,
+        147
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-stage-4",
+      "size": [
+        2848,
+        178
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-stage-5",
+      "size": [
+        3344,
+        209
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-boulder-stage-6",
+      "size": [
+        3856,
+        241
+      ],
+      "partialAlpha": 0,
       "status": "candidate"
     },
     {
       "id": "v6-mountain-plate-candidate",
+      "size": [
+        480,
+        300
+      ],
+      "partialAlpha": 0,
+      "status": "candidate"
+    },
+    {
+      "id": "v6-mountain-plate-v2",
       "size": [
         480,
         300

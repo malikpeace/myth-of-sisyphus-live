@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-4">
+<meta name="sisyphus-build" content="6-release-candidate-5">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -14,7 +14,7 @@
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
 <link rel="preload" as="image" href="v5/assets/mountain-bg-sky-imagegen-v2.png">
-<link rel="preload" as="image" href="v5/assets/mountain-bg-mountains-imagegen-v4.png">
+<link rel="preload" as="image" href="v6-preview/assets/mountain-plate-v6-v2.png">
 <link rel="preload" as="image" href="v6-preview/assets/meadow-ground-v3.png">
 <link rel="preload" as="image" href="v6-preview/assets/rock-ground-v1.png">
 <style>
@@ -2256,10 +2256,11 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-4");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-5");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
+  var actorRimX = 0, actorRimY = -1, actorRimStrength = 0, actorRimColor = [170, 190, 232];
   var runGhostSamples = [], nextGhostSampleAt = 0, oldSelfGhost = null;
   var runThreat = 0, runCaughtPulse = 0, runFinalScore = 0, runControlStarted = false, runControlStartedAt = 0, runReliefBurst = 0, timedControlStarted = false;
   var postcardSnapshot = null;
@@ -2720,7 +2721,7 @@
   mtBg.onerror = function () { mtBgFailed = true; };
   // V5-only transparent mountain plate. A separate pixel sky sits behind it so
   // the slow cloud layer can pass naturally behind the peaks.
-  mtBg.src = "v5/assets/mountain-bg-mountains-imagegen-v4.png";
+  mtBg.src = "v6-preview/assets/mountain-plate-v6-v2.png";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
@@ -8064,6 +8065,15 @@
     var sunset = 1 - smoother01(clamp01((cycle - 0.66) / 0.10));
     return sunrise * sunset;
   }
+  // The moon uses the same continuous arc but disappears before the cycle wraps.
+  // Keeping both ends fully transparent prevents a visible right-edge -> left-edge
+  // teleport; the new moon then returns gradually on the opposite horizon.
+  function moonCycleVisibility(cycle) {
+    cycle = ((cycle % 1) + 1) % 1;
+    var moonrise = smoother01(clamp01((cycle - 0.010) / 0.11));
+    var moonset = 1 - smoother01(clamp01((cycle - 0.92) / 0.078));
+    return moonrise * moonset;
+  }
   function drawMinimalSun(cx, cy, size, alpha) {
     alpha = clamp01(alpha);
     if (alpha <= 0.01) return;
@@ -8152,8 +8162,10 @@
     var topLum = lum(day.sky[0]);
     var rainDim = 1 - (day.rain || 0) * 0.55;
     if (customize.look === "noir") {
-      var nmp = sunArcPoint(clamp01(cycle / 0.72));
-      return { x: nmp.x, y: nmp.y, strength: 0.42 * rainDim * clamp01(1 - (day.galaxy || 0) * 0.7), col: [150, 172, 224] };
+      var noirMoonVisible = moonCycleVisibility(cycle);
+      if (noirMoonVisible <= 0.01) return null;
+      var nmp = sunArcPoint(cycle);
+      return { x: nmp.x, y: nmp.y, strength: 0.42 * noirMoonVisible * rainDim * clamp01(1 - (day.galaxy || 0) * 0.7), col: [150, 172, 224] };
     }
     var sunGate = clamp01(((((day.sun && day.sun.a) || 0)) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
     sunGate *= sunCycleVisibility(cycle) * (1 - clamp01(day.night || 0));
@@ -8178,13 +8190,20 @@
     var sunGate = clamp01((((day.sun && day.sun.a) || 0) - 0.25) / 0.55) * clamp01((brightSky - 0.30) / 0.22);
     sunGate *= sunCycleVisibility(cycle) * (1 - clamp01(day.night || 0));
     var moonGate = Math.max(clamp01(day.night || 0), clamp01((0.30 - topLum) / 0.18) * clamp01((0.38 - brightSky) / 0.20));
+    if (QA_STATE && document.body) {
+      document.body.setAttribute("data-v6-moon-alpha", "0.000");
+      document.body.setAttribute("data-v6-moon-x", "-1");
+    }
     if (customize.look === "noir") {
-      // NIGHT theme: a moon takes the sun's arc — always up, sweeping from the
-      // top-left across the sky as you climb. (The day cycle reads "dawn" at the
-      // start, which would otherwise leave the moon below the horizon.)
-      var nMoonPhase = clamp01(cycle / 0.72);
+      // NIGHT theme: the moon crosses the complete arc, fades out before the
+      // cycle wraps, then slowly returns at the opposite horizon.
+      var nMoonPhase = cycle;
       var nmp = sunArcPoint(nMoonPhase);
-      var nMoonA = clamp01(rainDim * (1 - (day.galaxy || 0) * 0.7));
+      var nMoonA = clamp01(moonCycleVisibility(cycle) * rainDim * (1 - (day.galaxy || 0) * 0.7));
+      if (QA_STATE && document.body) {
+        document.body.setAttribute("data-v6-moon-alpha", nMoonA.toFixed(3));
+        document.body.setAttribute("data-v6-moon-x", Math.round(nmp.x));
+      }
       if (nMoonA > 0.02) drawMinimalMoon(nmp.x, nmp.y, (24 + nmp.lift * 7) * 0.82, nMoonA);
     } else if (sunGate > 0.02) {
       var sunPhase = clamp01(cycle / 0.72);
@@ -8208,6 +8227,10 @@
       var night = Math.sin(moonPhase * Math.PI);
       var mp = arcPoint(moonPhase);
       var moonAlpha = clamp01(night * 1.18 - 0.08) * moonGate * galaxyDim * (customize.look === "noir" ? 1 : customize.look === "void" ? 0 : 0.92) * (1 - (day.rain || 0) * 0.30);
+      if (QA_STATE && document.body) {
+        document.body.setAttribute("data-v6-moon-alpha", moonAlpha.toFixed(3));
+        document.body.setAttribute("data-v6-moon-x", Math.round(mp.x));
+      }
       if (moonAlpha > 0.02) drawMinimalMoon(mp.x, mp.y, (18 + mp.lift * 6) * (customize.look === "noir" ? 1.3 : 1), moonAlpha);
     }
   }
@@ -10201,6 +10224,46 @@
     }
   }
 
+  // Small world-locked blades break the terrain/background boundary into a living
+  // silhouette. They are deliberately hard one-pixel steps, not a haze, blur, or
+  // animated overlay, so the crest stays perfectly sharp while losing its cut-out line.
+  function drawV6CrestGrass(wxL, wxR, day) {
+    var grassPresent = grassGroundReveal();
+    if (grassPresent < 0.03 || customize.look === "void") return;
+    var scroll = altitude * GROUND_SCROLL + mountainIndex * 371 + (playMode === "daily" ? dailySeed : 0);
+    var nightT = v6TerrainNightAmount(day);
+    var dark = mix(mix(day.ground, [28, 74, 30], 0.72), [12, 24, 48], nightT * 0.72);
+    var mid = mix(mix(day.ground, [72, 126, 48], 0.76), [42, 68, 92], nightT * 0.68);
+    var light = mix(mix(day.ground, [142, 174, 70], 0.66), [80, 106, 132], nightT * 0.62);
+    var step = 3;
+    var first = Math.floor((wxL + scroll) / step) - 2;
+    var last = Math.ceil((wxR + scroll) / step) + 2;
+    for (var ci = first; ci <= last; ci++) {
+      var seed = hash(ci * 7.31 + mountainIndex * 0.47);
+      if (seed < 0.16) continue;
+      var x = ci * step - scroll;
+      if (bridgeGapActiveAt(x, 12)) continue;
+      var y = Math.round(terrainLipAt(x));
+      var h = 1 + Math.round((1.2 + seed * 3.8) * grassPresent);
+      var lean = hash(ci * 11.73) > 0.5 ? 1 : -1;
+      var col = seed > 0.78 ? light : (seed > 0.40 ? mid : dark);
+      g.fillStyle = css(dark, 0.72 + grassPresent * 0.24);
+      g.fillRect(Math.round(x - 1), y, 3, 1);
+      g.fillStyle = css(col, 0.70 + grassPresent * 0.28);
+      for (var bi = 0; bi < h; bi++) {
+        var bladeX = Math.round(x + lean * bi * (seed > 0.72 ? 0.42 : 0.24));
+        g.fillRect(bladeX, y - bi - 1, 1, 1);
+      }
+      if (seed > 0.84) {
+        var sideH = Math.max(1, h - 2);
+        var sideX = Math.round(x - lean * 2);
+        for (var sbi = 0; sbi < sideH; sbi++) {
+          g.fillRect(Math.round(sideX - lean * sbi * 0.22), y - sbi - 1, 1, 1);
+        }
+      }
+    }
+  }
+
   function drawPathGrass(wxL, wxR, day) {
     var dayLight = clamp01(lum(day.sky[2]) * 1.25);
     // grass clumps follow the grass-ground presence too — none on bare rock (see drawGrassSurface)
@@ -11336,6 +11399,11 @@
     // Keep the face as the visual anchor of the silhouette in every biome and
     // cosmetic. Body treatments may change, but the head is always pure black.
     var figHeadInk = HEAD_INK;
+    var rimSegments = [];
+    function bodyLimb(x0, y0, x1, y1, width, color) {
+      limb(x0, y0, x1, y1, width, color);
+      rimSegments.push([x0, y0, x1, y1, width]);
+    }
 
     // drawn in a local flat frame: feet stand on floorY, hip at baseX (caller rotates onto slope)
     var ax = baseX, gY = floorY;
@@ -11407,10 +11475,10 @@
         r(Math.round(fx), Math.round(fy), fs, fs, dCol + (dA * (1 - dph) * 0.85).toFixed(3) + ")");
       }
 
-      limb(hipX, hipY, backKneeX, backKneeY, lw, figInk);
-      limb(backKneeX, backKneeY, backFootX, backFootY, lw, figInk);
-      limb(hipX, hipY, frontKneeX, frontKneeY, lw, figInk);
-      limb(frontKneeX, frontKneeY, frontFootX, frontFootY, lw, figInk);
+      bodyLimb(hipX, hipY, backKneeX, backKneeY, lw, figInk);
+      bodyLimb(backKneeX, backKneeY, backFootX, backFootY, lw, figInk);
+      bodyLimb(hipX, hipY, frontKneeX, frontKneeY, lw, figInk);
+      bodyLimb(frontKneeX, frontKneeY, frontFootX, frontFootY, lw, figInk);
       r(backFootX - 6 * s, backFootY - 1 * s, 10 * s, 3 * s, figInk);
       r(frontFootX - 5 * s, frontFootY - 1 * s, 9 * s, 3 * s, figInk);
     } else {
@@ -11425,15 +11493,15 @@
         var footX = hipX - 2 * s - fwd * stepReach;
         var footY = floorY - lift;
         var kneeX = (hipX + footX) / 2 + kneeBend, kneeY = (hipY + footY) / 2 + 1 * s;
-        limb(hipX, hipY, kneeX, kneeY, lw, figInk);
-        limb(kneeX, kneeY, footX, footY, lw, figInk);
+        bodyLimb(hipX, hipY, kneeX, kneeY, lw, figInk);
+        bodyLimb(kneeX, kneeY, footX, footY, lw, figInk);
         r(footX - 2 * s, footY - 1 * s, 5 * s, 2 * s, figInk);
       }
     }
 
     // torso
     var torsoW = bw + idleBreath * 0.56 * s;
-    limb(hipX, hipY, shX, shY, torsoW, figInk);
+    bodyLimb(hipX, hipY, shX, shY, torsoW, figInk);
     if (selectedCosmetic === "cloak" || selectedCosmetic === "aura") {
       var cloakA = selectedCosmetic === "aura" ? 0.18 : 0.72;
       var cloakCol = selectedCosmetic === "aura" ? "rgba(132,112,210," + cloakA + ")" : "rgba(24,23,31," + cloakA + ")";
@@ -11458,7 +11526,7 @@
     // actively pushing the head tucks low into the effort (the original push look).
     var idleHeadT = 1 - smoother01(clamp01(activity / 0.06));
     var neckX = shX - 0.1 * s, neckY = shY - (1.35 + 1.25 * idleHeadT) * s;
-    limb(shX, shY, neckX, neckY, Math.max(1, Math.round(2.0 * s)), figInk);
+    bodyLimb(shX, shY, neckX, neckY, Math.max(1, Math.round(2.0 * s)), figInk);
     var headR = Math.max(4, Math.round(5.8 * s));
     var headX = neckX - 0.5 * s, headY = neckY - headR - 0.1 * s;
 
@@ -11482,8 +11550,8 @@
     }
     var elbowX = shX + (handX - shX) * (0.48 + pushDrive * 0.05);
     var elbowY = (shY + handY) / 2 + (1.4 + pushDrive * 0.8) * s;   // a little compression on impact sells the shove without losing contact
-    limb(shX, shY, elbowX, elbowY, aw, figInk);
-    limb(elbowX, elbowY, handX, handY, aw, figInk);
+    bodyLimb(shX, shY, elbowX, elbowY, aw, figInk);
+    bodyLimb(elbowX, elbowY, handX, handY, aw, figInk);
     r(handX - 2 * s, handY - 2 * s, 4 * s, 4 * s, figInk);
     if (selectedCosmetic === "sandals") {
       r(hipX - 23 * s, floorY - 1 * s, 9 * s, Math.max(1, 1.5 * s), "rgba(190,156,104,0.78)");
@@ -11509,6 +11577,43 @@
       g.fillStyle = "rgba(202,172,96,0.55)";
       g.fillRect(Math.round(headX - 1), Math.round(headY - headR), Math.max(1, Math.round(2 * s)), 1);
       g.fillRect(Math.round(shX), Math.round(shY - 2 * s), Math.max(1, Math.round(2.5 * s)), 1);
+    }
+
+    // A restrained one-pixel rim from the actual sun/moon direction keeps the
+    // black silhouette readable without turning Sisyphus grey or surrounding him
+    // with a generic glow. It follows every animated limb and disappears with the
+    // celestial light source.
+    var rimT = smoother01(clamp01((actorRimStrength - 0.025) / 0.42));
+    if (rimT > 0.01 && selectedCosmetic !== "aura") {
+      var rimLen = Math.hypot(actorRimX, actorRimY) || 1;
+      var rimDX = actorRimX / rimLen, rimDY = actorRimY / rimLen;
+      var coolMoonRim = actorRimColor[2] > actorRimColor[0] + 18 ? 0.11 : 0;
+      var rimAlpha = 0.075 + rimT * (0.16 + coolMoonRim);
+      var rimColor = css(actorRimColor, rimAlpha);
+      var rimWidth = Math.max(1, Math.round(2.1 * s));
+      for (var rsi = 0; rsi < rimSegments.length; rsi++) {
+        var rs = rimSegments[rsi];
+        var rimOffset = Math.max(1, rs[4] * 0.42);
+        limb(rs[0] + rimDX * rimOffset, rs[1] + rimDY * rimOffset,
+          rs[2] + rimDX * rimOffset, rs[3] + rimDY * rimOffset, rimWidth, rimColor);
+      }
+      var headEdgeX = headX + rimDX * Math.max(1, headR - rimWidth * 0.45);
+      var headEdgeY = headY + rimDY * Math.max(1, headR - rimWidth * 0.45);
+      var tangentX = -rimDY, tangentY = rimDX;
+      for (var hri = -1; hri <= 1; hri++) {
+        r(headEdgeX + tangentX * hri * rimWidth * 0.72,
+          headEdgeY + tangentY * hri * rimWidth * 0.72,
+          rimWidth, rimWidth, rimColor);
+      }
+      r(shX + rimDX * bw * 0.46, shY + rimDY * bw * 0.46, rimWidth, rimWidth, rimColor);
+      // Re-stamp the opaque silhouette over the shifted light pass. This hides
+      // every interior stroke and leaves only the outward-facing edge pixel.
+      for (var rbi = 0; rbi < rimSegments.length; rbi++) {
+        var rb = rimSegments[rbi];
+        limb(rb[0], rb[1], rb[2], rb[3], rb[4], figInk);
+      }
+      disc(shX + 1 * s, shY, Math.max(3, Math.round(bw * 0.62)), figInk);
+      headDisc(headX, headY, headR, figHeadInk);
     }
 
     // sweat after sustained pushing
@@ -12127,7 +12232,13 @@
       var bgImg = (customize.look === "noir" && nightBgReady) ? nightBg : mtBg;   // night theme uses the dark night mountains
       var bgSrcY = 0;
       var bgSrcH = bgImg.naturalHeight;
-      var bgScale = Math.max(VW / bgImg.naturalWidth, VH / bgImg.naturalHeight);
+      // A full cover crop made the panoramic plate enormous on portrait phones,
+      // cutting off its hero peaks. Tall views use a shallower 72%-height fit;
+      // desktop/landscape retain the original full-frame fit.
+      var portraitMountains = VH / Math.max(1, VW) > 1.35 && bgImg === mtBg;
+      var bgScale = portraitMountains
+        ? Math.max((VW / bgImg.naturalWidth) * 1.14, (VH * 0.72) / bgImg.naturalHeight)
+        : Math.max(VW / bgImg.naturalWidth, VH / bgImg.naturalHeight);
       var bgW = Math.round(bgImg.naturalWidth * bgScale);
       var bgH = Math.round(bgSrcH * bgScale);
       var bgBaseX = Math.round((VW - bgW) / 2);
@@ -12176,7 +12287,7 @@
           g.globalAlpha = mountainLayerAlpha;
           for (var skyK = bgK0; skyK <= bgK1; skyK++) {
             var skyTileX = bgBaseX + skyK * bgW - bgShift;
-            drawMirroredImageCropTo(g, mtSky, 0, bgSrcY, mtSky.naturalWidth, bgSrcH, skyTileX, bgY, bgW, bgH, Math.abs(skyK % 2) === 1);
+            drawMirroredImageCropTo(g, mtSky, 0, 0, mtSky.naturalWidth, mtSky.naturalHeight, skyTileX, bgY, bgW, bgH, Math.abs(skyK % 2) === 1);
           }
           g.restore();
         }
@@ -12367,6 +12478,7 @@
     drawTerrainDetails(wxL, wxR, worldBottom, day);
     drawGrassSurface(wxL, wxR, day);
     drawPathGrass(wxL, wxR, day);
+    drawV6CrestGrass(wxL, wxR, day);
     drawFootprints(wxL, wxR, day);   // trail of pressed footprints downhill behind the figure
     drawBiomeProps(wxL, wxR, day);   // occasional biome-keyed props (flora / boulders / skulls)
     drawStormFires(wxL, wxR, day);   // strike remnants stay planted on the receiving terrain
@@ -12557,6 +12669,10 @@
         lx = dsx * cosTheta - dsy * sinTheta;
         ly = dsx * sinTheta + dsy * cosTheta;
       }
+      actorRimX = lx;
+      actorRimY = ly;
+      actorRimStrength = sunStr;
+      actorRimColor = sunL && sunL.col ? sunL.col : [170, 190, 232];
 
       // Cast contact shadow on the ground: a flattened blob under the stone + figure,
       // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast

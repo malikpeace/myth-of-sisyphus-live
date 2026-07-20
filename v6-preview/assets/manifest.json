@@ -302,6 +302,17 @@
       "smoothing": false,
       "rotationAllowed": false,
       "notes": "Generated source was chroma-keyed, cropped by an integer factor, palette-mapped, and hard-alpha cleaned before use."
+    },
+    {
+      "id": "v6-mountain-plate-v2",
+      "path": "mountain-plate-v6-v2.png",
+      "source": "source/mountain-plate-imagegen-source-v2.png",
+      "role": "distant-mountain-plate",
+      "status": "candidate",
+      "nativeSize": [480, 300],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "RC5 mountain-only plate. The generated source is chroma-keyed, reduced to a 240 x 150 logical master, quantized to 17 opaque colors with hard alpha, then enlarged exactly 2x for the V6 grid."
     }
   ]
 }

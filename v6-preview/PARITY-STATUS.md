@@ -81,5 +81,15 @@ current source evidence plus runtime evidence at every relevant target view.
   daytime remains ungraded at the exact phone target.
 - [x] Night opening, bridge, progressive forest, snow transition, and deep-realm
   checks retain readable silhouettes and authored biome identity.
+- [x] RC5 transparent mountain plate preserves moving-cloud depth, uses a
+  240 x 150 hard-pixel logical master, and presents without smoothing.
+- [x] RC5 world-locked crest grass breaks the straight terrain horizon without
+  adding texture motion, blur, or bridge overlap.
+- [x] RC5 sun/moon-aware one-pixel actor rim keeps Sisyphus black while improving
+  separation on dark scenery.
+- [x] RC5 moon wrap fades below visibility before crossing the viewport and
+  fades back in from the opposite side without a position pop.
+- [x] RC5 iPhone push regression advances a fresh Endless run from 0m to 99m
+  with no overflow or loop error and 1.18ms average game work per frame.
 - [x] V5 checksum is unchanged at release.
 - [ ] Explicit final visual approval.

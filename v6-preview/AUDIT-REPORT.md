@@ -67,6 +67,43 @@
   source whitespace checks pass with no loop error.
 - Phone captures are stored as `baselines/v6-night-rc4-*-phone.png`.
 
+## RC5 Mountain, Crest, Actor Rim, And Moon Revision
+
+- Replaced the V6 mountain candidate with a new mountain-only image-generation
+  source inspired by the approved render: four restrained blue depth layers,
+  two clear hero peaks, broad readable silhouettes, and no baked sky or clouds.
+- Converted the generated source through `tools/build-mountain-plate-v2.py` to a
+  240 x 150 logical pixel master, a maximum 18-color palette, hard alpha, and an
+  exact 2x enlargement. The shipped 480 x 300 plate contains 17 colors and zero
+  partial-alpha pixels.
+- Kept the sky, drifting clouds, and mountain plate as separate render layers.
+  Clouds can therefore travel behind the mountains instead of being painted
+  into the image, and portrait framing centers the hero peak without cropping.
+- Added deterministic world-locked grass blades along the exact terrain crest.
+  The blades follow the hillside, skip bridge gaps, use night-aware colors, and
+  remain fixed to the world with no blur, alpha animation, or subpixel drift.
+- Added a directional one-pixel rim to Sisyphus using the live sun or moon
+  direction and color. The black body is re-stamped over the rim so the effect
+  cannot turn him gray or create a broad outline.
+- Reworked the moon wrap into coordinated visibility windows. At the tested
+  path it faded from 0.795 to 0.008 before the edge crossing, wrapped while at
+  0.007 visibility, then returned through 0.210, 0.641, and 0.955.
+
+## RC5 Audit - Passed
+
+- Inspected fresh exact 430 x 932 phone captures during the moon approach,
+  disappearance, opposite-edge return, and full reappearance. No positional
+  jump remains visible and actor lighting fades with the moon.
+- Inspected fresh day and night phone captures plus a 1440 x 900 desktop view.
+  Mountains, terrain crest, clouds, Sisyphus, and foreground trees remain sharp
+  and correctly ordered at both aspect ratios.
+- Twenty-four rapid mobile pushes advanced a fresh Endless run from 0000m to
+  0099m. The page had zero horizontal overflow, no loop error, and averaged
+  1.18ms of game work per frame with a 2.7ms recorded maximum.
+- Asset verification confirms the new mountain dimensions, controlled palette,
+  and hard alpha. The promoted runtime pair is byte-identical with checksum
+  `79e051ef6e5f31523e5e308ecd556c95632f2ba343b81e479add8d72b16f965c`.
+
 ## RC3 Audit One - Passed
 
 - Rechecked 250m, 650m, 900m, every 1050-1250m blend checkpoint, and all twelve
