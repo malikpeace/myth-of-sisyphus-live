@@ -171,10 +171,25 @@
 
 ## Remaining Approval
 
-The RC4 technical release gates and the moonlit-world audit pass.
+The RC5 technical release gates and the mountain, terrain-crest, actor-lighting,
+and moon-transition audits pass.
 Owner visual approval of the published V6 preview remains intentionally separate.
 
 ## Published Preview
+
+- RC5 publish commit: `03421ff`.
+- RC5 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=03421ff`.
+- GitHub Pages served the expected `sisyphus6-release-candidate-5` marker.
+- The hosted exact 430 x 932 day and Night views retained the new mountain plate,
+  world-locked crest grass, restrained actor rim, and smooth moon wrap with no
+  loop error or document overflow.
+- Hosted game work averaged 1.09ms in the day check and 1.63ms in the settled
+  Night check.
+- Final live iPhone captures: `baselines/v6-live-03421ff-day-iphone.png`,
+  `baselines/v6-live-03421ff-moon-wrap-iphone.png`, and
+  `baselines/v6-live-03421ff-night-iphone.png`.
+
+### Previous RC4
 
 - RC4 publish commit: `e514e50`.
 - RC4 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=e514e50`.
