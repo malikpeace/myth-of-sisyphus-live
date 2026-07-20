@@ -232,6 +232,16 @@ Owner visual approval of the published V6 preview remains intentionally separate
 
 ## Published Preview
 
+- RC7 publish commit: `e6d900b`.
+- RC7 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=e6d900b`.
+- GitHub Pages served the expected `sisyphus6-release-candidate-7` marker.
+- The hosted HTML is byte-identical to the audited promoted runtime with checksum
+  `4ba147651856f0a69f64c75f620d386c317370df154bb72b59cac377bfee9bfe`.
+- The hosted path, background, and foreground rocky atlases are byte-identical
+  to the validated local assets.
+
+### Previous RC6
+
 - RC6 publish commit: `0bc041e`.
 - RC6 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=0bc041e`.
 - GitHub Pages served the expected `sisyphus6-release-candidate-6` marker.
