@@ -139,6 +139,16 @@ Owner visual approval of the published V6 preview remains intentionally separate
 
 ## Published Preview
 
+- RC4 publish commit: `e514e50`.
+- RC4 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=e514e50`.
+- GitHub Pages served the expected `sisyphus6-release-candidate-4` marker.
+- The hosted exact 430 x 932 Night opening reported full terrain moonlight,
+  coordinated backdrop moonlight, no loop error, and no document overflow.
+- Hosted game work averaged about 0.98ms per frame in the settled phone view.
+- Final live iPhone capture: `baselines/v6-live-e514e50-night-iphone.png`.
+
+### Previous RC3
+
 - RC3 publish commit: `1e51dd6`.
 - RC3 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=1e51dd6`.
 - GitHub Pages served the expected `sisyphus6-release-candidate-3` marker.
