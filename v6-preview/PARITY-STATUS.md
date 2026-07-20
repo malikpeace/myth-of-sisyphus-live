@@ -38,7 +38,8 @@ current source evidence plus runtime evidence at every relevant target view.
 - [x] V5 push rhythm and ordinary-tap animation behavior ported.
 - [x] V5 camera pullback and framing curve retained by the complete V5 runtime.
 - [x] Seven native boulder size stages with boundary hysteresis.
-- [x] Growth-aware actor contact and V5 shadow presentation retained.
+- [x] Growth-aware actor contact retained; RC6 adds layered boulder and figure
+  shadows without changing movement, growth, or terrain contact.
 - [x] Full rollback and high-slope comparison against V5 (0-1m push-trace delta).
 
 ## Gate 4: First 700 Metres
@@ -91,5 +92,10 @@ current source evidence plus runtime evidence at every relevant target view.
   fades back in from the opposite side without a position pop.
 - [x] RC5 iPhone push regression advances a fresh Endless run from 0m to 99m
   with no overflow or loop error and 1.18ms average game work per frame.
+- [x] RC6 shadows use separate contact, core, and soft cast layers; follow the
+  visible sun or moon continuously; and remain clipped to ground and bridge
+  receivers with no rectangular cutoff.
+- [x] RC6 phone, landscape, desktop, bridge, night, overhead-light, steep-slope,
+  and thirteen-realm checks retain stable framing and the integer pixel grid.
 - [x] V5 checksum is unchanged at release.
 - [ ] Explicit final visual approval.

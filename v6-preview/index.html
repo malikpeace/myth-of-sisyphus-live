@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-5">
+<meta name="sisyphus-build" content="6-release-candidate-6">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2256,7 +2256,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-5");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-6");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2354,7 +2354,7 @@
       localStorage.setItem("sisyphus6.imported-v5", "1");
     } catch (e) {}
   })();
-  var SHADOW_SELECTED = { length: 0.81, width: 0.88, opacity: 1.21, slant: 0.65 };
+  var SHADOW_SELECTED = { length: 0.96, width: 1.18, opacity: 1.16, slant: 0.90 };
   var castShadowState = { screenX: -0.62, screenY: 0.32, strength: 0, lightLow: 0 };
   var castShadowLastMs = 0;
   var SHADOW_LAB_PRESETS = [
@@ -12699,7 +12699,10 @@
           var sunSide = Math.max(-1, Math.min(1, rawSide));
           targetLightLow = clamp01((sunL.y - Math.max(16, VH * 0.07)) / Math.max(1, VH * 0.27));
           targetScreenX = sunSide * (0.94 + targetLightLow * 0.30) * shadowSlantTune;
-          targetScreenY = 0.26 + targetLightLow * 0.42;
+          // Keep most of the projection travelling ALONG the visible terrain face.
+          // A steeper downward ray buried the penumbra in the ground texture and
+          // made even a long shadow read like a small stain at the contact point.
+          targetScreenY = 0.18 + targetLightLow * 0.28;
           targetStrength = smoother01(clamp01((sunStr - 0.025) / 0.45));
         }
         var shadowNowMs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
@@ -12732,26 +12735,30 @@
         // slope rotation flattens the shadow and it reads like a contact stain.
         var rayX = castScreenX * cosTheta - castScreenY * sinTheta;
         var rayY = castScreenX * sinTheta + castScreenY * cosTheta;
-        if (rayY < 0.18) rayY = 0.18;
+        if (rayY < 0.12) rayY = 0.12;
         var rayLen = Math.hypot(rayX, rayY) || 1;
         var dirX = rayX / rayLen, dirY = rayY / rayLen;
         var rot = Math.atan2(dirY, dirX);
         var baseY = bly + brad * 0.98;
-        var castLen = brad * (2.05 + lightLow * 2.30 + low * 0.45) * (0.82 + grow * 0.36);
-        var castA = Math.min(0.62, (0.36 + lightLow * 0.18 + low * 0.08) * (0.84 + grow * 0.46));
+        var castLen = brad * (2.15 + lightLow * 2.40 + low * 0.40) * (0.82 + grow * 0.36);
+        var castA = Math.min(0.66, (0.38 + lightLow * 0.19 + low * 0.08) * (0.84 + grow * 0.46));
         var giantShadowT = smoother01(clamp01((boulderScale - 1.85) / Math.max(0.01, BOULDER_GROW_MAX - 1.85)));
         var steepShadowT = smoother01(clamp01((Math.abs(leanSlope) - 0.48) / 0.34));
         var mountainShadowT = Math.max(giantShadowT * 0.55, giantShadowT * steepShadowT);
         if (mountainShadowT > 0.001) {
-          castLen *= lerp(1, 0.66, mountainShadowT);
-          castA *= lerp(1, 0.72, mountainShadowT);
+          castLen *= lerp(1, 0.78, mountainShadowT);
+          castA *= lerp(1, 0.84, mountainShadowT);
         }
         castLen *= shadowLengthTune;
         castLen *= lerp(0.16, 1, castPresence);
         castA *= shadowOpacityTune * castPresence;
-        var contactShadowA = lerp(0.20, 1, castPresence);
+        // Contact occlusion remains even without a visible direct light. The long
+        // cast fades with the sun/moon; the weight at the feet and stone does not.
+        var contactShadowA = lerp(0.68, 1, castPresence);
+        var shadowNightT = v6TerrainNightAmount(day);
+        var shadowInk = mix([2, 13, 8], [2, 6, 19], shadowNightT * 0.92);
 
-        function shadowEllipse(cx, cy, rx, ry, rotAng, alpha) {
+        function shadowEllipse(cx, cy, rx, ry, rotAng, alpha, profile) {
           if (alpha <= 0.004 || rx <= 0 || ry <= 0) return;
           // Contain steep-slope shadows by narrowing the soft projection itself.
           // A rectangular clip made the edge read as an invisible box.
@@ -12761,9 +12768,21 @@
           g.rotate(rotAng);
           g.scale(1, ry / rx);
           var eg = g.createRadialGradient(0, 0, 1, 0, 0, rx);
-          eg.addColorStop(0, "rgba(2,12,7," + alpha.toFixed(3) + ")");
-          eg.addColorStop(0.52, "rgba(2,12,7," + (alpha * 0.54).toFixed(3) + ")");
-          eg.addColorStop(1, "rgba(2,12,7,0)");
+          var sr = shadowInk[0], sg = shadowInk[1], sb = shadowInk[2];
+          if (profile === "contact") {
+            eg.addColorStop(0, "rgba(" + sr + "," + sg + "," + sb + "," + alpha.toFixed(3) + ")");
+            eg.addColorStop(0.58, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.80).toFixed(3) + ")");
+            eg.addColorStop(0.86, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.22).toFixed(3) + ")");
+          } else if (profile === "core") {
+            eg.addColorStop(0, "rgba(" + sr + "," + sg + "," + sb + "," + alpha.toFixed(3) + ")");
+            eg.addColorStop(0.44, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.76).toFixed(3) + ")");
+            eg.addColorStop(0.78, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.24).toFixed(3) + ")");
+          } else {
+            eg.addColorStop(0, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.82).toFixed(3) + ")");
+            eg.addColorStop(0.36, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.52).toFixed(3) + ")");
+            eg.addColorStop(0.78, "rgba(" + sr + "," + sg + "," + sb + "," + (alpha * 0.12).toFixed(3) + ")");
+          }
+          eg.addColorStop(1, "rgba(" + sr + "," + sg + "," + sb + ",0)");
           g.fillStyle = eg;
           g.beginPath(); g.arc(0, 0, rx, 0, Math.PI * 2); g.fill();
           g.restore();
@@ -12790,22 +12809,26 @@
         // Broad readable cast body. The ellipse chain below adds natural falloff,
         // but the dense grass can hide it; this soft capsule gives the shadow the
         // clear long mass seen in the render reference.
-        shadowEllipse(blx + dirX * castLen * 0.32, baseY + 5 + dirY * castLen * 0.32,
-          castLen * 0.50, Math.max(8, brad * (0.76 + low * 0.08)), rot, castA * 0.58);
-        shadowEllipse(blx + dirX * castLen * 0.18, baseY + 4 + dirY * castLen * 0.18,
-          castLen * 0.32, Math.max(7, brad * (0.58 + low * 0.06)), rot, castA * 0.46);
+        // Three nested layers create actual depth: a wide low-density penumbra,
+        // a readable umbra, and a darker near-core that stays attached to the load.
+        shadowEllipse(blx + dirX * castLen * 0.36, baseY + 5 + dirY * castLen * 0.36,
+          castLen * 0.58, Math.max(10, brad * (0.92 + low * 0.12)), rot, castA * 0.34, "soft");
+        shadowEllipse(blx + dirX * castLen * 0.27, baseY + 4 + dirY * castLen * 0.27,
+          castLen * 0.46, Math.max(9, brad * (0.78 + low * 0.10)), rot, castA * 0.62, "core");
+        shadowEllipse(blx + dirX * castLen * 0.15, baseY + 3 + dirY * castLen * 0.15,
+          castLen * 0.30, Math.max(7, brad * (0.58 + low * 0.08)), rot, castA * 0.58, "core");
 
         // Boulder mass: broad at contact, then a chain of smaller overlapping
         // ellipses fades away. This creates the long soft shadow without a hard edge.
-        for (var si = 0; si < 8; si++) {
-          var u = si / 7;
+        for (var si = 0; si < 10; si++) {
+          var u = si / 9;
           var ease = 1 - Math.pow(1 - u, 1.55);
           var cxS = blx + dirX * castLen * ease;
           var cyS = baseY + 3 + dirY * castLen * ease;
-          var rxS = brad * (1.18 - u * 0.52);
-          var ryS = brad * (0.74 + low * 0.07 - u * 0.38);
-          var aS = castA * 0.30 * Math.pow(1 - u, 1.18);
-          shadowEllipse(cxS, cyS, rxS, Math.max(3, ryS), rot, aS);
+          var rxS = brad * (1.24 - u * 0.54);
+          var ryS = brad * (0.82 + low * 0.08 - u * 0.38);
+          var aS = castA * 0.28 * Math.pow(1 - u, 1.12);
+          shadowEllipse(cxS, cyS, rxS, Math.max(3, ryS), rot, aS, u < 0.48 ? "core" : "soft");
         }
 
         // Sisyphus shadow: separate from the boulder and cast by the same sun ray.
@@ -12815,7 +12838,7 @@
         var manTopX = manBaseX + (figureLean || 0) + 4 * BASE_SCALE;
         var manCastLen = castLen * (0.54 + 0.12 * low);
         shadowEllipse(manRootX + 8 * BASE_SCALE + dirX * manCastLen * 0.22, baseY + 7 + dirY * manCastLen * 0.22,
-          manCastLen * 0.34, Math.max(3, brad * (0.24 + low * 0.04)), rot, castA * 0.42);
+          manCastLen * 0.38, Math.max(3, brad * (0.30 + low * 0.05)), rot, castA * 0.48, "core");
         for (var mi = 0; mi < 7; mi++) {
           var mu = mi / 6;
           var mease = 1 - Math.pow(1 - mu, 1.55);
@@ -12823,14 +12846,25 @@
           var anchorY = baseY - (1 - mu) * 1.5 * BASE_SCALE;
           shadowEllipse(anchorX + dirX * manCastLen * mease, anchorY + 3 + dirY * manCastLen * mease,
             brad * (0.34 - mu * 0.15), Math.max(2.2, brad * (0.16 - mu * 0.055)), rot,
-            castA * 0.34 * Math.pow(1 - mu, 1.05));
+            castA * 0.38 * Math.pow(1 - mu, 1.05), mu < 0.5 ? "core" : "soft");
         }
 
         // Contact anchors, intentionally compact and darkest right under the weight.
-        shadowEllipse(blx - dirX * brad * 0.06, baseY + 1, brad * 0.88, Math.max(5, brad * 0.30), rot, (0.34 + 0.08 * grow) * contactShadowA);
-        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.68, Math.max(2, brad * 0.17), rot, (0.32 + 0.07 * grow) * contactShadowA);
-        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.48, Math.max(2, brad * 0.13), rot, (0.28 + 0.07 * grow) * contactShadowA);
-        shadowEllipse(manHipX, baseY + 1, brad * 0.26, Math.max(2, brad * 0.08), rot, (0.18 + 0.06 * grow) * contactShadowA);
+        shadowEllipse(blx - dirX * brad * 0.05, baseY + 1, brad * 0.98, Math.max(6, brad * 0.36), rot, (0.44 + 0.08 * grow) * contactShadowA, "contact");
+        shadowEllipse(manRootX + 15 * BASE_SCALE, baseY + 3, brad * 0.74, Math.max(3, brad * 0.20), rot, (0.40 + 0.07 * grow) * contactShadowA, "contact");
+        shadowEllipse(manRootX + 4 * BASE_SCALE, baseY + 2, brad * 0.54, Math.max(2, brad * 0.16), rot, (0.36 + 0.07 * grow) * contactShadowA, "contact");
+        shadowEllipse(manHipX, baseY + 1, brad * 0.30, Math.max(2, brad * 0.10), rot, (0.24 + 0.06 * grow) * contactShadowA, "contact");
+        if (QA_STATE && document.body) {
+          document.body.setAttribute("data-v6-shadow-state", JSON.stringify({
+            presence: Number(castPresence.toFixed(3)),
+            length: Math.round(castLen),
+            width: Number(shadowWidthTune.toFixed(2)),
+            opacity: Number(castA.toFixed(3)),
+            angle: Number(rot.toFixed(3)),
+            lightLow: Number(lightLow.toFixed(3)),
+            bridge: !!bridgeShadowSpan
+          }));
+        }
         g.restore();
       }
 

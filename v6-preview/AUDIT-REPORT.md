@@ -3,8 +3,8 @@
 ## Candidate
 
 - Entry: `/v6-preview/index.html`
-- Build: `sisyphus6-release-candidate-4`
-- Candidate checksum: `e91705209dd7b1b67980f8bc5b2585060d74b9a2ecbf2b25468fe9153093144a`
+- Build: `sisyphus6-release-candidate-6`
+- Candidate checksum: `3c7d231a34ae06a825035068aa9a7475f49c9f7667c1cbccc86bc9e9b28018c2`
 - Protected V5 checksum: `3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f`
 
 ## RC2 Ground Revision
@@ -104,6 +104,37 @@
   and hard alpha. The promoted runtime pair is byte-identical with checksum
   `79e051ef6e5f31523e5e308ecd556c95632f2ba343b81e479add8d72b16f965c`.
 
+## RC6 Shadow Depth Revision
+
+- Rebuilt the cast presentation as three coordinated layers: a wide low-density
+  penumbra, a readable central umbra, and a dense near-contact core. The stone
+  gains volume without becoming a single flat black oval.
+- Added an independent figure projection using the same light ray, so Sisyphus
+  and the boulder both cast shadows and remain visually connected.
+- Broadened the contact occlusion under the stone, feet, and torso. It remains
+  present as a restrained ambient weight when no direct sun or moon is visible.
+- Derives direction continuously from the visible sun or moon and smooths both
+  direction and strength over time. The overhead crossing rotates through the
+  center instead of jumping from one side to the other.
+- Uses green-black daylight shadow ink and cool navy-black moonlight ink while
+  preserving the authored terrain texture beneath the translucent shading.
+- Retains the terrain and bridge receiver mask, so shadows can continue over the
+  bridge deck but cannot float through the gorge or extend above the ground.
+
+## RC6 Shadow Audit - Passed
+
+- Inspected exact phone captures at 99m, 154m, 419m, 650m bridge, 780m night,
+  900m night, 1143m forest, and all thirteen later realm anchors.
+- Inspected exact desktop captures at the opening, broad daylight cast, bridge,
+  and night. The shadow remained attached and readable without a hard box edge.
+- Sampled the overhead-light transition at 250m, 280m, and 310m. The reported
+  angle changed continuously from 1.309 to 1.722 to 2.054 radians.
+- Fifty rapid mobile push inputs registered with no loop error or overflow. The
+  settled phone renderer averaged 0.99ms of game work per frame with a 2.3ms
+  recorded maximum after the shadow revision.
+- V5 remains byte-unchanged with checksum
+  `3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f`.
+
 ## RC3 Audit One - Passed
 
 - Rechecked 250m, 650m, 900m, every 1050-1250m blend checkpoint, and all twelve
@@ -171,8 +202,8 @@
 
 ## Remaining Approval
 
-The RC5 technical release gates and the mountain, terrain-crest, actor-lighting,
-and moon-transition audits pass.
+The RC6 technical release gates and the shadow depth, receiver, direction,
+terrain-crest, actor-lighting, and moon-transition audits pass.
 Owner visual approval of the published V6 preview remains intentionally separate.
 
 ## Published Preview
