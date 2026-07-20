@@ -315,40 +315,51 @@
       "notes": "RC5 mountain-only plate. The generated source is chroma-keyed, reduced to a 240 x 150 logical master, quantized to 17 opaque colors with hard alpha, then enlarged exactly 2x for the V6 grid."
     },
     {
-      "id": "v6-rocky-path-props-v2",
-      "path": "rocky-path-props-v2.png",
-      "source": "rocky-path-props-chroma-v2.png",
+      "id": "v6-rocky-path-props-v4",
+      "path": "rocky-path-props-v4.png",
+      "source": "rocky-path-props-source-v3.png",
       "role": "rocky-path-props",
       "status": "candidate",
       "nativeFrame": [128, 64],
       "frames": 6,
       "smoothing": false,
       "rotationAllowed": true,
-      "notes": "RC7 low-profile path stones. Chroma-keyed source is fitted to six fixed cells, palette-reduced, and hard-alpha cleaned."
+      "notes": "RC10 low-profile path stones. Six component-fitted hard-alpha cells share the dark slate terrain palette; runtime grading keeps them planted rather than pasted on."
     },
     {
-      "id": "v6-rocky-background-crags-v2",
-      "path": "rocky-background-crags-v2.png",
-      "source": "rocky-background-crags-chroma-v2.png",
+      "id": "v6-rocky-background-crags-v4",
+      "path": "rocky-background-crags-v4.png",
+      "source": "rocky-background-crags-source-v3.png",
       "role": "rocky-background-depth",
       "status": "candidate",
       "nativeFrame": [192, 168],
       "frames": 5,
       "smoothing": false,
       "rotationAllowed": false,
-      "notes": "RC7 distant barren crags replace forest rows in the rocky pass. Five fixed cells with a shared limited slate palette and hard alpha."
+      "notes": "RC10 distant barren crags fully replace forest rows in the rocky pass. Five component-fitted cells use a shared limited slate palette and hard alpha."
     },
     {
-      "id": "v6-rocky-foreground-masses-v2",
-      "path": "rocky-foreground-masses-v2.png",
-      "source": "rocky-foreground-masses-chroma-v2.png",
+      "id": "v6-rocky-foreground-masses-v4",
+      "path": "rocky-foreground-masses-v4.png",
+      "source": "rocky-foreground-masses-source-v3.png",
       "role": "rocky-foreground-occluders",
       "status": "candidate",
       "nativeFrame": [240, 320],
       "frames": 4,
       "smoothing": false,
       "rotationAllowed": false,
-      "notes": "RC7 monumental close-camera formations. Four hard-alpha cells cross after the actor so Sisyphus passes behind them."
+      "notes": "RC10 monumental close-camera formations. Two authored landmark encounters use four available hard-alpha cells, remain fully opaque, and bury their sheet bases below the viewport so Sisyphus passes behind natural silhouettes."
+    },
+    {
+      "id": "v6-floating-islands-absurd-v1",
+      "path": "floating-islands-absurd-v1-pixel.png",
+      "source": "floating-islands-absurd-v1-chroma.png",
+      "role": "elysium-floating-islands",
+      "status": "candidate",
+      "nativeSize": [384, 256],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "RC10 sparse impossible temple islands for the Elysium realm. The generated source was chroma-keyed, component-cleaned, hard-alpha rebuilt, and reduced to a compact pixel palette."
     }
   ]
 }
