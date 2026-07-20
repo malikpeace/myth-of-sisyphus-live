@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-11">
+<meta name="sisyphus-build" content="6-release-candidate-12">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2255,7 +2255,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-11");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-12");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -12982,7 +12982,18 @@
       // closes in against it — you don't push a building from arm's length.
       var growT = clamp01((boulderScale - 1) / (BOULDER_GROW_MAX - 1));
       var blx = Math.round((19 - 11 * growT) * BASE_SCALE) + brad;   // man↔stone gap: natural arm reach (not a long pole, not stubby)
-      var boulderContact = 2 * BASE_SCALE;
+      // A perfect geometric tangent still reads as a gap on steep hills: the visible
+      // contact point moves around the lower-right edge while the bottom of a giant
+      // sprite hangs in open sky. Let weight press the stone progressively into the
+      // receiver. The opening stays unchanged; large stones sink most in turf and a
+      // smaller amount into bare rock, preserving the same physics while making the
+      // rendered contact feel heavy and planted.
+      var contactGrowT = smoother01(clamp01((boulderScale - 1.10) / Math.max(0.01, BOULDER_GROW_MAX - 1.10)));
+      var contactSlopeT = smoother01(clamp01((Math.abs(leanSlope) - 0.18) / Math.max(0.01, MAX_SLOPE - 0.18)));
+      var contactGrassT = smoother01(clamp01(grassGroundReveal()));
+      var contactMaterialT = lerp(0.45, 1, contactGrassT);
+      var boulderContact = 2 * BASE_SCALE
+        + brad * (0.025 + contactSlopeT * 0.065) * contactGrowT * contactMaterialT;
       var bly = -brad + boulderContact;               // boulder bottom rests on the slope lip
       var manBlx = blx, manBly = bly;
       var manBaseX = 0;
