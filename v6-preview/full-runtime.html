@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-10">
+<meta name="sisyphus-build" content="6-release-candidate-11">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2255,7 +2255,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-10");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-11");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -10973,7 +10973,10 @@
       var rightBot = rightTop + 184 + Math.round(hash(mark * 0.61) * 72);
       var leftTopY = terrainLipAt(leftTop);
       var rightTopY = terrainLipAt(rightTop);
-      var rimClear = 46;
+      // Cut the gorge at the actual terrain lip. The former 46px clearance began
+      // high above the grass and carved each landing into a long triangular point,
+      // which is the visible "scissor cut" in screenshots.
+      var rimClear = 8;
       var edgeGrid = 2;
       function pix(v) { return Math.round(v / edgeGrid) * edgeGrid; }
       function edgeX(side, topX, botX, t, idx, seed) {
@@ -10993,11 +10996,11 @@
       var leftSteps = 28;
       for (var ls = 0; ls <= leftSteps; ls++) {
         var lt = ls / leftSteps;
-        var ly = lerp(bottom, leftTopY + 34, lt);
-        var lxEdge = edgeX(-1, leftTop - 24, leftBot, 1 - lt, ls, 90);
+        var ly = lerp(bottom, leftTopY + 14, lt);
+        var lxEdge = edgeX(-1, leftTop - 18, leftBot, 1 - lt, ls, 90);
         lineSteppedTo(lxEdge, ly);
       }
-      lineSteppedTo(leftTop - 28, terrainLipAt(leftTop - 16) - rimClear);
+      lineSteppedTo(leftTop - 10, terrainLipAt(leftTop - 8) - rimClear);
       var topSteps = Math.max(24, Math.round((rightTop - leftTop) / 7));
       for (var ts = 0; ts <= topSteps; ts++) {
         var tt = ts / topSteps;
@@ -11006,12 +11009,12 @@
         var notch = hash(mark + 330 + ts * 10.9) > 0.64 ? hash(mark + 390 + ts * 8.3) * 5 : 0;
         lineSteppedTo(x, terrainLipAt(x) - rimClear + chip + notch);
       }
-      lineSteppedTo(rightTop + 28, terrainLipAt(rightTop + 18) - rimClear);
+      lineSteppedTo(rightTop + 10, terrainLipAt(rightTop + 8) - rimClear);
       var rightSteps = 30;
       for (var rs = 0; rs <= rightSteps; rs++) {
         var rt = rs / rightSteps;
-        var ry = lerp(rightTopY + 34, bottom, rt);
-        var rxEdge = edgeX(1, rightTop + 24, rightBot, rt, rs, 510);
+        var ry = lerp(rightTopY + 14, bottom, rt);
+        var rxEdge = edgeX(1, rightTop + 18, rightBot, rt, rs, 510);
         lineSteppedTo(rxEdge, ry);
       }
       lineSteppedTo(rightBot, bottom);
@@ -11108,60 +11111,171 @@
       var leftBot = leftTop - 174 - Math.round(hash(mark * 0.53) * 68);
       var rightBot = rightTop + 184 + Math.round(hash(mark * 0.61) * 72);
       var grassFace = Math.max(grassGroundReveal(), flowerGroundReady ? flowerGroundReveal() : 0);
-      var soil = mix([72, 49, 36], day.ground, 0.34);
-      var faceDark = mix(soil, [8, 11, 16], 0.34);
-      var faceMid = mix(soil, [152, 140, 126], 0.24);
-      var faceLight = mix(faceMid, day.sky[2] || faceMid, 0.14);
+      var soil = mix([74, 48, 34], day.ground, grassFace > 0.2 ? 0.12 : 0.42);
+      var faceDeep = mix(soil, [6, 9, 14], 0.38);
+      var faceDark = mix(soil, [14, 16, 20], 0.20);
+      var faceMid = mix(soil, [146, 112, 84], grassFace > 0.2 ? 0.38 : 0.30);
+      var faceLight = mix(faceMid, day.sky[2] || faceMid, 0.10);
       var capDark = mix(day.ground, [0, 0, 0], grassFace > 0.2 ? 0.50 : 0.36);
       function edgeAt(side, topX, botX, t, idx) {
         var seed = side < 0 ? 90 : 510;
-        var shelf = Math.round((hash(mark + seed + idx * 23.7) - 0.5) * 18 / 2) * 2;
-        var bite = hash(mark + seed + idx * 17.3) > 0.70 ? Math.round(hash(mark + seed + idx * 9.1) * 8 / 2) * 2 : 0;
+        var shelf = Math.round((hash(mark + seed + idx * 23.7) - 0.5) * 24 / 2) * 2;
+        var bite = hash(mark + seed + idx * 17.3) > 0.68 ? Math.round(hash(mark + seed + idx * 9.1) * 12 / 2) * 2 : 0;
         return Math.round((lerp(topX, botX, t) + side * (shelf + bite)) / 2) * 2;
       }
       function drawFace(side, topX, botX) {
         var topY = terrainLipAt(topX);
-        var depth = Math.min(390, Math.max(210, worldBottom - topY + 70));
-        var steps = 18;
+        // The cliff is a genuine cross-section, not an outline. Extend it below
+        // the visible frame and grow it wider with depth, matching the heavy rock
+        // wall in the target render.
+        var depth = Math.max(560, worldBottom - topY + 140);
+        var steps = 28;
         var inner = [], outer = [];
         for (var si = 0; si <= steps; si++) {
           var t = si / steps;
-          var y = Math.round((topY + 5 + t * depth) / 2) * 2;
-          var ex = edgeAt(side, topX + side * 24, botX, t, si);
-          var wallW = Math.round((8 + t * 10 + hash(mark + side * 71 + si * 4.9) * 7) / 2) * 2;
+          var y = Math.round((topY + 4 + t * depth) / 2) * 2;
+          var ex = edgeAt(side, topX + side * 18, botX, t, si);
+          var swell = Math.sin(Math.PI * clamp01(t));
+          var wallW = Math.round((30 + smoother01(t) * 92 + swell * 26 + hash(mark + side * 71 + si * 4.9) * 14) / 2) * 2;
           inner.push([ex, y]);
           outer.push([ex + side * wallW, y]);
         }
         g.save();
         g.globalAlpha = reveal;
-        g.fillStyle = css(faceDark, 0.84);
+        var midIdx = Math.floor(steps * 0.48);
+        var faceGrad = g.createLinearGradient(outer[midIdx][0], 0, inner[midIdx][0], 0);
+        // Preserve the authored dirt/rock atlas beneath the face. The overlay is
+        // transparent on the landward side and grows darker toward the ravine.
+        faceGrad.addColorStop(0, css(faceMid, 0.18));
+        faceGrad.addColorStop(0.48, css(faceDark, 0.38));
+        faceGrad.addColorStop(1, css(faceDeep, 0.74));
+        g.fillStyle = faceGrad;
         g.beginPath();
         g.moveTo(inner[0][0], inner[0][1]);
         for (var ii = 1; ii < inner.length; ii++) g.lineTo(inner[ii][0], inner[ii][1]);
         for (var oi = outer.length - 1; oi >= 0; oi--) g.lineTo(outer[oi][0], outer[oi][1]);
-        g.closePath(); g.fill();
-        // Irregular horizontal strata and small lit shelves make the face read as
-        // carved rock rather than a single dark outline.
-        for (var li = 2; li < steps; li += 3) {
+        g.closePath();
+        g.fill();
+        g.clip();
+
+        // Broad strata run through the wall. Stronger shelves begin at the ravine
+        // edge and project back into solid rock, breaking the silhouette into the
+        // stepped ledges seen in the target render.
+        for (var li = 3; li < steps; li += 3) {
           var p = inner[li], q = outer[li];
-          var inset = 2 + Math.round(hash(mark + li * 12.7) * 5);
-          g.fillStyle = css(li % 2 ? faceMid : faceLight, 0.50 + hash(mark + li * 3.3) * 0.18);
-          var lx = side < 0 ? q[0] + inset : p[0] + inset;
-          var lw = Math.max(4, Math.abs(q[0] - p[0]) - inset * 2);
-          g.fillRect(Math.round(lx), p[1] - 1, Math.round(lw), li % 6 === 2 ? 2 : 1);
-          if (li % 6 === 2) {
-            g.fillStyle = css(faceDark, 0.42);
-            g.fillRect(Math.round(lx + side * 2), p[1] + 2, Math.max(3, Math.round(lw * 0.62)), 2);
+          var minX = Math.min(p[0], q[0]), maxX = Math.max(p[0], q[0]);
+          var inset = 5 + Math.round(hash(mark + li * 12.7) * 11);
+          g.fillStyle = css(li % 2 ? faceMid : faceLight, 0.16 + hash(mark + li * 3.3) * 0.16);
+          g.fillRect(Math.round(minX + inset), p[1] - 1, Math.max(8, Math.round(maxX - minX - inset * 1.4)), li % 6 === 3 ? 2 : 1);
+          if (li % 6 === 3) {
+            var ledgeW = Math.min(maxX - minX - 4, 28 + Math.round(hash(mark + li * 8.9) * 44));
+            var ledgeX = side < 0 ? p[0] - ledgeW : p[0];
+            g.fillStyle = css(faceLight, 0.42);
+            g.fillRect(Math.round(ledgeX), p[1] - 2, Math.max(6, Math.round(ledgeW)), 3);
+            g.fillStyle = css(faceDeep, 0.54);
+            g.fillRect(Math.round(ledgeX + (side < 0 ? -2 : 2)), p[1] + 1, Math.max(5, Math.round(ledgeW * 0.78)), 3);
           }
         }
+
+        // A few embedded blocks create readable rock mass without turning the
+        // face into noisy gravel. Their top-left highlights follow the scene light.
+        for (var bi = 0; bi < 5; bi++) {
+          var bt = 0.16 + bi * 0.145;
+          var bidx = Math.min(steps - 1, Math.round(bt * steps));
+          var ip = inner[bidx], op = outer[bidx];
+          var frac = 0.30 + hash(mark + side * 103 + bi * 7.7) * 0.40;
+          var bx = lerp(ip[0], op[0], frac);
+          var by = ip[1] + Math.round((hash(mark + bi * 13.1) - 0.5) * 18);
+          var bw = 18 + Math.round(hash(mark + side * 47 + bi * 5.3) * 34);
+          var bh = 12 + Math.round(hash(mark + side * 29 + bi * 9.9) * 24);
+          g.fillStyle = css(faceDark, 0.46);
+          g.beginPath();
+          g.moveTo(Math.round(bx - bw * 0.48), Math.round(by - bh * 0.35));
+          g.lineTo(Math.round(bx - bw * 0.22), Math.round(by - bh * 0.58));
+          g.lineTo(Math.round(bx + bw * 0.42), Math.round(by - bh * 0.44));
+          g.lineTo(Math.round(bx + bw * 0.52), Math.round(by + bh * 0.26));
+          g.lineTo(Math.round(bx + bw * 0.18), Math.round(by + bh * 0.52));
+          g.lineTo(Math.round(bx - bw * 0.50), Math.round(by + bh * 0.30));
+          g.closePath(); g.fill();
+          g.fillStyle = css(faceLight, 0.22);
+          g.fillRect(Math.round(bx - bw * 0.20), Math.round(by - bh * 0.42), Math.max(4, Math.round(bw * 0.45)), 2);
+        }
+
+        // Deep stepped fissures keep the face vertical and heavy rather than a
+        // smooth painted wedge.
+        for (var cr = 0; cr < 4; cr++) {
+          var ct = 0.10 + cr * 0.20;
+          var cidx = Math.round(ct * steps);
+          var cp = inner[cidx], cq = outer[cidx];
+          var cx = lerp(cp[0], cq[0], 0.34 + hash(mark + side * 151 + cr * 4.1) * 0.34);
+          var cy = cp[1];
+          g.fillStyle = css(faceDeep, 0.70);
+          for (var cs = 0; cs < 5; cs++) {
+            cx += Math.round((hash(mark + side * 181 + cr * 19 + cs * 3.7) - 0.5) * 8);
+            var ch = 9 + Math.round(hash(mark + cr * 13 + cs * 7.1) * 15);
+            g.fillRect(Math.round(cx), Math.round(cy), cs % 2 ? 2 : 3, ch);
+            cy += ch - 1;
+          }
+        }
+        g.restore();
+
+        // A dark, irregular ravine-side contour gives the eye a clear cliff edge,
+        // while the broad textured wall beside it prevents that contour reading as
+        // an isolated random line.
+        g.save();
+        g.globalAlpha = reveal;
+        g.strokeStyle = css(faceDeep, 0.68);
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(inner[0][0], inner[0][1]);
+        for (var ei = 1; ei < inner.length; ei++) g.lineTo(inner[ei][0], inner[ei][1]);
+        g.stroke();
+
+        // Silhouette shelves extend a few pixels into the open gorge. These are
+        // intentionally sparse and chunky: enough to make the edge geological,
+        // never enough to interfere with the bridge or read as decoration.
+        var shelfSteps = [6, 11, 17, 22];
+        for (var spi = 0; spi < shelfSteps.length; spi++) {
+          var sp = inner[shelfSteps[spi]];
+          var protrude = 9 + Math.round(hash(mark + side * 263 + spi * 11.7) * 18);
+          var shelfH = 5 + Math.round(hash(mark + side * 271 + spi * 7.9) * 6);
+          var insideX = sp[0] + side * (5 + spi % 2 * 3);
+          var tipX = sp[0] - side * protrude;
+          g.fillStyle = css(faceDark, 0.86);
+          g.beginPath();
+          g.moveTo(Math.round(insideX), sp[1] - 3);
+          g.lineTo(Math.round(tipX), sp[1] - 1);
+          g.lineTo(Math.round(tipX + side * 3), sp[1] + shelfH);
+          g.lineTo(Math.round(insideX), sp[1] + shelfH + 3);
+          g.closePath(); g.fill();
+          g.fillStyle = css(faceLight, 0.42);
+          g.fillRect(Math.round(Math.min(insideX, tipX) + 2), sp[1] - 2, Math.max(4, Math.round(Math.abs(tipX - insideX) - 3)), 2);
+          g.fillStyle = css(faceDeep, 0.55);
+          g.fillRect(Math.round(Math.min(insideX, tipX) + 4), sp[1] + shelfH, Math.max(3, Math.round(Math.abs(tipX - insideX) * 0.62)), 3);
+        }
+
         // Broken cap beneath the grass/rock lip. Short staggered blocks avoid a
         // ruler-straight border and visually seat the bridge anchoring post.
-        for (var ci = 0; ci < 5; ci++) {
-          var cw = 6 + Math.round(hash(mark + side * 31 + ci * 8.7) * 9);
-          var cx = topX + side * (5 + ci * 7);
-          var cy = Math.round(terrainLipAt(cx)) + 2 + (ci % 2) * 2;
+        for (var ci = 0; ci < 8; ci++) {
+          var cw = 7 + Math.round(hash(mark + side * 31 + ci * 8.7) * 13);
+          var capX = topX + side * (3 + ci * 8);
+          var capY = Math.round(terrainLipAt(capX)) + 2 + (ci % 3) * 2;
           g.fillStyle = css(ci % 2 ? capDark : faceMid, 0.58);
-          g.fillRect(Math.round(side < 0 ? cx - cw : cx), cy, cw, 2 + (ci % 3 === 0 ? 2 : 0));
+          g.fillRect(Math.round(side < 0 ? capX - cw : capX), capY, cw, 2 + (ci % 3 === 0 ? 2 : 0));
+        }
+
+        // Grass and roots hang over the broken cap in the low forest realm. This
+        // softens the grass-to-void seam without hiding the walkable lip.
+        if (grassFace > 0.18) {
+          var rootCol = mix([45, 32, 24], day.ground, 0.18);
+          var grassEdge = mix([58, 94, 38], day.sky[2] || [120, 130, 140], 0.08);
+          for (var gi = 0; gi < 9; gi++) {
+            var gx = topX + side * (2 + gi * 4 + Math.round(hash(mark + side * 211 + gi * 5.9) * 4));
+            var gy = Math.round(terrainLipAt(gx));
+            var gh = 5 + Math.round(hash(mark + side * 223 + gi * 9.3) * 18);
+            g.fillStyle = css(gi < 4 ? grassEdge : rootCol, 0.58 + hash(mark + gi * 2.7) * 0.22);
+            g.fillRect(Math.round(gx), gy + 1, gi % 3 === 0 ? 2 : 1, gh);
+          }
         }
         g.restore();
       }
