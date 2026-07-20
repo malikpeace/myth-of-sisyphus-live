@@ -208,6 +208,16 @@ Owner visual approval of the published V6 preview remains intentionally separate
 
 ## Published Preview
 
+- RC6 publish commit: `0bc041e`.
+- RC6 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=0bc041e`.
+- GitHub Pages served the expected `sisyphus6-release-candidate-6` marker.
+- The hosted HTML is byte-identical to the audited promoted runtime with checksum
+  `3c7d231a34ae06a825035068aa9a7475f49c9f7667c1cbccc86bc9e9b28018c2`.
+- Local exact-phone, desktop, bridge, night, overhead-transition, and later-realm
+  visual evidence is stored under `baselines/v6-shadow-*.png`.
+
+### Previous RC5
+
 - RC5 publish commit: `03421ff`.
 - RC5 URL: `https://malikpeace.github.io/myth-of-sisyphus-live/v6-preview/?v=03421ff`.
 - GitHub Pages served the expected `sisyphus6-release-candidate-5` marker.
