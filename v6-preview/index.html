@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-12">
+<meta name="sisyphus-build" content="6-release-candidate-13">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2255,7 +2255,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-12");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-13");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -11092,10 +11092,11 @@
     }
   }
 
-  // Give each bridge landing a visible rock/soil cross-section. The gorge cutout
-  // above reveals the real backdrop, but without a face its boundary can read like
-  // a paper-thin mask. These narrow stepped walls sit on the SOLID ground side of
-  // the cut and share its deterministic edge, so there is no rectangular seam.
+  // Give each bridge landing a deep, authored cliff cross-section. This is a full
+  // terrain material rather than a translucent overlay: it follows the real grass
+  // lip, fills the complete visible land side, and breaks the gorge edge into large
+  // geological masses. Keeping every point on the two-pixel world grid makes the
+  // result read as deliberate pixel art at every integer presentation scale.
   function drawBridgeCliffFaces(wxL, wxR, worldBottom, day) {
     if (gameState === "title" || playMode === "run") return;
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
@@ -11111,170 +11112,189 @@
       var leftBot = leftTop - 174 - Math.round(hash(mark * 0.53) * 68);
       var rightBot = rightTop + 184 + Math.round(hash(mark * 0.61) * 72);
       var grassFace = Math.max(grassGroundReveal(), flowerGroundReady ? flowerGroundReveal() : 0);
-      var soil = mix([74, 48, 34], day.ground, grassFace > 0.2 ? 0.12 : 0.42);
-      var faceDeep = mix(soil, [6, 9, 14], 0.38);
-      var faceDark = mix(soil, [14, 16, 20], 0.20);
-      var faceMid = mix(soil, [146, 112, 84], grassFace > 0.2 ? 0.38 : 0.30);
-      var faceLight = mix(faceMid, day.sky[2] || faceMid, 0.10);
-      var capDark = mix(day.ground, [0, 0, 0], grassFace > 0.2 ? 0.50 : 0.36);
+      var soil = mix([64, 45, 34], day.ground, grassFace > 0.2 ? 0.10 : 0.34);
+      var faceDeep = mix(soil, [5, 8, 12], 0.48);
+      var faceDark = mix(soil, [16, 18, 21], 0.34);
+      var faceMid = mix(soil, [92, 75, 60], 0.30);
+      var faceLight = mix(faceMid, day.sky[2] || [122, 132, 142], 0.16);
+      var faceWarm = mix(faceMid, [102, 75, 51], grassFace > 0.2 ? 0.22 : 0.08);
+      var capDark = mix(day.ground, [3, 6, 8], grassFace > 0.2 ? 0.66 : 0.48);
+      function snap2(v) { return Math.round(v / 2) * 2; }
       function edgeAt(side, topX, botX, t, idx) {
         var seed = side < 0 ? 90 : 510;
-        var shelf = Math.round((hash(mark + seed + idx * 23.7) - 0.5) * 24 / 2) * 2;
-        var bite = hash(mark + seed + idx * 17.3) > 0.68 ? Math.round(hash(mark + seed + idx * 9.1) * 12 / 2) * 2 : 0;
-        return Math.round((lerp(topX, botX, t) + side * (shelf + bite)) / 2) * 2;
+        var shelf = (hash(mark + seed + idx * 23.7) - 0.5) * 34;
+        var ledge = hash(mark + seed + idx * 17.3) > 0.66 ? hash(mark + seed + idx * 9.1) * 24 : 0;
+        function mound(c, radius, height) {
+          var d = Math.abs(t - c) / radius;
+          return d >= 1 ? 0 : (1 - smoother01(d)) * height;
+        }
+        // Large overlapping masses push into the gorge at three depths, with
+        // small recesses between them. This reads as a broken cliff, not a single
+        // mathematically tapered edge.
+        var gorgeBulge = mound(0.19, 0.13, 34) + mound(0.50, 0.16, 48) + mound(0.78, 0.14, 38);
+        var recess = mound(0.34, 0.08, 18) + mound(0.65, 0.09, 15);
+        var broad = Math.sin(t * Math.PI * 3.1 + hash(mark + seed) * 4) * 9;
+        return snap2(lerp(topX, botX, t) + side * (shelf + ledge + broad + recess) - side * gorgeBulge);
       }
       function drawFace(side, topX, botX) {
-        var topY = terrainLipAt(topX);
-        // The cliff is a genuine cross-section, not an outline. Extend it below
-        // the visible frame and grow it wider with depth, matching the heavy rock
-        // wall in the target render.
-        var depth = Math.max(560, worldBottom - topY + 140);
-        var steps = 28;
-        var inner = [], outer = [];
+        var topY = snap2(terrainLipAt(topX));
+        var visibleBottom = Math.max(worldBottom + 100, topY + 760);
+        var depth = visibleBottom - topY;
+        var steps = 32;
+        var inner = [];
         for (var si = 0; si <= steps; si++) {
           var t = si / steps;
-          var y = Math.round((topY + 4 + t * depth) / 2) * 2;
+          var y = snap2(topY + 4 + t * depth);
           var ex = edgeAt(side, topX + side * 18, botX, t, si);
-          var swell = Math.sin(Math.PI * clamp01(t));
-          var wallW = Math.round((30 + smoother01(t) * 92 + swell * 26 + hash(mark + side * 71 + si * 4.9) * 14) / 2) * 2;
           inner.push([ex, y]);
-          outer.push([ex + side * wallW, y]);
         }
+
+        // The landward edge is always beyond the visible world bounds. The face
+        // therefore cannot terminate in a rectangle or expose a vertical seam.
+        var landX = side < 0 ? wxL - 120 : wxR + 120;
+        var topSpan = Math.max(1, Math.ceil(Math.abs(landX - topX) / 42));
+        var cap = [];
+        for (var ti = 0; ti <= topSpan; ti++) {
+          var tx = snap2(lerp(topX, landX, ti / topSpan));
+          var fromEdge = Math.abs(tx - topX);
+          var turfDepth = 24 + smoother01(clamp01(fromEdge / 210)) * 106;
+          turfDepth += (hash(mark + side * 617 + ti * 11.3) - 0.5) * 12;
+          cap.push([tx, snap2(terrainLipAt(tx) + turfDepth)]);
+        }
+
         g.save();
         g.globalAlpha = reveal;
-        var midIdx = Math.floor(steps * 0.48);
-        var faceGrad = g.createLinearGradient(outer[midIdx][0], 0, inner[midIdx][0], 0);
-        // Preserve the authored dirt/rock atlas beneath the face. The overlay is
-        // transparent on the landward side and grows darker toward the ravine.
-        faceGrad.addColorStop(0, css(faceMid, 0.18));
-        faceGrad.addColorStop(0.48, css(faceDark, 0.38));
-        faceGrad.addColorStop(1, css(faceDeep, 0.74));
-        g.fillStyle = faceGrad;
+        // Preserve the fine authored earth texture already mapped beneath this
+        // shape. Because the landward boundary is off-screen, this broad value
+        // glaze can add depth without exposing the rectangular edge that plagued
+        // the previous narrow overlay.
+        g.fillStyle = css(faceDark, 0.46);
         g.beginPath();
-        g.moveTo(inner[0][0], inner[0][1]);
-        for (var ii = 1; ii < inner.length; ii++) g.lineTo(inner[ii][0], inner[ii][1]);
-        for (var oi = outer.length - 1; oi >= 0; oi--) g.lineTo(outer[oi][0], outer[oi][1]);
+        g.moveTo(cap[0][0], cap[0][1]);
+        for (var cpi = 1; cpi < cap.length; cpi++) g.lineTo(cap[cpi][0], cap[cpi][1]);
+        g.lineTo(landX, visibleBottom);
+        g.lineTo(inner[steps][0], inner[steps][1]);
+        for (var ii = steps - 1; ii >= 0; ii--) g.lineTo(inner[ii][0], inner[ii][1]);
         g.closePath();
         g.fill();
         g.clip();
 
-        // Broad strata run through the wall. Stronger shelves begin at the ravine
-        // edge and project back into solid rock, breaking the silhouette into the
-        // stepped ledges seen in the target render.
-        for (var li = 3; li < steps; li += 3) {
-          var p = inner[li], q = outer[li];
-          var minX = Math.min(p[0], q[0]), maxX = Math.max(p[0], q[0]);
-          var inset = 5 + Math.round(hash(mark + li * 12.7) * 11);
-          g.fillStyle = css(li % 2 ? faceMid : faceLight, 0.16 + hash(mark + li * 3.3) * 0.16);
-          g.fillRect(Math.round(minX + inset), p[1] - 1, Math.max(8, Math.round(maxX - minX - inset * 1.4)), li % 6 === 3 ? 2 : 1);
-          if (li % 6 === 3) {
-            var ledgeW = Math.min(maxX - minX - 4, 28 + Math.round(hash(mark + li * 8.9) * 44));
-            var ledgeX = side < 0 ? p[0] - ledgeW : p[0];
-            g.fillStyle = css(faceLight, 0.42);
-            g.fillRect(Math.round(ledgeX), p[1] - 2, Math.max(6, Math.round(ledgeW)), 3);
-            g.fillStyle = css(faceDeep, 0.54);
-            g.fillRect(Math.round(ledgeX + (side < 0 ? -2 : 2)), p[1] + 1, Math.max(5, Math.round(ledgeW * 0.78)), 3);
+        // Large overlapping stone planes establish depth. They are deliberately
+        // irregular and staggered; no full-width row can form a visible band.
+        var faceWidth = Math.abs(landX - topX);
+        var columns = Math.max(8, Math.ceil(faceWidth / 58));
+        var rows = Math.max(10, Math.ceil(depth / 58));
+        for (var ry = -1; ry < rows; ry++) {
+          for (var rx = 0; rx < columns + 1; rx++) {
+            var seed = mark + side * 701 + ry * 113.7 + rx * 37.9;
+            if (hash(seed + 2.1) < 0.12) continue;
+            var cellW = 32 + hash(seed + 5.4) * 46;
+            var cellH = 28 + hash(seed + 8.2) * 42;
+            var bx = topX + side * (34 + rx * (faceWidth / columns) + (ry % 2) * 23 + (hash(seed + 11.3) - 0.5) * 22);
+            var by = topY + 44 + ry * 58 + (hash(seed + 14.8) - 0.5) * 24;
+            var depthT = clamp01((by - topY) / Math.max(1, depth));
+            var rockCol = mix(ry % 3 === 0 ? faceMid : faceDark, faceDeep, depthT * 0.58 + hash(seed + 17.2) * 0.12);
+            var hw = cellW * 0.5, hh = cellH * 0.5;
+            var pts = [
+              [bx - hw * (0.72 + hash(seed + 20.1) * 0.22), by - hh * (0.34 + hash(seed + 20.7) * 0.26)],
+              [bx - hw * (0.18 + hash(seed + 21.4) * 0.22), by - hh * (0.78 + hash(seed + 22.1) * 0.18)],
+              [bx + hw * (0.55 + hash(seed + 22.8) * 0.34), by - hh * (0.56 + hash(seed + 23.5) * 0.26)],
+              [bx + hw * (0.88 + hash(seed + 24.2) * 0.12), by + hh * (0.10 + hash(seed + 24.9) * 0.28)],
+              [bx + hw * (0.28 + hash(seed + 25.6) * 0.34), by + hh * (0.70 + hash(seed + 26.3) * 0.22)],
+              [bx - hw * (0.58 + hash(seed + 27.0) * 0.28), by + hh * (0.55 + hash(seed + 27.7) * 0.30)]
+            ];
+            g.fillStyle = css(rockCol, 0.34 + hash(seed + 18.8) * 0.24);
+            g.beginPath();
+            g.moveTo(snap2(pts[0][0]), snap2(pts[0][1]));
+            for (var pi = 1; pi < pts.length; pi++) g.lineTo(snap2(pts[pi][0]), snap2(pts[pi][1]));
+            g.closePath(); g.fill();
+
+            // Broken upper-left highlight and lower-right occlusion make every
+            // plane feel embedded instead of outlined or pasted on.
+            g.strokeStyle = css(faceLight, 0.20 * (1 - depthT * 0.55));
+            g.lineWidth = 2;
+            g.beginPath();
+            g.moveTo(snap2(pts[0][0] + 4), snap2(pts[0][1]));
+            g.lineTo(snap2(pts[1][0]), snap2(pts[1][1] + 3));
+            g.lineTo(snap2(pts[2][0] - 8), snap2(pts[2][1] + 2));
+            g.stroke();
+            g.strokeStyle = css(faceDeep, 0.34);
+            g.lineWidth = 2;
+            g.beginPath();
+            g.moveTo(snap2(pts[3][0]), snap2(pts[3][1]));
+            g.lineTo(snap2(pts[4][0]), snap2(pts[4][1]));
+            g.lineTo(snap2(pts[5][0] + 8), snap2(pts[5][1]));
+            g.stroke();
           }
         }
 
-        // A few embedded blocks create readable rock mass without turning the
-        // face into noisy gravel. Their top-left highlights follow the scene light.
-        for (var bi = 0; bi < 5; bi++) {
-          var bt = 0.16 + bi * 0.145;
-          var bidx = Math.min(steps - 1, Math.round(bt * steps));
-          var ip = inner[bidx], op = outer[bidx];
-          var frac = 0.30 + hash(mark + side * 103 + bi * 7.7) * 0.40;
-          var bx = lerp(ip[0], op[0], frac);
-          var by = ip[1] + Math.round((hash(mark + bi * 13.1) - 0.5) * 18);
-          var bw = 18 + Math.round(hash(mark + side * 47 + bi * 5.3) * 34);
-          var bh = 12 + Math.round(hash(mark + side * 29 + bi * 9.9) * 24);
-          g.fillStyle = css(faceDark, 0.46);
+        // Sparse fractured seams cross individual masses only. Angled segments
+        // avoid the artificial horizontal striping that the previous renderer made.
+        for (var cr = 0; cr < 15; cr++) {
+          var cseed = mark + side * 887 + cr * 29.7;
+          var cx = topX + side * (80 + hash(cseed + 1) * faceWidth * 0.82);
+          var cy = topY + 55 + hash(cseed + 2) * depth * 0.76;
+          g.strokeStyle = css(hash(cseed + 3) > 0.74 ? faceWarm : faceDeep, 0.34);
+          g.lineWidth = hash(cseed + 4) > 0.65 ? 3 : 2;
           g.beginPath();
-          g.moveTo(Math.round(bx - bw * 0.48), Math.round(by - bh * 0.35));
-          g.lineTo(Math.round(bx - bw * 0.22), Math.round(by - bh * 0.58));
-          g.lineTo(Math.round(bx + bw * 0.42), Math.round(by - bh * 0.44));
-          g.lineTo(Math.round(bx + bw * 0.52), Math.round(by + bh * 0.26));
-          g.lineTo(Math.round(bx + bw * 0.18), Math.round(by + bh * 0.52));
-          g.lineTo(Math.round(bx - bw * 0.50), Math.round(by + bh * 0.30));
-          g.closePath(); g.fill();
-          g.fillStyle = css(faceLight, 0.22);
-          g.fillRect(Math.round(bx - bw * 0.20), Math.round(by - bh * 0.42), Math.max(4, Math.round(bw * 0.45)), 2);
-        }
-
-        // Deep stepped fissures keep the face vertical and heavy rather than a
-        // smooth painted wedge.
-        for (var cr = 0; cr < 4; cr++) {
-          var ct = 0.10 + cr * 0.20;
-          var cidx = Math.round(ct * steps);
-          var cp = inner[cidx], cq = outer[cidx];
-          var cx = lerp(cp[0], cq[0], 0.34 + hash(mark + side * 151 + cr * 4.1) * 0.34);
-          var cy = cp[1];
-          g.fillStyle = css(faceDeep, 0.70);
-          for (var cs = 0; cs < 5; cs++) {
-            cx += Math.round((hash(mark + side * 181 + cr * 19 + cs * 3.7) - 0.5) * 8);
-            var ch = 9 + Math.round(hash(mark + cr * 13 + cs * 7.1) * 15);
-            g.fillRect(Math.round(cx), Math.round(cy), cs % 2 ? 2 : 3, ch);
-            cy += ch - 1;
+          g.moveTo(snap2(cx), snap2(cy));
+          for (var cs = 1; cs <= 3; cs++) {
+            cx += side * (8 + hash(cseed + cs * 3.1) * 17);
+            cy += 10 + hash(cseed + cs * 4.3) * 22;
+            g.lineTo(snap2(cx), snap2(cy));
           }
+          g.stroke();
         }
         g.restore();
 
-        // A dark, irregular ravine-side contour gives the eye a clear cliff edge,
-        // while the broad textured wall beside it prevents that contour reading as
-        // an isolated random line.
+        // The silhouette itself owns every ledge. Keeping decorative rock planes
+        // clipped inside the face prevents later-biome palettes from exposing a
+        // detached triangle or floating slab against the open gorge.
         g.save();
         g.globalAlpha = reveal;
-        g.strokeStyle = css(faceDeep, 0.68);
-        g.lineWidth = 3;
+        // Continuous but irregular undercut below the turf. This visually wraps
+        // the grass over the rock without producing a clean cut-out line.
+        var capLen = 120;
+        var capPts = [];
+        for (var ci = 0; ci <= 12; ci++) {
+          var capX = snap2(topX + side * ci * (capLen / 12));
+          capPts.push([capX, snap2(terrainLipAt(capX) + 2)]);
+        }
+        g.fillStyle = css(capDark, 0.96);
         g.beginPath();
-        g.moveTo(inner[0][0], inner[0][1]);
-        for (var ei = 1; ei < inner.length; ei++) g.lineTo(inner[ei][0], inner[ei][1]);
-        g.stroke();
-
-        // Silhouette shelves extend a few pixels into the open gorge. These are
-        // intentionally sparse and chunky: enough to make the edge geological,
-        // never enough to interfere with the bridge or read as decoration.
-        var shelfSteps = [6, 11, 17, 22];
-        for (var spi = 0; spi < shelfSteps.length; spi++) {
-          var sp = inner[shelfSteps[spi]];
-          var protrude = 9 + Math.round(hash(mark + side * 263 + spi * 11.7) * 18);
-          var shelfH = 5 + Math.round(hash(mark + side * 271 + spi * 7.9) * 6);
-          var insideX = sp[0] + side * (5 + spi % 2 * 3);
-          var tipX = sp[0] - side * protrude;
-          g.fillStyle = css(faceDark, 0.86);
-          g.beginPath();
-          g.moveTo(Math.round(insideX), sp[1] - 3);
-          g.lineTo(Math.round(tipX), sp[1] - 1);
-          g.lineTo(Math.round(tipX + side * 3), sp[1] + shelfH);
-          g.lineTo(Math.round(insideX), sp[1] + shelfH + 3);
-          g.closePath(); g.fill();
-          g.fillStyle = css(faceLight, 0.42);
-          g.fillRect(Math.round(Math.min(insideX, tipX) + 2), sp[1] - 2, Math.max(4, Math.round(Math.abs(tipX - insideX) - 3)), 2);
-          g.fillStyle = css(faceDeep, 0.55);
-          g.fillRect(Math.round(Math.min(insideX, tipX) + 4), sp[1] + shelfH, Math.max(3, Math.round(Math.abs(tipX - insideX) * 0.62)), 3);
+        g.moveTo(capPts[0][0], capPts[0][1]);
+        for (var ca = 1; ca < capPts.length; ca++) g.lineTo(capPts[ca][0], capPts[ca][1]);
+        for (var cb = capPts.length - 1; cb >= 0; cb--) {
+          var droop = 8 + hash(mark + side * 331 + cb * 5.7) * 15;
+          g.lineTo(capPts[cb][0], snap2(capPts[cb][1] + droop));
         }
+        g.closePath(); g.fill();
 
-        // Broken cap beneath the grass/rock lip. Short staggered blocks avoid a
-        // ruler-straight border and visually seat the bridge anchoring post.
-        for (var ci = 0; ci < 8; ci++) {
-          var cw = 7 + Math.round(hash(mark + side * 31 + ci * 8.7) * 13);
-          var capX = topX + side * (3 + ci * 8);
-          var capY = Math.round(terrainLipAt(capX)) + 2 + (ci % 3) * 2;
-          g.fillStyle = css(ci % 2 ? capDark : faceMid, 0.58);
-          g.fillRect(Math.round(side < 0 ? capX - cw : capX), capY, cw, 2 + (ci % 3 === 0 ? 2 : 0));
-        }
-
-        // Grass and roots hang over the broken cap in the low forest realm. This
-        // softens the grass-to-void seam without hiding the walkable lip.
+        // Dense turf blades and a few branching roots hide the last hard pixels at
+        // the landing. Roots stay clustered at the gorge edge, as in the reference.
         if (grassFace > 0.18) {
           var rootCol = mix([45, 32, 24], day.ground, 0.18);
-          var grassEdge = mix([58, 94, 38], day.sky[2] || [120, 130, 140], 0.08);
-          for (var gi = 0; gi < 9; gi++) {
-            var gx = topX + side * (2 + gi * 4 + Math.round(hash(mark + side * 211 + gi * 5.9) * 4));
-            var gy = Math.round(terrainLipAt(gx));
-            var gh = 5 + Math.round(hash(mark + side * 223 + gi * 9.3) * 18);
-            g.fillStyle = css(gi < 4 ? grassEdge : rootCol, 0.58 + hash(mark + gi * 2.7) * 0.22);
-            g.fillRect(Math.round(gx), gy + 1, gi % 3 === 0 ? 2 : 1, gh);
+          var grassEdge = mix([55, 98, 35], day.sky[2] || [120, 130, 140], 0.06);
+          for (var gi = 0; gi < 24; gi++) {
+            var gx = snap2(topX + side * (2 + gi * 5 + hash(mark + side * 211 + gi * 5.9) * 5));
+            var gy = snap2(terrainLipAt(gx));
+            var isRoot = gi < 9 && gi % 3 === 1;
+            var gh = isRoot
+              ? 24 + Math.round(hash(mark + side * 223 + gi * 9.3) * 34)
+              : 5 + Math.round(hash(mark + side * 223 + gi * 9.3) * (gi < 8 ? 24 : 12));
+            g.strokeStyle = css(isRoot ? rootCol : grassEdge, isRoot ? 0.86 : 0.78);
+            g.lineWidth = isRoot ? 2 : 1;
+            g.beginPath();
+            g.moveTo(gx, gy + 1);
+            g.lineTo(gx + side * (isRoot ? 3 : 1), snap2(gy + gh * 0.58));
+            g.lineTo(gx + side * (isRoot ? -1 : 2), snap2(gy + gh));
+            g.stroke();
+            if (isRoot && gi < 7) {
+              g.beginPath();
+              g.moveTo(gx + side * 3, snap2(gy + gh * 0.58));
+              g.lineTo(gx - side * 5, snap2(gy + gh * 0.78));
+              g.stroke();
+            }
           }
         }
         g.restore();
