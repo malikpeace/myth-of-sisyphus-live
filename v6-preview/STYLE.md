@@ -15,6 +15,10 @@ clustered into readable forms rather than scattered as micro-noise.
 - Curves use consistent stepped clusters instead of smooth vector arcs.
 - World art uses opaque pixels except for intentional particles, fades, glow,
   weather, atmospheric depth, and approved near-tree blur.
+- The Endless craft candidate samples stone rotations at 256 angular steps from
+  retained native-size art, with nearest-neighbour sampling and binary alpha.
+  Only twelve nearby frames are cached. This replaces the coarse 16-pose turn
+  without introducing filtered edges; other modes keep their existing atlas.
 
 ## Materials
 

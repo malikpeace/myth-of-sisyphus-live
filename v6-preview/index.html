@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-release-candidate-13">
+<meta name="sisyphus-build" content="6-endless-craft-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -14,7 +14,7 @@
 <!-- Start fetching the mountain backdrop the instant the page parses (before the
      script runs), so it's decoded before first paint — no cold-blue sky flash. -->
 <link rel="preload" as="image" href="v5/assets/mountain-bg-sky-imagegen-v2.png">
-<link rel="preload" as="image" href="v6-preview/assets/mountain-plate-v6-v2.png">
+<link rel="preload" as="image" href="v6-preview/assets/mountain-plate-v6-candidate.png">
 <link rel="preload" as="image" href="v6-preview/assets/meadow-ground-v3.png">
 <link rel="preload" as="image" href="v6-preview/assets/rock-ground-v1.png">
 <style>
@@ -2022,9 +2022,16 @@
     </details>
   </div>
 
+<script src="v6-preview/endless-journey.js"></script>
+<script src="v6-preview/endless-scenery.js"></script>
 <script>
 (function () {
   "use strict";
+
+  var Journey = window.SisyphusJourney;
+  var endlessScenery = new window.SisyphusScenery();
+  var endlessVelocity = 0, endlessFallStart = null, journeyNeedsPush = false;
+  var journeySaveAt = 0, pauseStartedAt = 0;
 
   var VW = 480, VH = 270;
   // V5 renders directly to its final art grid. The complete world frame is then
@@ -2118,6 +2125,47 @@
   var v6BoulderStageIndex = 0;
   var v6BoulderFrameCv = document.createElement("canvas");
   var v6BoulderFrameG = v6BoulderFrameCv.getContext("2d");
+  var endlessRockSource = null, endlessRockSourceStage = -1;
+  var endlessRockTurns = new Map();
+
+  function endlessBoulderFrame(atlas, stage, size, angle) {
+    if (endlessRockSourceStage !== stage) {
+      var sourceCanvas = document.createElement("canvas");
+      sourceCanvas.width = sourceCanvas.height = size;
+      var sourceG = sourceCanvas.getContext("2d", { willReadFrequently: true });
+      sourceG.drawImage(atlas, 0, 0, size, size, 0, 0, size, size);
+      endlessRockSource = sourceG.getImageData(0, 0, size, size).data;
+      endlessRockSourceStage = stage;
+      endlessRockTurns.clear();
+    }
+    var frames = 256;
+    var frame = Math.round(angle / (Math.PI * 2) * frames) % frames;
+    if (endlessRockTurns.has(frame)) return endlessRockTurns.get(frame);
+    var result = document.createElement("canvas");
+    result.width = result.height = size;
+    var context = result.getContext("2d");
+    var data = context.createImageData(size, size);
+    var theta = frame / frames * Math.PI * 2;
+    var cos = Math.cos(theta), sin = Math.sin(theta), center = (size - 1) * 0.5;
+    // Inverse nearest-neighbour sampling preserves hard alpha and the authored
+    // palette. Only twelve nearby angles are retained, not a giant phone atlas.
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        var sx = Math.round(cos * (x - center) + sin * (y - center) + center);
+        var sy = Math.round(-sin * (x - center) + cos * (y - center) + center);
+        if (sx < 0 || sy < 0 || sx >= size || sy >= size) continue;
+        var from = (sy * size + sx) * 4, to = (y * size + x) * 4;
+        data.data[to] = endlessRockSource[from];
+        data.data[to + 1] = endlessRockSource[from + 1];
+        data.data[to + 2] = endlessRockSource[from + 2];
+        data.data[to + 3] = endlessRockSource[from + 3] >= 128 ? 255 : 0;
+      }
+    }
+    context.putImageData(data, 0, 0);
+    if (endlessRockTurns.size >= 12) endlessRockTurns.delete(endlessRockTurns.keys().next().value);
+    endlessRockTurns.set(frame, result);
+    return result;
+  }
 
   function ensureV6BoulderStage(index) {
     index = Math.max(0, Math.min(V6_BOULDER_STAGE_SIZES.length - 1, index | 0));
@@ -2152,6 +2200,7 @@
     if (!atlas.complete || !atlas.naturalWidth) return null;
     var size = V6_BOULDER_STAGE_SIZES[stageIndex];
     var turn = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    if (playMode === "endless") return endlessBoulderFrame(atlas, stageIndex, size, turn);
     var frame = Math.floor(turn / (Math.PI * 2) * V6_BOULDER_STAGE_FRAMES) % V6_BOULDER_STAGE_FRAMES;
     if (v6BoulderFrameCv.width !== size || v6BoulderFrameCv.height !== size) {
       v6BoulderFrameCv.width = size;
@@ -2255,7 +2304,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-release-candidate-13");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-endless-craft-1");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2734,9 +2783,8 @@
   var mtBg = new Image(), mtBgReady = false, mtBgFailed = false;
   mtBg.onload = function () { mtBgReady = true; mtBgBottomCol = sampleBottomCol(mtBg); };
   mtBg.onerror = function () { mtBgFailed = true; };
-  // V5-only transparent mountain plate. A separate pixel sky sits behind it so
-  // the slow cloud layer can pass naturally behind the peaks.
-  mtBg.src = "v6-preview/assets/mountain-plate-v6-v2.png";
+  // Retained transparent pixel mountain plate, with sky and clouds behind it.
+  mtBg.src = "v6-preview/assets/mountain-plate-v6-candidate.png";
   // Night-theme backdrop: dark navy mountains + stars, used as the start backdrop
   // when the "night" (noir) theme is on.
   var nightBg = new Image(), nightBgReady = false;
@@ -2999,6 +3047,7 @@
       beginPlaying();
     }
     if (paused || isPostcardOpen() || gameState !== "playing" || modePhase !== "play") return;   // locked during title/summit return
+    journeyNeedsPush = false;
     if (playMode === "timed" && !timedControlStarted) {
       timedControlStarted = true;
       modeTimer = 0;
@@ -5067,9 +5116,10 @@
     }
     if (startSelectedEl) {
       var challengeReady = sharedScore > 0 && preferredMode === sharedScoreMode && !sharedChallengeDone;
-      startSelectedEl.textContent = "start";
+      var continuing = preferredMode === "endless" && !challengeReady && readEndlessJourney();
+      startSelectedEl.textContent = continuing ? "continue climb" : "start";
       startSelectedEl.classList.toggle("challenge-ready", challengeReady);
-      startSelectedEl.setAttribute("aria-label", challengeReady ? "start challenge: beat " + String(Math.round(sharedScore)).padStart(4, "0") + "m" : "start");
+      startSelectedEl.setAttribute("aria-label", continuing ? "Continue climb at " + Math.round(continuing.altitude) + " metres" : challengeReady ? "start challenge: beat " + String(Math.round(sharedScore)).padStart(4, "0") + "m" : "start");
       startSelectedEl.setAttribute("title", challengeReady ? "start challenge · beat " + String(Math.round(sharedScore)).padStart(4, "0") + "m" : "start");
     }
     refreshTimedPicker();
@@ -5144,6 +5194,21 @@
     });
   }
   function setPaused(next) {
+    if (next && !paused) {
+      pauseStartedAt = Date.now();
+      stopBrace();
+      saveEndlessJourney();
+    } else if (!next && paused) {
+      if (runStartedAt && pauseStartedAt) runStartedAt += Math.max(0, Date.now() - pauseStartedAt);
+      pauseStartedAt = 0;
+      if (playMode === "endless") {
+        journeyNeedsPush = true;
+        endlessVelocity = 0;
+        effort = 0;
+        slideVel = 0;
+        idleGraceTimer = Journey.profile(altitude).grace;
+      }
+    }
     paused = !!next;
     if (pauseScreenEl) pauseScreenEl.style.display = paused ? "flex" : "none";
     if (paused) {
@@ -5356,6 +5421,7 @@
     var mode = playMode || preferredMode || "endless";
     armLastRunChallenge();
     recordRun("restarted");
+    if (mode === "endless") storageRemove("sisyphus6.journey");
     hideRunGameOver();
     hideAgainPanel();
     setPaused(false);
@@ -5364,7 +5430,8 @@
     beginPlaying();
   }
   function returnToMenu() {
-    recordRun("left");
+    if (playMode === "endless") saveEndlessJourney();
+    else recordRun("left");
     hideRunGameOver();
     hideAgainPanel();
     setPaused(false);
@@ -5441,15 +5508,21 @@
       if (againSubEl) againSubEl.textContent = "the stone is still there. you can leave the screen, not the hill.";
     }, 4200);
   }));
-  window.addEventListener("pagehide", function () {
-    recordRunOnExit("left");
-  });
+  function suspendClimb() {
+    if (gameState === "intro") { introPan = 1; beginPlaying(); }
+    if (gameState !== "playing") return;
+    if (!paused) setPaused(true);
+    if (playMode === "endless") saveEndlessJourney();
+    else recordRunOnExit("left");
+  }
+  window.addEventListener("pagehide", suspendClimb);
+  window.addEventListener("blur", suspendClimb);
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden") recordRunOnExit("left");
+    if (document.hidden) suspendClimb();
   });
 	  window.addEventListener("keydown", function(e){
 	    if (isTypingTarget(e.target)) return;
-    if (!e.repeat && gameState === "playing" && (e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E")) {
+    if (QA_STATE && !e.repeat && gameState === "playing" && (e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E")) {
       e.preventDefault();
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       devJumpMeters((e.key === "q" || e.key === "Q") ? -500 : 500);
@@ -5570,6 +5643,10 @@
     stumblePower = 0;
     stumbleTimer = 4 + hash(dailySeed + Date.now() * 0.0001) * 6;
     altitude = 0;
+    endlessVelocity = 0;
+    endlessFallStart = null;
+    journeyNeedsPush = true;
+    journeySaveAt = 0;
     effort = 0;
     lastKey = "";
     curSlope = 0;
@@ -5632,6 +5709,12 @@
     if (gameState !== "title") return;
     setPaused(false);
     resetRun(mode);
+    if (playMode === "endless" && !sharedScore && restoreEndlessJourney()) {
+      introPan = 1;
+      startEl.style.display = "none";
+      beginPlaying();
+      return;
+    }
     gameState = "intro";
     introPan = 0;
     startEl.classList.add("pan-away");
@@ -5664,6 +5747,39 @@
       showModeBanner(modeLabel(playMode), 1.6);
     }
     publishQaState();
+  }
+
+  function readEndlessJourney() {
+    if (!canPersist()) return null;
+    return Journey.decode(storageGet("sisyphus6.journey", ""));
+  }
+  function saveEndlessJourney() {
+    if (playMode !== "endless" || gameState !== "playing" || !canPersist() || altitude < 0.1) return;
+    var elapsed = runStartedAt ? Math.max(0, ((pauseStartedAt || Date.now()) - runStartedAt) / 1000) : 0;
+    storageSet("sisyphus6.journey", JSON.stringify({
+      version: 1, altitude: altitude, peak: runPeakScore, roll: roll, gait: wp,
+      energy: energy, resolve: resolveMeter, snow: snowAccum, elapsed: elapsed,
+      baseline: runBaselineScore, recorded: runRecorded, biggestFall: runBiggestRollback,
+      falls: runBigSlides, milestones: runMilestonesHit
+    }));
+  }
+  function restoreEndlessJourney() {
+    var saved = readEndlessJourney();
+    if (!saved) return false;
+    altitude = saved.altitude;
+    runPeakScore = saved.peak;
+    roll = saved.roll; wp = saved.gait;
+    energy = saved.energy; resolveMeter = saved.resolve; snowAccum = saved.snow;
+    runStartedAt = Date.now() - saved.elapsed * 1000;
+    runBaselineScore = saved.recorded ? saved.peak : saved.baseline;
+    runBiggestRollback = saved.biggestFall; runBigSlides = saved.falls;
+    runMilestonesHit = saved.milestones;
+    curSlope = leanSlope = slopeAtMeters(altitude);
+    journeyNeedsPush = true;
+    hintHidden = false;
+    idleGraceTimer = Journey.profile(altitude).grace;
+    updateScoreText();
+    return true;
   }
 
   function modeLabel(mode) {
@@ -5947,7 +6063,9 @@
       achievements: Object.keys(achievementState || {}).length,
       summitShape: Number(summitShape.toFixed(3)),
       leanSlope: Number(leanSlope.toFixed(3)),
-      loopError: loopError
+      loopError: loopError,
+      sceneryReady: mtBgReady && foregroundTreeReady,
+      journey: { velocity: endlessVelocity, waiting: journeyNeedsPush, floor: endlessFallStart == null ? null : Journey.fallFloor(endlessFallStart), intensity: Journey.profile(altitude).intensity }
     };
   };
   function publishQaState() {
@@ -6355,7 +6473,7 @@
     if (visualMeters() >= GREEK_FIRST - 20) unlockAchievement("greek", true);
     if (visualMeters() >= SNOW_FIRST - 20) unlockAchievement("snow", true);
     var scoreText = String(s).padStart(4, "0") + "m";
-    if (newBestPulse > 0.05 && bestScore > runStartBest && s >= bestScore - 2) {
+    if (playMode !== "endless" && newBestPulse > 0.05 && bestScore > runStartBest && s >= bestScore - 2) {
       var bestScoreText = scoreText + "<span class=\"dist-best\">best " + String(Math.round(bestScore)).padStart(4, "0") + "m</span>";
       if (lastDistRender !== "html:" + bestScoreText) {
         distEl.innerHTML = bestScoreText;
@@ -6560,6 +6678,11 @@
       var t = local / STAGE_BLEND;
       t = t * t * (3 - 2 * t);
       day = blendStageDay(prev, day, t);
+    }
+    if (activeVisualMode() === "endless" && customize.look === "classic") {
+      var clearMorning = (1 - smoother01(clamp01((meters - 140) / 320))) * (1 - clamp01(day.night || 0));
+      var morningSky = [[49, 119, 163], [70, 145, 182], [119, 177, 196], [167, 203, 211]];
+      day.sky = day.sky.map(function (color, i) { return mix(color, morningSky[i], clearMorning); });
     }
     var grassCeil = bandGate(meters, 0, 1550, 460);   // meadow green belongs to the low mountain; fade it out as you climb so it never tints rock/snow/deep realms
     // Grass is lush from the very start (a meadow at the foot of the mountain) instead
@@ -7778,6 +7901,7 @@
     var dx = Math.round((VW - dw) * 0.5 - drift);
     var dy = Math.round((VH - dh) * 0.43);
     var a = reveal * (0.68 + openingT * 0.12) * (alphaMul == null ? 1 : alphaMul);
+    if (activeVisualMode() === "endless") a *= 0.36;
 
     g.save();
     g.globalAlpha = a;
@@ -8359,7 +8483,7 @@
       // Consistent sun: keep the gentle menu-sized sun in gameplay too, so it never
       // pops bigger/brighter the moment you hit START — it stays the size it is on
       // the title/background.
-      var sunSize = (24 + sp.lift * 7) * 0.72;
+      var sunSize = (24 + sp.lift * 7) * (activeVisualMode() === "endless" ? 0.56 : 0.72);
       if (sunAlpha > 0.02) drawMinimalSun(sp.x, sp.y, sunSize, sunAlpha);
     } else if (moonGate > 0.02) {
       var moonPhase = cycle >= 0.72 ? (cycle - 0.72) / 0.46 : (cycle + 0.28) / 0.46;
@@ -9838,13 +9962,14 @@
     return playMode === "endless" ? base : Math.max(topLeftPanelY, base);
   }
 
+  var chaseHudLayoutKey = "";
   function drawOldSelfChaseHud(day) {
     // Sharp HTML text (not canvas): a persistent "best" line tucked right under the
     // live score, showing your best for the current mode. Once you pass it this run,
     // it tracks your new record (best = max(prior best, current).
     if (!chaseBestEl) return;
-    var best = Math.max(Math.round(runStartBest || 0), Math.round(scoreNow()));
-    var show = gameState === "playing" && modePhase === "play" && best >= 1;
+    var best = Math.max(Math.round(runStartBest || 0), Math.round(runPeakScore || 0), Math.round(scoreNow()));
+    var show = gameState === "playing" && modePhase === "play" && best >= 1 && !distEl.childElementCount;
     if (!show) {
       if (chaseBestEl.style.display !== "none") chaseBestEl.style.display = "none";
       return;
@@ -9853,7 +9978,9 @@
     if (chaseBestEl.textContent !== txt) chaseBestEl.textContent = txt;
     chaseBestEl.style.opacity = "0.7";
     if (chaseBestEl.style.display !== "block") chaseBestEl.style.display = "block";
-    if (distEl) {  // pin it directly under the live score on every device
+    var layoutKey = VW + ":" + VH + ":" + PIXEL_DISPLAY_SCALE + ":" + distEl.childElementCount;
+    if (distEl && chaseHudLayoutKey !== layoutKey) {
+      chaseHudLayoutKey = layoutKey;
       chaseBestEl.style.top = Math.round(distEl.getBoundingClientRect().bottom + 2) + "px";
     }
   }
@@ -11069,6 +11196,8 @@
         g.fillStyle = "rgba(" + day.tint[0] + "," + day.tint[1] + "," + day.tint[2] + "," + day.tintA + ")";
         g.fillRect(0, 0, VW, VH);
       }
+      drawEndlessValley(day);
+      drawEndlessHighland(day);
       drawV6NightBackdropGrade(day);
       // The sun/moon are part of the backdrop, so they must be repainted inside the
       // see-through hole too — otherwise the disc was erased wherever it overlapped the
@@ -12186,7 +12315,8 @@
     else if (r > 0.83) type = "wind";
     else if (r > 0.68) type = "gravel";
     else if (r > 0.58) type = "ledge";
-    return { type: type, amount: type ? fade * (0.45 + r * 0.35) : 0, phase: local };
+    var altitudePressure = playMode === "endless" ? Journey.profile(meters).hazard : 1;
+    return { type: type, amount: type ? fade * (0.45 + r * 0.35) * altitudePressure : 0, phase: local };
   }
   // ---- update ----
   function update(dt, wallDt) {
@@ -12241,7 +12371,8 @@
       return;
     }
     updateMythicEvents(dt);
-    effort *= Math.exp(-DECAY * dt);
+    var journeyProfile = Journey.profile(altitude);
+    effort *= Math.exp(-(playMode === "endless" ? journeyProfile.decay : DECAY) * dt);
     if (effort < 0.004) effort = 0;
     if (braceHeld && gameState === "playing" && modePhase === "play") {
       bracePower += (1 - bracePower) * Math.min(1, dt * 7.5);
@@ -12361,6 +12492,7 @@
 
     var modeClimb = playMode === "resolve" ? CLIMB * (1 + momentumLevel * 0.58) : CLIMB;
     var modeSlip = playMode === "resolve" ? SLIP * (1 + Math.max(0, 0.18 - momentumLevel) * 0.55) : SLIP;
+    if (playMode === "endless") modeSlip *= journeyProfile.slip;
     if (playMode === "summit") {
       modeClimb *= 1.10;
       modeSlip *= 0.92;
@@ -12435,8 +12567,9 @@
     strain += (resistance - strain) * Math.min(1, (resistance > strain ? 7 : 4) * dt);
     var atBottom = (altitude <= 0 && net < 0);
     if (gameState === "playing" && modePhase === "play" && effort > 0.08) {
-      idleGraceTimer = IDLE_GRACE;
+      idleGraceTimer = playMode === "endless" ? journeyProfile.grace : IDLE_GRACE;
       idleRollbackTimer = 0;
+      if (playMode === "endless") endlessFallStart = null;
     }
     var eff;
     if (gameState !== "playing" || atBottom) {
@@ -12477,6 +12610,17 @@
       var cap = Math.min(ROLLBACK_CAP * (1 + idleRamp * 9.0), 14 + curSlope * 137 + idleRamp * 520);   // v3: 22 + slope*210
       slideVel = Math.min(cap, slideVel + downhill * ROLLBACK_ACCEL * dt);
       eff = -slideVel;
+    }
+    if (playMode === "endless") {
+      if (eff < 0 && endlessFallStart == null) endlessFallStart = altitude;
+      var floor = endlessFallStart == null ? 0 : Journey.fallFloor(endlessFallStart);
+      if (eff < 0) eff = -Math.min(-eff, journeyProfile.fallSpeed, Math.max(0, altitude - floor) * 3);
+      if (journeyNeedsPush || (braceHeld && bracePower > 0.5 && eff < 0)) {
+        eff = 0; endlessVelocity = 0; slideVel = 0;
+      }
+      endlessVelocity = Journey.approach(endlessVelocity, eff, eff > 0 ? 14 : 7, dt);
+      if (endlessVelocity < 0) endlessVelocity = -Math.min(-endlessVelocity, Math.max(0, altitude - floor) / Math.max(dt, 0.001));
+      eff = endlessVelocity;
     }
     activeFalling = gameState === "playing" && modePhase === "play" && eff < -0.6 && altitude > 0.2;
     altitude += eff * dt;
@@ -12600,13 +12744,35 @@
     if (Math.abs(eff) > 0.5) wp += eff * dt * 0.10;
     else { var nearest = Math.round(wp * 2) / 2; wp += (nearest - wp) * Math.min(1, 5 * dt); }
     if (Math.abs(eff) > 0.5) spriteClock += dt;   // cycle the sprite only while moving
-    roll += eff * dt * (eff < 0 ? 0.52 : 0.13);    // roll back visually 4x faster than forward
+    roll += eff * dt * (playMode === "endless" ? 0.13 : eff < 0 ? 0.52 : 0.13);
 
     // track sustained pushing for the sweat effect
     if (effort > 0.2 && altitude > 0.5) pushTime += dt;
     else pushTime = Math.max(0, pushTime - dt * 1.5);
 
     updateScoreText();
+    if (playMode === "endless" && tSec >= journeySaveAt) {
+      journeySaveAt = tSec + 4;
+      saveEndlessJourney();
+    }
+  }
+
+  function drawEndlessValley(day) {
+    if (activeVisualMode() !== "endless" || customize.look === "void") return;
+    var opacity = (1 - smoother01(clamp01((altitude - 850) / 270))) * Math.pow(1 - waterfallSceneReveal(), 2);
+    var entering = gameState === "title" ? 0 : gameState === "intro" ? smooth01(introPan) : 1;
+    endlessScenery.draw(g, {
+      width: VW, height: VH, day: day, tree: foregroundTreeImg,
+      metres: altitude, opacity: opacity,
+      opening: Math.round((1 - entering) * VH * 0.10)
+    });
+  }
+
+  function drawEndlessHighland(day) {
+    if (activeVisualMode() !== "endless" || customize.look === "void") return;
+    var opacity = smoother01(clamp01((galaxySceneReveal() - 0.18) / 0.82)) * smoother01(clamp01((altitude - 1600) / 230));
+    endlessScenery.highland(g, { width: VW, height: VH, mountains: mtBg,
+      metres: altitude, time: REDUCED ? 0 : tSec, opacity: opacity });
   }
 
   // ---- draw ----
@@ -12640,6 +12806,7 @@
     // reads, but the screen never vibrates violently at altitude. Big moments
     // (heave, milestone, caught) punch through briefly via shakePulse.
     var shakeAmp = REDUCED ? 0 : Math.min(0.68, shakePower * (0.8 + curSlope * 2.4));
+    if (playMode === "endless") shakeAmp = 0;
     if (!REDUCED && shakePulse > 0.01) shakeAmp = Math.min(2.0, shakeAmp + shakePulse * 1.3);
     var shakeX = Math.round(Math.sin(tSec * 47.0) * shakeAmp);
     var shakeY = Math.round(Math.sin(tSec * 63.0 + 1.7) * shakeAmp * 0.55);
@@ -12658,11 +12825,11 @@
       var bgSrcY = 0;
       var bgSrcH = bgImg.naturalHeight;
       // A full cover crop made the panoramic plate enormous on portrait phones,
-      // cutting off its hero peaks. Tall views use a shallower 72%-height fit;
+      // cutting off its hero peaks. Tall views use a shallower 54%-height fit;
       // desktop/landscape retain the original full-frame fit.
       var portraitMountains = VH / Math.max(1, VW) > 1.35 && bgImg === mtBg;
       var bgScale = portraitMountains
-        ? Math.max((VW / bgImg.naturalWidth) * 1.14, (VH * 0.72) / bgImg.naturalHeight)
+        ? Math.max((VW / bgImg.naturalWidth) * 1.14, (VH * 0.54) / bgImg.naturalHeight)
         : Math.max(VW / bgImg.naturalWidth, VH / bgImg.naturalHeight);
       var bgW = Math.round(bgImg.naturalWidth * bgScale);
       var bgH = Math.round(bgSrcH * bgScale);
@@ -12672,7 +12839,7 @@
       // Lift the backdrop UP as the intro camera pans down to the figure, so the
       // mountain range stays visible above the grass once the climb begins
       // (centred on the title; ~0.16 VH higher in play).
-      var bgY = Math.round((VH - bgH) / 2 - openingT * VH * 0.16);
+      var bgY = Math.round((VH - bgH) / 2 - openingT * VH * (portraitMountains ? 0.08 : 0.16));
       var bgK0 = Math.floor((0 - bgBaseX + bgShift) / bgW) - 1;
       var bgK1 = Math.ceil((VW - bgBaseX + bgShift) / bgW) + 1;
       if (bgLayer.width !== VW * RES || bgLayer.height !== VH * RES) {
@@ -12706,7 +12873,7 @@
       // clouds drawn between them disappear behind the peaks with real
       // occlusion, rather than fading against a fake mask.
       if (bgImg === mtBg && mountainLayerAlpha > 0.01) {
-        if (mtSkyReady) {
+        if (mtSkyReady && activeVisualMode() !== "endless") {
           g.save();
           g.imageSmoothingEnabled = false;
           g.globalAlpha = mountainLayerAlpha;
@@ -12815,6 +12982,8 @@
     drawRealmSky(day, openingT);
     drawMemoryAfterglow(day);
     drawMythicEvents(day, "sky");
+    drawEndlessValley(day);
+    drawEndlessHighland(day);
     drawV6NightBackdropGrade(day);
 
     // stars (dark skies only)
@@ -13446,11 +13615,11 @@
         g.translate(blx, bly);
         var stagedRock = v6BoulderFrame(boulderScale, roll + crestRoll);
         if (!stagedRock) g.rotate(roll + crestRoll);
-        if (heavePulse > 0.02 && !REDUCED) {
+        if (playMode !== "endless" && heavePulse > 0.02 && !REDUCED) {
           // heave squash: the stone visibly takes the blow
           var sq = Math.min(1, heavePulse) * 0.06;
           g.scale(1 + sq, 1 - sq);
-        } else if (rhythmPulse > 0.01 && !REDUCED) {
+        } else if (playMode !== "endless" && rhythmPulse > 0.01 && !REDUCED) {
           // every clean tap makes the stone POP — the single most-repeated
           // input in the game finally has a per-tap reaction. tiny, on-beat.
           var rsq = Math.min(1, rhythmPulse) * 0.028;
@@ -13728,8 +13897,7 @@
       var wallDt = lastFrameWall ? (wallNow - lastFrameWall) / 1000 : 0;
       lastFrameWall = wallNow;
       if (!last) last = now;
-      var dt = (now - last) / 1000; last = now;
-      if (dt > 0.22) dt = 0.22;
+      var dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
       if (hitStopT > 0 && !REDUCED) { hitStopT = Math.max(0, hitStopT - dt); dt *= 0.12; }
       if (wallDt <= 0) wallDt = dt;
       if (wallDt > 1.25) wallDt = 1.25;
@@ -13741,13 +13909,13 @@
       if (!paused) {
         if (QA_STATE) {
           var qaT0 = performance.now();
-          update(dt, wallDt);
+          advanceSimulation(dt, wallDt);
           if (QA_HOLD_ALTITUDE >= 0 && gameState === "playing") altitude = QA_HOLD_ALTITUDE;
           draw();
           qaFrameMs[qaFrameMsIdx % 240] = performance.now() - qaT0;
           qaFrameMsIdx++;
         } else {
-          update(dt, wallDt);
+          advanceSimulation(dt, wallDt);
           draw();
         }
       }
@@ -13759,15 +13927,22 @@
       publishQaState();
     }
   }
+  function advanceSimulation(dt, wallDt) {
+    var count = Math.max(1, Math.ceil(dt / (1 / 60)));
+    for (var tick = 0; tick < count; tick++) update(dt / count, wallDt / count);
+  }
+  var lastMenuFrame = 0;
   function frame(now) {
-    var minFrameMs = gameState === "playing" || gameState === "intro" ? 16 : 80;
-    if (Date.now() - lastFrameWall >= minFrameMs) stepFrame(now);
+    if (document.hidden) {
+      last = now;
+      lastFrameWall = Date.now();
+    } else if (gameState === "playing" || gameState === "intro" || now - lastMenuFrame >= 80) {
+      stepFrame(now);
+      lastMenuFrame = now;
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  setInterval(function () {
-    if (Date.now() - lastFrameWall > 520) stepFrame(performance.now());
-  }, 240);
 
   var lastResizeW = 0, lastResizeH = 0, lastResizeRES = 0;
   function resize() {
