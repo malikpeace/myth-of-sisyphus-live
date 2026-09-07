@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-endless-craft-1">
+<meta name="sisyphus-build" content="6-endless-craft-2">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -81,6 +81,7 @@
     letter-spacing: 0.03em;
   }
   #titlewrap {
+    opacity: 0;
     position: fixed; top: 0; left: 0; right: 0;
     padding-top: calc(env(safe-area-inset-top) + 4.2vh);
     padding-bottom: 1.35vh;
@@ -101,7 +102,7 @@
   }
   #dist {
     position: fixed; top: calc(env(safe-area-inset-top) + 4.4vh); right: 4vw; z-index: 10; pointer-events: none;
-    mix-blend-mode: normal; color: #30343a; opacity: 0.86;
+    mix-blend-mode: normal; color: #30343a; opacity: 0;
     text-shadow: 0 1px 0 rgba(255,255,255,0.14);
     font-size: clamp(10px, 1.25vw, 14px); letter-spacing: 0.16em;
     font-variant-numeric: tabular-nums; font-weight: 500;
@@ -2022,8 +2023,8 @@
     </details>
   </div>
 
-<script src="v6-preview/endless-journey.js"></script>
-<script src="v6-preview/endless-scenery.js"></script>
+<script src="v6-preview/endless-journey.js?v=craft-2"></script>
+<script src="v6-preview/endless-scenery.js?v=craft-2"></script>
 <script>
 (function () {
   "use strict";
@@ -2304,7 +2305,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-endless-craft-1");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-endless-craft-2");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -6065,7 +6066,7 @@
       leanSlope: Number(leanSlope.toFixed(3)),
       loopError: loopError,
       sceneryReady: mtBgReady && foregroundTreeReady,
-      journey: { velocity: endlessVelocity, waiting: journeyNeedsPush, floor: endlessFallStart == null ? null : Journey.fallFloor(endlessFallStart), intensity: Journey.profile(altitude).intensity }
+      journey: { velocity: endlessVelocity, waiting: journeyNeedsPush, rolledBack: endlessFallStart == null ? 0 : Math.max(0, endlessFallStart - altitude), intensity: Journey.profile(altitude).intensity }
     };
   };
   function publishQaState() {
@@ -11079,6 +11080,14 @@
     g.restore();
   }
 
+  function bridgeCliffEdge(side, topX, depth, mark) {
+    var d = Math.max(0, depth), cell = Math.floor(d / 24);
+    var seed = mark + (side < 0 ? 90 : 510);
+    var weathering = lerp(hash(seed + cell * 23.7), hash(seed + (cell + 1) * 23.7), smooth01((d % 24) / 24)) - 0.5;
+    var retreat = 8 + d * 0.12 + Math.sin(d * 0.021 + seed) * 4 + weathering * 8;
+    return Math.round((topX + side * retreat) / 2) * 2;
+  }
+
   function drawBridgeRavineCutout(wxL, wxR, worldBottom, day, fadeTop, fadeBot) {
     if (gameState === "title" || playMode === "run") return;
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
@@ -11106,25 +11115,22 @@
       var rimClear = 8;
       var edgeGrid = 2;
       function pix(v) { return Math.round(v / edgeGrid) * edgeGrid; }
-      function edgeX(side, topX, botX, t, idx, seed) {
-        var base = lerp(topX, botX, t);
-        var shelf = Math.round((hash(mark + seed + idx * 23.7) - 0.5) * 18 / edgeGrid) * edgeGrid;
-        var bite = hash(mark + seed + idx * 17.3) > 0.70 ? Math.round(hash(mark + seed + idx * 9.1) * 8 / edgeGrid) * edgeGrid : 0;
-        return pix(base + side * (shelf + bite));
-      }
+      var edgeLastY = pix(bottom);
       function lineSteppedTo(x, y) {
         x = pix(x); y = pix(y);
+        g.lineTo(x, edgeLastY);
         g.lineTo(x, y);
+        edgeLastY = y;
       }
       g.save();
       g.globalAlpha = reveal;
       g.beginPath();
-      g.moveTo(pix(leftBot), pix(bottom));
-      var leftSteps = 28;
+      g.moveTo(bridgeCliffEdge(-1, leftTop, bottom - leftTopY, mark), pix(bottom));
+      var leftSteps = Math.ceil((bottom - leftTopY) / 6);
       for (var ls = 0; ls <= leftSteps; ls++) {
         var lt = ls / leftSteps;
-        var ly = lerp(bottom, leftTopY + 14, lt);
-        var lxEdge = edgeX(-1, leftTop - 18, leftBot, 1 - lt, ls, 90);
+        var ly = lerp(bottom, leftTopY + 4, lt);
+        var lxEdge = bridgeCliffEdge(-1, leftTop, ly - leftTopY, mark);
         lineSteppedTo(lxEdge, ly);
       }
       lineSteppedTo(leftTop - 10, terrainLipAt(leftTop - 8) - rimClear);
@@ -11137,11 +11143,11 @@
         lineSteppedTo(x, terrainLipAt(x) - rimClear + chip + notch);
       }
       lineSteppedTo(rightTop + 10, terrainLipAt(rightTop + 8) - rimClear);
-      var rightSteps = 30;
+      var rightSteps = Math.ceil((bottom - rightTopY) / 6);
       for (var rs = 0; rs <= rightSteps; rs++) {
         var rt = rs / rightSteps;
-        var ry = lerp(rightTopY + 14, bottom, rt);
-        var rxEdge = edgeX(1, rightTop + 18, rightBot, rt, rs, 510);
+        var ry = lerp(rightTopY + 4, bottom, rt);
+        var rxEdge = bridgeCliffEdge(1, rightTop, ry - rightTopY, mark);
         lineSteppedTo(rxEdge, ry);
       }
       lineSteppedTo(rightBot, bottom);
@@ -11249,32 +11255,16 @@
       var faceWarm = mix(faceMid, [102, 75, 51], grassFace > 0.2 ? 0.22 : 0.08);
       var capDark = mix(day.ground, [3, 6, 8], grassFace > 0.2 ? 0.66 : 0.48);
       function snap2(v) { return Math.round(v / 2) * 2; }
-      function edgeAt(side, topX, botX, t, idx) {
-        var seed = side < 0 ? 90 : 510;
-        var shelf = (hash(mark + seed + idx * 23.7) - 0.5) * 34;
-        var ledge = hash(mark + seed + idx * 17.3) > 0.66 ? hash(mark + seed + idx * 9.1) * 24 : 0;
-        function mound(c, radius, height) {
-          var d = Math.abs(t - c) / radius;
-          return d >= 1 ? 0 : (1 - smoother01(d)) * height;
-        }
-        // Large overlapping masses push into the gorge at three depths, with
-        // small recesses between them. This reads as a broken cliff, not a single
-        // mathematically tapered edge.
-        var gorgeBulge = mound(0.19, 0.13, 34) + mound(0.50, 0.16, 48) + mound(0.78, 0.14, 38);
-        var recess = mound(0.34, 0.08, 18) + mound(0.65, 0.09, 15);
-        var broad = Math.sin(t * Math.PI * 3.1 + hash(mark + seed) * 4) * 9;
-        return snap2(lerp(topX, botX, t) + side * (shelf + ledge + broad + recess) - side * gorgeBulge);
-      }
       function drawFace(side, topX, botX) {
-        var topY = snap2(terrainLipAt(topX));
-        var visibleBottom = Math.max(worldBottom + 100, topY + 760);
+        var topY = terrainLipAt(topX);
+        var visibleBottom = worldBottom + 260;
         var depth = visibleBottom - topY;
-        var steps = 32;
+        var steps = Math.ceil(depth / 6);
         var inner = [];
         for (var si = 0; si <= steps; si++) {
           var t = si / steps;
           var y = snap2(topY + 4 + t * depth);
-          var ex = edgeAt(side, topX + side * 18, botX, t, si);
+          var ex = bridgeCliffEdge(side, topX, y - topY, mark);
           inner.push([ex, y]);
         }
 
@@ -11293,7 +11283,8 @@
 
         g.save();
         g.globalAlpha = reveal;
-        // Preserve the fine authored earth texture already mapped beneath this
+        // This edge is shared with the ravine cutout, so the face cannot paint
+        // unsupported triangular shelves over the sky. Preserve the earth texture
         // shape. Because the landward boundary is off-screen, this broad value
         // glaze can add depth without exposing the rectangular edge that plagued
         // the previous narrow overlay.
@@ -12613,13 +12604,12 @@
     }
     if (playMode === "endless") {
       if (eff < 0 && endlessFallStart == null) endlessFallStart = altitude;
-      var floor = endlessFallStart == null ? 0 : Journey.fallFloor(endlessFallStart);
-      if (eff < 0) eff = -Math.min(-eff, journeyProfile.fallSpeed, Math.max(0, altitude - floor) * 3);
+      if (eff < 0) eff = -Math.min(-eff, journeyProfile.fallSpeed);
       if (journeyNeedsPush || (braceHeld && bracePower > 0.5 && eff < 0)) {
         eff = 0; endlessVelocity = 0; slideVel = 0;
       }
       endlessVelocity = Journey.approach(endlessVelocity, eff, eff > 0 ? 14 : 7, dt);
-      if (endlessVelocity < 0) endlessVelocity = -Math.min(-endlessVelocity, Math.max(0, altitude - floor) / Math.max(dt, 0.001));
+      if (endlessVelocity < 0) endlessVelocity = -Math.min(-endlessVelocity, Math.max(0, altitude) / Math.max(dt, 0.001));
       eff = endlessVelocity;
     }
     activeFalling = gameState === "playing" && modePhase === "play" && eff < -0.6 && altitude > 0.2;
@@ -12764,7 +12754,8 @@
     endlessScenery.draw(g, {
       width: VW, height: VH, day: day, tree: foregroundTreeImg,
       metres: altitude, opacity: opacity,
-      opening: Math.round((1 - entering) * VH * 0.10)
+      opening: Math.round((1 - entering) * VH * 0.10),
+      titleAlpha: 1 - entering
     });
   }
 

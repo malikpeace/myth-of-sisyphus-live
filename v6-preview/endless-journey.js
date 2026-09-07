@@ -8,14 +8,10 @@
       intensity: intensity,
       decay: clamp(1.28 + intensity * 0.42, 1.28, 1.70),
       slip: 0.74 + intensity * 0.32,
-      grace: clamp(1.65 - intensity * 0.65, 1, 1.65),
-      fallSpeed: 12 + intensity * 48,
-      fallDistance: 10 + intensity * 130,
+      grace: clamp(0.8 - intensity * 0.35, 0.45, 0.8),
+      fallSpeed: 8 + intensity * 40,
       hazard: smooth((height - 250) / 1400)
     };
-  }
-  function fallFloor(start) {
-    return Math.max(0, start - Math.min(start * 0.35, profile(start).fallDistance));
   }
   function approach(value, target, rate, dt) {
     return value + (target - value) * (1 - Math.exp(-rate * Math.max(0, dt)));
@@ -39,7 +35,7 @@
       return result;
     } catch (_) { return null; }
   }
-  var api = { profile: profile, fallFloor: fallFloor, approach: approach, decode: decode };
+  var api = { profile: profile, approach: approach, decode: decode };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.SisyphusJourney = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -4,9 +4,10 @@
   function css(c) { return "rgb(" + c.join(",") + ")"; }
   function hash(n) { var v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); }
   function Scenery() { this.layers = []; this.trees = new Map(); this.highlands = []; }
-  Scenery.prototype.tree = function (image, height, color) {
+  Scenery.prototype.tree = function (image, height, color, tint) {
+    tint = tint == null ? 0.72 : tint;
     height = Math.max(8, Math.round(height / 4) * 4);
-    var key = height + ":" + color.join(",");
+    var key = height + ":" + color.join(",") + ":" + tint;
     if (this.trees.has(key)) return this.trees.get(key);
     var stamp = document.createElement("canvas");
     stamp.height = height;
@@ -15,7 +16,7 @@
     c.imageSmoothingEnabled = false;
     c.drawImage(image, 0, 0, stamp.width, stamp.height);
     c.globalCompositeOperation = "source-atop";
-    c.fillStyle = "rgba(" + color.join(",") + ",0.72)";
+    c.fillStyle = "rgba(" + color.join(",") + "," + tint + ")";
     c.fillRect(0, 0, stamp.width, stamp.height);
     if (this.trees.size >= 96) this.trees.delete(this.trees.keys().next().value);
     this.trees.set(key, stamp);
@@ -70,6 +71,40 @@
       g.drawImage(layer.canvas, 0, 0);
       g.restore();
     }
+    if (options.titleAlpha > 0.005) this.titleForest(g, options);
+  };
+  Scenery.prototype.titleForest = function (g, options) {
+    var w = options.width, h = options.height, image = options.tree;
+    var night = Math.max(options.day.night || 0, options.day.sky[0][0] < 25 ? 1 : 0);
+    var palette = [[58, 83, 76], [37, 62, 55], [24, 44, 38], [14, 29, 26]].map(function (c) {
+      return mix(c, [8, 15, 29], night * 0.72);
+    });
+    var key = [w, h, palette.join(";")].join("|");
+    if (!this.titleLayer || this.titleKey !== key) {
+      var c = document.createElement("canvas"); c.width = w; c.height = h;
+      var ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = false;
+      for (var depth = 0; depth < 4; depth++) {
+        var base = h * (0.78 + depth * 0.125);
+        var spacing = Math.max(9, Math.round(h * (0.027 + depth * 0.012)));
+        var color = palette[depth];
+        ctx.fillStyle = css(color);
+        for (var x = 0; x < w; x++) {
+          var y = Math.round(base + Math.sin(x / w * 5.2 + depth * 1.8) * h * 0.035);
+          ctx.fillRect(x, y, 1, Math.max(0, h - y));
+        }
+        for (var i = -2; i <= Math.ceil(w / spacing) + 2; i++) {
+          var seed = i * 7.3 + depth * 53;
+          var tx = Math.round(i * spacing + hash(seed) * spacing * 0.7);
+          var ty = Math.round(base + Math.sin(tx / w * 5.2 + depth * 1.8) * h * 0.035);
+          var height = h * (0.11 + depth * 0.065) * (0.8 + hash(seed + 11) * 0.55);
+          var stamp = this.tree(image, height, color, 0.66 - depth * 0.07);
+          ctx.drawImage(stamp, tx - Math.round(stamp.width / 2), ty - stamp.height);
+        }
+      }
+      this.titleLayer = c; this.titleKey = key;
+    }
+    g.save(); g.globalAlpha = options.titleAlpha;
+    g.imageSmoothingEnabled = false; g.drawImage(this.titleLayer, 0, 0); g.restore();
   };
   Scenery.prototype.highland = function (g, options) {
     var image = options.mountains, w = options.width, h = options.height;

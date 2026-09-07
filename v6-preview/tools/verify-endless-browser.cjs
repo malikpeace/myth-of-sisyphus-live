@@ -16,7 +16,18 @@ fs.mkdirSync(out, {recursive:true});
       const context = await browser.newContext({viewport:{width,height},deviceScaleFactor:dpr,isMobile:name!=='desktop',hasTouch:name!=='desktop'});
       const page = await context.newPage();
       page.on('pageerror', e=>errors.push(e.message));
-      for (const altitude of [0,400,650,1145,1800]) {
+      await page.goto(url+'?qa=1');
+      await page.waitForFunction(()=>window.__sisyphusDebug?.().sceneryReady);
+      await page.waitForTimeout(500);
+      await page.screenshot({path:path.join(out,`${name}-title.png`)});
+      const lowerColors=await page.evaluate(()=>{
+        const c=game.getContext('2d'),y=Math.floor(game.height*0.75);
+        const pixels=c.getImageData(0,y,game.width,game.height-y).data;
+        const colors=new Set();for(let i=0;i<pixels.length;i+=4) colors.add(`${pixels[i]},${pixels[i+1]},${pixels[i+2]}`);
+        return colors.size;
+      });
+      assert.ok(lowerColors>40,'Title foreground must contain detailed scenery, not a flat fill');
+      for (const altitude of [0,400,650,755,1145,1800]) {
         await page.goto(url + '?qa=1&qaStart=1&qaWaterfall=1&qaHoldAltitude='+altitude);
         await page.waitForFunction(()=>window.__sisyphusDebug?.().state==='playing' && window.__sisyphusDebug().sceneryReady);
         await page.waitForTimeout(1000);
@@ -89,7 +100,14 @@ fs.mkdirSync(out, {recursive:true});
       await page.waitForTimeout(8000);
       const fallen = await page.evaluate(()=>window.__sisyphusDebug());
       assert.ok(fallen.score>0,'No instant reset');
-      assert.ok(fallen.score>=pushed.score*0.65-1,'Fall remains bounded');
+      assert.ok(fallen.score<pushed.score-4,'The stone visibly rolls back when released');
+      assert.ok(pushed.score-fallen.score<8*48+1,'Rollback has a gradual speed limit');
+      if(altitude===700) {
+        await page.waitForTimeout(4000);
+        const stillFalling=await page.evaluate(()=>window.__sisyphusDebug());
+        assert.ok(stillFalling.score<fallen.score-10,'Rollback must not stop at the old short fall limit');
+        fallen.score=stillFalling.score;
+      }
       for(let tap=0;tap<8;tap++) { await page.touchscreen.tap(300,500); await page.waitForTimeout(350); }
       const recovered = await page.evaluate(()=>window.__sisyphusDebug());
       assert.ok(recovered.score>fallen.score,'A fall can be recovered with normal tapping');

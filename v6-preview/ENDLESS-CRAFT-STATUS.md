@@ -1,7 +1,7 @@
 # Endless Craft Candidate
 
 Date: 2026-09-06
-Build: `6-endless-craft-1`
+Build: `6-endless-craft-2`
 Status: candidate tested locally; owner requested publication to the existing
 V6 preview on 2026-09-06. Actual iPhone acceptance remains outstanding.
 
@@ -16,9 +16,11 @@ This is a focused refinement, not a claim that every biome is finished.
 
 - More forgiving opening cadence, with resistance and fall stakes rising
   continuously rather than changing abruptly at a realm boundary.
-- A single slip is bounded: at most 35% of its starting height and never more
-  than 140 metres. Small early slips are much smaller. Repeated failed recovery
-  attempts can still lose additional height; there is no automatic full reset.
+- Rollback is continuous again, per follow-up feedback. The stone starts rolling
+  after momentum fades and a short grace period, with an altitude-dependent
+  speed cap of 8-48 metres/second. It can roll all the way down if left unattended
+  in the foreground; it does not teleport or automatically reset the run.
+  Craft 1's artificial 35%/140-metre fall floor has been removed.
 - Smoother acceleration and deceleration. Endless no longer applies continuous
   camera vibration or stretches the stone on each tap.
 - Finer stone rotation, sampled from retained art onto the logical pixel grid.
@@ -30,6 +32,10 @@ This is a focused refinement, not a claim that every biome is finished.
 - A wider portrait mountain composition, cleaner morning sky, and three
   progressively parallaxed forest ridges using retained tree artwork.
 - Subdued galaxy imagery with fine stars and layered nighttime mountain ridges.
+- Four detailed forest depth bands fill the title foreground and fade out during
+  the entrance camera move. The gameplay forest framing remains unchanged.
+- Bridge cliff faces and the ravine cutout share a world-stable, pixel-stepped
+  edge instead of overlapping incompatible shapes that exposed brown triangles.
 - Best-height HUD stays consistent during a fall and avoids duplicate labels.
 
 ## Engineering Boundaries
@@ -50,11 +56,11 @@ This is a focused refinement, not a claim that every biome is finished.
 ## Verification
 
 Run `tools/test-endless-journey.cjs` with Node's `--test` flag for profile,
-fall-limit, refresh-rate response, and invalid-save tests.
+rollback-speed, refresh-rate response, and invalid-save tests.
 
 Run `tools/verify-endless-browser.cjs` with Playwright and Chrome available for:
 
-- Moving screenshots at 0, 400, 650, 1145, and 1800 metres in iPhone-sized
+- Moving screenshots at 0, 400, 650, 755, 1145, and 1800 metres in iPhone-sized
   portrait, landscape, and desktop viewports.
 - Canvas nonblank checks, integer presentation scale, disabled smoothing,
   runtime errors, and horizontal overflow checks.
@@ -66,11 +72,11 @@ Run `tools/verify-endless-browser.cjs` with Playwright and Chrome available for:
 Browser evidence is written to `/tmp/sisyphus-endless-qa/`. The browser uses
 isolated test storage, never the owner's actual saved game.
 
-Final result: all four unit tests, fifteen moving scene checks, five other-mode
-smoke checks, both theme/rotation checks, three touch/recovery scenarios, and
-the save/continue checks passed with no reported runtime errors. Measured
-update-plus-draw CPU time averaged 1.25-2.41 ms in the isolated Mac Chrome run;
-this is not an iPhone FPS claim. `index.html` and `full-runtime.html` match.
+Craft 1 passed its four unit tests, fifteen moving scene checks, five other-mode
+smoke checks, both theme/rotation checks, touch/recovery and save/continue checks.
+Craft 2 expands scene coverage to eighteen views plus title foreground checks,
+and requires continuing rollback after the old distance limit, followed by
+recovery through normal touch input. Latest results are in the generated report.
 
 These tests run in desktop Chrome, including phone-sized emulation. They do not
 establish actual iPhone Safari frame pacing, thermal behavior, or PWA lifecycle

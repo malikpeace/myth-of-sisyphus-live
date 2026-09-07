@@ -8,7 +8,7 @@ test('pressure is continuous, bounded, and rises with altitude', () => {
     const next = Journey.profile(height);
     assert.ok(next.intensity >= previous.intensity);
     assert.ok(next.intensity - previous.intensity < 0.001);
-    assert.ok(next.grace >= 1 && next.grace <= 1.65);
+    assert.ok(next.grace >= 0.45 && next.grace <= 0.8);
     assert.ok(next.decay >= 1.28 && next.decay <= 1.7);
     assert.ok(next.hazard >= 0 && next.hazard <= 1);
     previous = next;
@@ -17,14 +17,17 @@ test('pressure is continuous, bounded, and rises with altitude', () => {
   assert.equal(Journey.profile(200).hazard, 0);
 });
 
-test('a fall cannot erase the climb, and greater height raises the stakes', () => {
-  for (const height of [0.1, 1, 10, 180, 500, 1150, 2500, 10000]) {
-    const floor = Journey.fallFloor(height);
-    assert.ok(floor >= height * 0.65 - 1e-8);
-    assert.ok(floor < height);
-    assert.ok(height - floor <= 140 + 1e-8);
+test('rollback remains gradual and does not stop at an artificial distance floor', () => {
+  assert.equal(Journey.fallFloor,undefined);
+  assert.equal(Journey.profile(0).fallSpeed,8);
+  assert.equal(Journey.profile(10000).fallSpeed,48);
+  let speed=0, height=300;
+  for(let frame=0;frame<600;frame++) {
+    speed=Journey.approach(speed,-Journey.profile(height).fallSpeed,7,1/60);
+    height+=speed/60;
   }
-  assert.ok(2500 - Journey.fallFloor(2500) > 100 - Journey.fallFloor(100));
+  assert.ok(height<220 && height>190);
+  assert.ok(speed<-7);
 });
 
 test('velocity response is refresh-rate independent', () => {
