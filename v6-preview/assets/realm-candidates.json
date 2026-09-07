@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "status": "candidate",
+  "assets": [
+    {
+      "id": "sunsetRomePortrait",
+      "path": "realm-sunset-rome-portrait-v1-native.png",
+      "nativeSize": [
+        320,
+        480
+      ],
+      "colors": 16,
+      "opaquePixels": 153600,
+      "partialAlpha": 0,
+      "sourceSHA256": "e71299b5ea6d3a5c5277944c973d557f38d4b8033584ef6cbd8d9894813e0ac8",
+      "outputSHA256": "26200a6aca150bb0a1ec9181c81a530d2276d7213f70246565b0e4a2dde9ebec"
+    },
+    {
+      "id": "blossomValleyWide",
+      "path": "realm-blossom-valley-wide-v1-native.png",
+      "nativeSize": [
+        480,
+        320
+      ],
+      "colors": 24,
+      "opaquePixels": 153600,
+      "partialAlpha": 0,
+      "sourceSHA256": "cf3b2aed9ccf1369f17377a9f031c15fb12fbec83f97689224c084a5a99577f3",
+      "outputSHA256": "2bf3c8ef0510abcb53a2167ae9ed9893fb3ed374a1dba1d6f0269b345f774297"
+    },
+    {
+      "id": "blossomValley",
+      "path": "realm-blossom-valley-v1-native.png",
+      "nativeSize": [
+        320,
+        480
+      ],
+      "colors": 26,
+      "opaquePixels": 153600,
+      "partialAlpha": 0,
+      "sourceSHA256": "336c70016679578a7ad46bc9b49dad4992481fc2856a76c62a0019a38d8fda15",
+      "outputSHA256": "be8e524a7e0b0a97e9d54b8ca22d962b00a28d807bdfeb5e5a5523ccb93f3b2f"
+    },
+    {
+      "id": "blossomGround",
+      "path": "realm-blossom-ground-v1-native.png",
+      "nativeSize": [
+        512,
+        512
+      ],
+      "colors": 15,
+      "opaquePixels": 262144,
+      "partialAlpha": 0,
+      "sourceSHA256": "7055df7b8df385dbeb3455986ced205b3bc10818b1b2a0acda9e3793dbf63914",
+      "outputSHA256": "db03643659f8c3f0d3160fadd14a298e46c529bdbf70ff941272e611d73aade2"
+    },
+    {
+      "id": "waterfallPortrait",
+      "path": "realm-waterfall-portrait-v1-native.png",
+      "nativeSize": [
+        320,
+        480
+      ],
+      "colors": 33,
+      "opaquePixels": 153600,
+      "partialAlpha": 0,
+      "sourceSHA256": "c990a2c9f975df607dae9dc671c6e18c36ae1d480e54248071619ea5e7786ae7",
+      "outputSHA256": "db84e81957b8a64296931d7542196fa3b932c360484f706e458f6c9836d51697"
+    },
+    {
+      "id": "waterfall",
+      "path": "realm-waterfall-v1-native.png",
+      "nativeSize": [
+        480,
+        320
+      ],
+      "colors": 33,
+      "opaquePixels": 153600,
+      "partialAlpha": 0,
+      "sourceSHA256": "1b0155f1a8e4da2488ea870b1458d7e03dfd75067594df9efc37e7dd0b92d1a0",
+      "outputSHA256": "7f566d9034644d1b25de369f201f0d8e09671ec1ab6954d53284da0c4d2cd1d9"
+    },
+    {
+      "id": "moonRome",
+      "path": "realm-moon-rome-v1-native.png",
+      "nativeSize": [
+        480,
+        320
+      ],
+      "colors": 18,
+      "opaquePixels": 153600,
+      "partialAlpha": 0,
+      "sourceSHA256": "d962037fba074c4acf2874b3afb0f61a8871a6d2066d137f258635a779fb5d4a",
+      "outputSHA256": "867b56fcacaf30765053174ce04b043249ab233f603284eee9555514e2887e4c"
+    },
+    {
+      "id": "cherryTree",
+      "path": "realm-cherry-tree-v1-native.png",
+      "nativeSize": [
+        192,
+        192
+      ],
+      "colors": 13,
+      "opaquePixels": 12449,
+      "partialAlpha": 0,
+      "sourceSHA256": "79eb696d7eae5a01ff422f7b3054247a08f84615b6a2bf68d1381110f4920f84",
+      "outputSHA256": "5b738c1de4f3f2fc17cd4d175b0a85d6d663a7e56a4d09f0daa0873d7b9985f0"
+    }
+  ]
+}

@@ -17,17 +17,22 @@ test('pressure is continuous, bounded, and rises with altitude', () => {
   assert.equal(Journey.profile(200).hazard, 0);
 });
 
-test('rollback remains gradual and does not stop at an artificial distance floor', () => {
+test('rollback accelerates hard without an artificial distance floor', () => {
   assert.equal(Journey.fallFloor,undefined);
-  assert.equal(Journey.profile(0).fallSpeed,8);
-  assert.equal(Journey.profile(10000).fallSpeed,48);
-  let speed=0, height=300;
-  for(let frame=0;frame<600;frame++) {
-    speed=Journey.approach(speed,-Journey.profile(height).fallSpeed,7,1/60);
-    height+=speed/60;
+  assert.equal(Journey.profile(0).fallSpeed,110);
+  assert.equal(Journey.profile(10000).fallSpeed,320);
+  assert.equal(Journey.fallLimit(700,0),14);
+  assert.ok(Journey.fallLimit(700,1)<Journey.fallLimit(700,2));
+  assert.equal(Journey.fallLimit(700,3),Journey.profile(700).fallSpeed);
+  let speed=0, height=700;
+  for(let frame=0;frame<300;frame++) {
+    speed=Journey.approach(speed,-Journey.fallLimit(height,frame/60),7,1/60);
+    height=Math.max(0,height+speed/60);
   }
-  assert.ok(height<220 && height>190);
-  assert.ok(speed<-7);
+  assert.ok(height<300 && height>100);
+  assert.ok(speed<-100);
+  for(let frame=0;frame<12;frame++) speed=Journey.approach(speed,20,26,1/60);
+  assert.ok(speed>18, 'pushing catches even a fast slide within 200ms');
 });
 
 test('velocity response is refresh-rate independent', () => {

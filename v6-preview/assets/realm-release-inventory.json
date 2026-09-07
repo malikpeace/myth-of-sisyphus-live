@@ -1,0 +1,186 @@
+{
+  "build": "6-six-realms-1",
+  "reviewStatus": "candidate",
+  "files": [
+    {
+      "path": "v6-preview/SIX-REALMS-WORKLOG.md",
+      "bytes": 11100,
+      "sha256": "c750c74d0952c7281f47c6517374c122f536f7a9b74a56528017ff03f9f990ca"
+    },
+    {
+      "path": "v6-preview/assets/build-info.json",
+      "bytes": 546,
+      "sha256": "29cc9623db27f43ecc722bc4247c7d5609b790ce54af458dd2879544f5a22e04"
+    },
+    {
+      "path": "v6-preview/assets/manifest.json",
+      "bytes": 12649,
+      "sha256": "b5582c92716e80f8b801bd3a60f8eaa8c51a5bfd88f436ca26854d4e4d194b62"
+    },
+    {
+      "path": "v6-preview/assets/meadow-ground-v3.png",
+      "bytes": 113275,
+      "sha256": "7055df7b8df385dbeb3455986ced205b3bc10818b1b2a0acda9e3793dbf63914"
+    },
+    {
+      "path": "v6-preview/assets/realm-blossom-ground-v1-native.png",
+      "bytes": 68300,
+      "sha256": "db03643659f8c3f0d3160fadd14a298e46c529bdbf70ff941272e611d73aade2"
+    },
+    {
+      "path": "v6-preview/assets/realm-blossom-valley-v1-native.png",
+      "bytes": 31983,
+      "sha256": "be8e524a7e0b0a97e9d54b8ca22d962b00a28d807bdfeb5e5a5523ccb93f3b2f"
+    },
+    {
+      "path": "v6-preview/assets/realm-blossom-valley-wide-v1-native.png",
+      "bytes": 35188,
+      "sha256": "2bf3c8ef0510abcb53a2167ae9ed9893fb3ed374a1dba1d6f0269b345f774297"
+    },
+    {
+      "path": "v6-preview/assets/realm-candidates.json",
+      "bytes": 3296,
+      "sha256": "d11ed5cb8da4388dfdfa7b9813372279fe3662b7215972fb6aa88a8e8dab9134"
+    },
+    {
+      "path": "v6-preview/assets/realm-cherry-tree-v1-native.png",
+      "bytes": 9533,
+      "sha256": "5b738c1de4f3f2fc17cd4d175b0a85d6d663a7e56a4d09f0daa0873d7b9985f0"
+    },
+    {
+      "path": "v6-preview/assets/realm-moon-rome-v1-native.png",
+      "bytes": 36494,
+      "sha256": "867b56fcacaf30765053174ce04b043249ab233f603284eee9555514e2887e4c"
+    },
+    {
+      "path": "v6-preview/assets/realm-sunset-rome-portrait-v1-native.png",
+      "bytes": 29527,
+      "sha256": "26200a6aca150bb0a1ec9181c81a530d2276d7213f70246565b0e4a2dde9ebec"
+    },
+    {
+      "path": "v6-preview/assets/realm-waterfall-portrait-v1-native.png",
+      "bytes": 70129,
+      "sha256": "db84e81957b8a64296931d7542196fa3b932c360484f706e458f6c9836d51697"
+    },
+    {
+      "path": "v6-preview/assets/realm-waterfall-v1-native.png",
+      "bytes": 69699,
+      "sha256": "7f566d9034644d1b25de369f201f0d8e09671ec1ab6954d53284da0c4d2cd1d9"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-blossom-valley-v1.png",
+      "bytes": 1823185,
+      "sha256": "336c70016679578a7ad46bc9b49dad4992481fc2856a76c62a0019a38d8fda15"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-blossom-valley-wide-v1.png",
+      "bytes": 2038671,
+      "sha256": "cf3b2aed9ccf1369f17377a9f031c15fb12fbec83f97689224c084a5a99577f3"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-cherry-tree-v1.png",
+      "bytes": 1666673,
+      "sha256": "79eb696d7eae5a01ff422f7b3054247a08f84615b6a2bf68d1381110f4920f84"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-moon-rome-v1.png",
+      "bytes": 2210853,
+      "sha256": "d962037fba074c4acf2874b3afb0f61a8871a6d2066d137f258635a779fb5d4a"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-sunset-rome-portrait-v1.png",
+      "bytes": 1936593,
+      "sha256": "e71299b5ea6d3a5c5277944c973d557f38d4b8033584ef6cbd8d9894813e0ac8"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-waterfall-portrait-v1.png",
+      "bytes": 2250283,
+      "sha256": "c990a2c9f975df607dae9dc671c6e18c36ae1d480e54248071619ea5e7786ae7"
+    },
+    {
+      "path": "v6-preview/assets/source/realm-waterfall-v1.png",
+      "bytes": 2093111,
+      "sha256": "1b0155f1a8e4da2488ea870b1458d7e03dfd75067594df9efc37e7dd0b92d1a0"
+    },
+    {
+      "path": "v6-preview/endless-journey.js",
+      "bytes": 2082,
+      "sha256": "9119e517e9ccc0213a4462830e344ce3d105b4a014b9306bb2dfc4eb310f4fee"
+    },
+    {
+      "path": "v6-preview/endless-scenery.js",
+      "bytes": 8062,
+      "sha256": "b137dc6e9d27ed95fc27124e6d524c83400776cf51e90eaa08fba0b2e1a677eb"
+    },
+    {
+      "path": "v6-preview/full-runtime.html",
+      "bytes": 681178,
+      "sha256": "a9470b2b7ad5cc599566a32ad195c735a4c80a9d2ad716a36e02d721deb14539"
+    },
+    {
+      "path": "v6-preview/index.html",
+      "bytes": 681178,
+      "sha256": "a9470b2b7ad5cc599566a32ad195c735a4c80a9d2ad716a36e02d721deb14539"
+    },
+    {
+      "path": "v6-preview/realm-architecture.js",
+      "bytes": 11038,
+      "sha256": "9c65d9efa42c1ced89a868b9796c477ee5fd2106f73dc45a7ec7cf0607ec26f6"
+    },
+    {
+      "path": "v6-preview/realm-catalog.js",
+      "bytes": 1615,
+      "sha256": "2a3af53b3afe300a04e1e318555b0f05dc7113b01aab8dbb72a9817c860088b0"
+    },
+    {
+      "path": "v6-preview/realm-palettes.json",
+      "bytes": 3278,
+      "sha256": "5367c5a76d624341c799b54cdb9d411dde49434019551d1bd130a5e20c0b28dc"
+    },
+    {
+      "path": "v6-preview/realm-scenes.js",
+      "bytes": 4955,
+      "sha256": "708552f64e18bf25b31d24890cd7769dd9f20fe2381ea0b8b3589938323881a2"
+    },
+    {
+      "path": "v6-preview/tools/build-realm-assets.cjs",
+      "bytes": 3595,
+      "sha256": "fc8dee0cafb37151b3f0b19d946f8cb1a7f116ca39aece0e34abf2607d08f520"
+    },
+    {
+      "path": "v6-preview/tools/build-realm-release.cjs",
+      "bytes": 2156,
+      "sha256": "78bcbe3d255449dabf2bfcf7337a9889240fbb01d00091139084f1ea68e1673e"
+    },
+    {
+      "path": "v6-preview/tools/test-endless-journey.cjs",
+      "bytes": 2526,
+      "sha256": "c519739278826d9b1ad37396b0760d19eeb6233d19b60dd767c5a6df8b3cab3f"
+    },
+    {
+      "path": "v6-preview/tools/test-realm-catalog.cjs",
+      "bytes": 1741,
+      "sha256": "333b5f8430f5bbe3831c9f4ccbd845b7b081860a6c6319fb9e1db050bb54021e"
+    },
+    {
+      "path": "v6-preview/tools/verify-endless-browser.cjs",
+      "bytes": 10996,
+      "sha256": "b9c308c10c89f71b390cd0e5fe2fce1d2f1452e21db2d42c197507a60f680dfb"
+    },
+    {
+      "path": "v6-preview/tools/verify-realm-art.cjs",
+      "bytes": 4282,
+      "sha256": "0d5182b105ee63de897e25605b28c16827f01b796b4077ee579f77d2a3865518"
+    },
+    {
+      "path": "v6-preview/tools/verify-realm-motion.cjs",
+      "bytes": 4867,
+      "sha256": "829740edb2bfd2cd51df344867e29ac9873893c18aa6243b10a258981393e1c4"
+    },
+    {
+      "path": "v6-preview/tools/verify-realm-routing.cjs",
+      "bytes": 9587,
+      "sha256": "21833d88bbc50dd916c2bab936342844bf4cd2ef664be105d7e99406b1d306b3"
+    }
+  ]
+}

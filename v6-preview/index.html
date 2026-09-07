@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <base href="../">
-<meta name="sisyphus-build" content="6-endless-craft-2">
+<meta name="sisyphus-build" content="6-six-realms-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1849,6 +1849,29 @@
     transform: translateY(0) !important;
     pointer-events: auto !important;
   }
+  #startscreen .realm-picker { display:none; width:min(760px,94%); margin:12px auto 18px; }
+  #startscreen.has-realms .s-copy { display:none; }
+  #startscreen .realm-heading { margin:0 0 10px; font-size:12px; font-weight:400; color:#d4dde0; text-align:left; letter-spacing:0; }
+  #startscreen .other-modes { display:none; width:min(760px,94%); margin:0 auto 16px; border-top:1px solid #79848c; }
+  #startscreen.menu-ready .other-modes { display:block; }
+  #startscreen .other-modes summary { padding:14px 0; cursor:pointer; text-align:left; font-size:12px; letter-spacing:0; }
+  #startscreen .other-modes .mode-grid { width:100%; margin:0; }
+  #startscreen.menu-ready .realm-picker:not([hidden]) { display:block; }
+  .realm-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .realm-choice { position:relative; min-width:0; height:116px; padding:12px; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-start; text-align:left; overflow:hidden; border:1px solid #6f7889; border-radius:4px; color:#f4f0e8; background-color:#111b28; background-size:cover; background-position:center; font:inherit; cursor:pointer; }
+  .realm-choice::before { content:""; position:absolute; inset:0; background:linear-gradient(transparent 15%,rgba(4,8,14,.92)); }
+  .realm-choice strong,.realm-choice span { position:relative; font-size:12px; line-height:1.4; letter-spacing:0; }
+  .realm-choice span { font-size:10px; color:#c5cad3; }
+  .realm-choice[aria-pressed="true"] { border:2px solid #f2d7a5; padding:11px; }
+  .realm-choice:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+  .realm-hills { background-image:url("v6-preview/assets/mountain-plate-v6-candidate.png"); }
+  .realm-waterfalls { background-image:url("v6-preview/assets/realm-waterfall-v1-native.png"); }
+  .realm-moon-rome { background-image:url("v6-preview/assets/realm-moon-rome-v1-native.png"); }
+  .realm-snow { background-image:url("assets/snow-peaks-realm-px.png"); }
+  .realm-sunset-rome { background-image:url("assets/greek-sunset-realm-px.png"); }
+  .realm-blossom { background-image:url("v6-preview/assets/realm-cherry-tree-v1-native.png"); background-color:#623e56; }
+  #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
+  @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
 </head>
 <body>
@@ -1943,6 +1966,11 @@
     <div class="s-copy">sisyphus was punished by the gods to push a boulder up a mountain forever. each time he nears the top, the stone rolls back down, and the climb begins again.</div>
     <div id="dailyline" class="daily-line"></div>
     <button id="startselected" class="start-selected" type="button">start</button>
+    <section id="realmpicker" class="realm-picker" aria-label="Realms" hidden>
+      <h2 class="realm-heading">Realms</h2>
+      <div id="realmchoices" class="realm-choices" aria-label="Choose a realm"></div>
+      <button id="realmcontinue" type="button" hidden>continue</button>
+    </section>
     <div class="mode-label">Game modes:</div>
     <div class="mode-grid" aria-label="game modes">
       <button class="mode-card mode-card-daily" data-mode="daily">
@@ -2023,14 +2051,22 @@
     </details>
   </div>
 
-<script src="v6-preview/endless-journey.js?v=craft-2"></script>
-<script src="v6-preview/endless-scenery.js?v=craft-2"></script>
+<script src="v6-preview/endless-journey.js?v=realms-1"></script>
+<script src="v6-preview/endless-scenery.js?v=realms-1"></script>
+<script src="v6-preview/realm-architecture.js?v=realms-1"></script>
+<script src="v6-preview/realm-catalog.js?v=realms-1"></script>
+<script src="v6-preview/realm-scenes.js?v=realms-1"></script>
 <script>
 (function () {
   "use strict";
 
   var Journey = window.SisyphusJourney;
   var endlessScenery = new window.SisyphusScenery();
+  var realmArchitecture = new window.SisyphusRealmArchitecture();
+  var Realms = window.SisyphusRealms;
+  var selectedRealm = null, realmFreshStart = false;
+  var realmScenes = new window.SisyphusRealmScenes(realmArchitecture);
+  var realmBackdropFrame=document.createElement("canvas");
   var endlessVelocity = 0, endlessFallStart = null, journeyNeedsPush = false;
   var journeySaveAt = 0, pauseStartedAt = 0;
 
@@ -2263,6 +2299,12 @@
   var dailySeed = dailyDate.split("").reduce(function (a, ch) { return a + ch.charCodeAt(0); }, 0);
   var QA_STATE = params.has("qa") || /QA/i.test(window.location.search);
   var QA_AUTOSTART = params.get("qaStart") === "1";
+  var QA_REALM_ART = QA_STATE && params.get("qaRealmArt") === "1";
+  var linkedRealm = Realms.find(params.get("realm"));
+  var REALM_MENU_ENABLED = !QA_STATE || QA_REALM_ART || params.get("realmsPreview") === "1" || !!linkedRealm;
+  if (linkedRealm || (QA_REALM_ART && Realms.find(params.get("qaRealm")))) {
+    selectedRealm = linkedRealm ? linkedRealm.id : params.get("qaRealm"); realmFreshStart = true;
+  }
   var QA_HOLD_ALTITUDE = QA_STATE && params.has("qaHoldAltitude")
     ? Math.max(0, Number(params.get("qaHoldAltitude")) || 0) : -1;
   var SHADOW_LAB_ENABLED = QA_STATE && params.get("shadowLab") === "1";
@@ -2305,7 +2347,7 @@
   var timedFinished = false;
   var mountainIndex = 0, summitFlight = 0, mountainWipe = 0, energy = 1, bestScore = 0, runStartBest = 0, runBestAnnounced = false, sharePrompt = 0, milestoneFlash = 0, milestoneFlashText = "", runMilestones = {}, stumblePower = 0, stumbleTimer = 5, sharedChallengeDone = false, challengeClearMeters = -1;
   var loopError = "";
-  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-endless-craft-2");
+  if (QA_STATE && document.body) document.body.setAttribute("data-sisyphus-build", "sisyphus6-six-realms-1");
   var runStartedAt = 0, runBaselineScore = 0, runPeakScore = 0, runBiggestRollback = 0, runMilestonesHit = 0, runRecorded = false, runAgainChoiceTimer = 0;
   var runBigSlides = 0, slideEpisodeDrop = 0;   // counted slide-back episodes >= 65m (for the share glyph)
   var figureLean = 0;                           // how far the figure leans into a giant stone (set by sisyphus(), read by dust anchors)
@@ -2351,6 +2393,7 @@
   var sharedModeIsValid = !!sharedMode;
   var sharedScore = Math.max(0, Math.min(99999, Number(params.get("score") || 0) || 0));
   var sharedScoreMode = sharedModeIsValid ? sharedMode : "endless";
+  var sharedRealm = sharedScoreMode === "endless" && linkedRealm ? linkedRealm.id : null;
   var sharedChallengeKind = String(params.get("challenge") || params.get("challengeType") || "").toLowerCase().replace(/[^a-z-]/g, "");
   if (["score", "daily-target", "ash", "timed-distance", "best", "memory", "last", "link"].indexOf(sharedChallengeKind) < 0) sharedChallengeKind = "";
   if (sharedScore > 0 && !sharedChallengeKind) sharedChallengeKind = sharedScoreMode === "daily" ? "daily-target" : (sharedScoreMode === "run" ? "ash" : (sharedScoreMode === "timed" ? "timed-distance" : "score"));
@@ -2853,6 +2896,8 @@
   var v6MeadowGround = new Image(), v6MeadowGroundReady = false;
   v6MeadowGround.onload = function () { v6MeadowGroundReady = true; };
   v6MeadowGround.src = "v6-preview/assets/meadow-ground-v3.png";
+  var v6BlossomGround=new Image();
+  if(REALM_MENU_ENABLED) v6BlossomGround.src="v6-preview/assets/realm-blossom-ground-v1-native.png";
   var v6RockGround = new Image(), v6RockGroundReady = false;
   v6RockGround.onload = function () { v6RockGroundReady = true; };
   v6RockGround.src = "v6-preview/assets/rock-ground-v1.png";
@@ -2883,6 +2928,10 @@
   var waterfallImg = new Image(), waterfallReady = false;
   waterfallImg.onload = function () { waterfallReady = true; };
   waterfallImg.src = "waterfall-background.png";
+  var realmWaterfallImg = new Image();
+  if (QA_REALM_ART) realmWaterfallImg.src = "v6-preview/assets/realm-waterfall-v1-native.png";
+  var realmWaterfallPortraitImg = new Image();
+  if (QA_REALM_ART) realmWaterfallPortraitImg.src = "v6-preview/assets/realm-waterfall-portrait-v1-native.png";
   var aboveCloudsImg = new Image(), aboveCloudsReady = false;
   aboveCloudsImg.onload = function () { aboveCloudsReady = true; };
   aboveCloudsImg.src = "assets/above-clouds-sunset-px.png";
@@ -3167,6 +3216,11 @@
   var controlHintLastTop = "";
   var lastDistRender = "";
   var preferredMode = sharedModeIsValid ? sharedMode : "endless";   // Endless is the default landing mode (shared links still honor their mode)
+  if(REALM_MENU_ENABLED && !selectedRealm && !sharedModeIsValid) {
+    var rememberedRealm=storageGet("sisyphus6.selectedRealm","");
+    if(Realms.find(rememberedRealm)) selectedRealm=rememberedRealm;
+  }
+  realmFreshStart=!!selectedRealm;
   var touchControls = (("ontouchstart" in window) || navigator.maxTouchPoints > 0 ||
     (QA_STATE && params.get("qaTouch") === "1"));
   var controlHintMainEl = controlHintEl ? controlHintEl.querySelector(".main") : null;
@@ -3587,6 +3641,7 @@
       var item = runs[i];
       if (!item) continue;
       if (wanted && normalizeMode(item.mode) !== wanted) continue;
+      if (wanted === "endless" && (item.realm || null) !== selectedRealm) continue;
       var score = Number(item.score || 0);
       if (!best || score > Number(best.score || 0)) best = item;
     }
@@ -3688,6 +3743,7 @@
   }
 
   function ghostKey(mode) {
+    if(mode === "endless" && selectedRealm) return Realms.key(selectedRealm,"ghost");
     return mode === "daily" ? "sisyphus5.ghost.daily." + dailyDate : "sisyphus5.ghost." + mode;
   }
 
@@ -4103,6 +4159,7 @@
 	      id: Date.now().toString(36) + "-" + Math.floor(hash(Date.now()) * 9999).toString(36),
 	      iso: new Date().toISOString(),
 	      mode: summary.mode,
+	      realm: summary.realm,
 	      burden: currentBurden,
 	      score: score,
       best: summary.best,
@@ -4208,14 +4265,15 @@
       var item = visible[i];
       var itemMode = normalizeMode(item.mode) || "daily";
       var itemScore = Math.max(0, Math.round(Number(item.score || 0)));
-      var loaded = sharedScore > 0 && sharedScoreMode === itemMode && Math.round(sharedScore) === itemScore && !sharedChallengeDone;
+      var itemRealm = itemMode === "endless" && Realms.find(item.realm);
+      var loaded = sharedScore > 0 && sharedScoreMode === itemMode && sharedRealm === (itemRealm ? itemRealm.id : null) && Math.round(sharedScore) === itemScore && !sharedChallengeDone;
       var isFeatured = featured && sameRunMemory(item, featured);
       var cell = document.createElement("button");
       cell.type = "button";
       cell.className = "record-tablet" + (loaded ? " loaded" : "") + (isFeatured ? " featured" : "");
       cell.setAttribute("title", loaded ? "challenge ready · press start" : (isFeatured ? "best remembered climb · tap to load" : "load this record"));
       var title = document.createElement("strong");
-      title.textContent = modeLabel(itemMode).replace(" mode", "") + " · " + String(itemScore).padStart(4, "0") + "m";
+      title.textContent = (itemRealm ? itemRealm.name : itemMode === "endless" ? "endless" : modeLabel(itemMode).replace(" mode", "")) + " · " + String(itemScore).padStart(4, "0") + "m";
 	      var meta = document.createElement("span");
 	      var parts = runMemoryParts(item);
       meta.textContent = parts.join(" · ");
@@ -4237,10 +4295,15 @@
       cell.setAttribute("aria-label", (loaded ? "challenge ready: " : (isFeatured ? "best remembered climb: " : "load remembered climb: ")) + title.textContent);
       (function (entry, featuredEntry) {
         function loadMemoryChallenge() {
+          var targetMode=normalizeMode(entry.mode) || "daily";
+          if(targetMode === "endless" && Realms.find(entry.realm)) selectRealm(entry.realm);
+          else selectPreferredMode(targetMode);
           sharedScore = Math.max(0, Math.round(Number(entry.score || 0)));
-          sharedScoreMode = normalizeMode(entry.mode) || "daily";
+          sharedScoreMode = targetMode;
+          sharedRealm = selectedRealm;
+          sharedChallengeDone = false;
           sharedChallengeKind = featuredEntry ? "best" : "memory";
-          selectPreferredMode(sharedScoreMode);
+          refreshPreferredMode();
           refreshMountainMemory();
           showToast(challengeKindName(sharedChallengeKind) + " loaded · start " + String(sharedScore).padStart(4, "0") + "m");
         }
@@ -4422,6 +4485,7 @@
     url.search = "";
 	    var m = normalizeMode(mode || preferredMode || playMode) || "endless";
 	    url.searchParams.set("mode", urlModeToken(m));
+    if(m === "endless" && selectedRealm) url.searchParams.set("realm",selectedRealm);
 	    url.searchParams.set("look", customize.look);
 	    url.searchParams.set("fx", customize.fx);
 	    if (m === "daily") url.searchParams.set("date", dailyDate);
@@ -4650,6 +4714,7 @@
       (mode === "daily" ? "daily climb" : "the mountain remembers"))));
 	    return {
 	      mode: mode,
+	      realm: mode === "endless" ? selectedRealm : null,
 	      burden: burdenLabel(),
 	      burdenRaw: currentBurden,
 	      score: score,
@@ -5094,13 +5159,16 @@
     }
   }
   function selectPreferredMode(mode) {
+    if(sharedRealm) {sharedScore=0;sharedRealm=null;sharedChallengeDone=false;}
+    selectedRealm = null; realmFreshStart = false;
+    if(REALM_MENU_ENABLED) storageRemove("sisyphus6.selectedRealm");
     preferredMode = normalizeMode(mode) || "endless";
     refreshControlHintCopy(preferredMode);
     refreshPreferredMode();
   }
   function refreshPreferredMode() {
     for (var pmi = 0; pmi < modeCards.length; pmi++) {
-      var isPreferred = modeCards[pmi].getAttribute("data-mode") === preferredMode;
+      var isPreferred = !selectedRealm && modeCards[pmi].getAttribute("data-mode") === preferredMode;
       modeCards[pmi].classList.toggle("preferred", isPreferred);
       var strong = modeCards[pmi].querySelector("strong");
       if (strong) {
@@ -5117,8 +5185,8 @@
     }
     if (startSelectedEl) {
       var challengeReady = sharedScore > 0 && preferredMode === sharedScoreMode && !sharedChallengeDone;
-      var continuing = preferredMode === "endless" && !challengeReady && readEndlessJourney();
-      startSelectedEl.textContent = continuing ? "continue climb" : "start";
+      var continuing = preferredMode === "endless" && !challengeReady && !realmFreshStart && readEndlessJourney();
+      startSelectedEl.textContent = continuing ? "continue climb" : selectedRealm ? "start "+Realms.find(selectedRealm).name.toLowerCase()+" at 0m" : "start";
       startSelectedEl.classList.toggle("challenge-ready", challengeReady);
       startSelectedEl.setAttribute("aria-label", continuing ? "Continue climb at " + Math.round(continuing.altitude) + " metres" : challengeReady ? "start challenge: beat " + String(Math.round(sharedScore)).padStart(4, "0") + "m" : "start");
       startSelectedEl.setAttribute("title", challengeReady ? "start challenge · beat " + String(Math.round(sharedScore)).padStart(4, "0") + "m" : "start");
@@ -5126,7 +5194,52 @@
     refreshTimedPicker();
     refreshLegacyLine();
     refreshDailyLine();
+    refreshRealmPicker();
   }
+  function selectRealm(id) {
+    if (!Realms.find(id) || gameState !== "title") return;
+    if(sharedRealm !== id) {sharedScore=0;sharedRealm=null;sharedChallengeDone=false;}
+    selectedRealm = id; realmFreshStart = true;
+    storageSet("sisyphus6.selectedRealm",id);
+    preferredMode = "endless";
+    refreshControlHintCopy(preferredMode); refreshPreferredMode();
+  }
+  function refreshRealmPicker() {
+    var picker = document.getElementById("realmpicker");
+    if (!picker || !REALM_MENU_ENABLED) return;
+    startEl.classList.add("has-realms");
+    if(!document.getElementById("othermodes")) {
+      var other=document.createElement("details");other.id="othermodes";other.className="other-modes";
+      var summary=document.createElement("summary");summary.textContent="Other modes";other.appendChild(summary);
+      modeGridEl.parentNode.insertBefore(other,modeGridEl);
+      var label=startEl.querySelector(".mode-label");if(label)label.hidden=true;
+      other.appendChild(modeGridEl);other.appendChild(timedPickerEl);
+    }
+    document.getElementById("othermodes").open=!selectedRealm;
+    picker.hidden = false;
+    var choices = document.getElementById("realmchoices");
+    if (!choices.children.length) Realms.entries.forEach(function(realm) {
+      var button=document.createElement("button"); button.type="button";
+      button.className="realm-choice realm-"+realm.id; button.dataset.realm=realm.id;
+      var name=document.createElement("strong"); name.textContent=realm.name;
+      var best=document.createElement("span"); best.className="realm-best";
+      button.append(name,best); button.addEventListener("click",function(){selectRealm(realm.id);});
+      choices.appendChild(button);
+    });
+    Array.prototype.forEach.call(choices.children,function(button) {
+      button.setAttribute("aria-pressed",button.dataset.realm===selectedRealm ? "true" : "false");
+      var best=Number(storageGet(Realms.key(button.dataset.realm,"best"),"0")) || 0;
+      button.querySelector(".realm-best").textContent=best>0 ? "best "+Math.round(best)+"m" : "0m";
+    });
+    var resume=document.getElementById("realmcontinue");
+    var saved=selectedRealm && readEndlessJourney();
+    resume.hidden=!saved || saved.altitude<=0;
+    if(saved) resume.textContent="continue "+Realms.find(selectedRealm).name.toLowerCase()+" at "+Math.round(saved.altitude)+"m";
+  }
+  document.getElementById("realmcontinue").addEventListener("click",function(e){
+    if(!selectedRealm || !readEndlessJourney()) return;
+    realmFreshStart=false; activateSelectedStart(e);
+  });
   function modeCardFromEvent(e) {
     var n = e.target;
     while (n && n !== modeGridEl) {
@@ -5422,7 +5535,7 @@
     var mode = playMode || preferredMode || "endless";
     armLastRunChallenge();
     recordRun("restarted");
-    if (mode === "endless") storageRemove("sisyphus6.journey");
+    if (mode === "endless") storageRemove(endlessJourneyKey());
     hideRunGameOver();
     hideAgainPanel();
     setPaused(false);
@@ -5442,6 +5555,7 @@
     activity = 0;
     if (modeBannerEl) modeBannerEl.classList.remove("show");
     preferredMode = playMode || preferredMode || "endless";
+    realmFreshStart=!!selectedRealm;
     resetRun(preferredMode);
     startEl.style.display = "flex";
     startEl.classList.remove("pan-away");
@@ -5710,7 +5824,7 @@
     if (gameState !== "title") return;
     setPaused(false);
     resetRun(mode);
-    if (playMode === "endless" && !sharedScore && restoreEndlessJourney()) {
+    if (playMode === "endless" && !realmFreshStart && !sharedScore && restoreEndlessJourney()) {
       introPan = 1;
       startEl.style.display = "none";
       beginPlaying();
@@ -5752,13 +5866,20 @@
 
   function readEndlessJourney() {
     if (!canPersist()) return null;
-    return Journey.decode(storageGet("sisyphus6.journey", ""));
+    var raw=storageGet(endlessJourneyKey(), "");
+    if(selectedRealm) {
+      try { if(!Realms.acceptsSave(selectedRealm,JSON.parse(raw))) return null; } catch (_) { return null; }
+    }
+    return Journey.decode(raw);
+  }
+  function endlessJourneyKey() {
+    return selectedRealm ? Realms.key(selectedRealm,"journey") : "sisyphus6.journey";
   }
   function saveEndlessJourney() {
     if (playMode !== "endless" || gameState !== "playing" || !canPersist() || altitude < 0.1) return;
     var elapsed = runStartedAt ? Math.max(0, ((pauseStartedAt || Date.now()) - runStartedAt) / 1000) : 0;
-    storageSet("sisyphus6.journey", JSON.stringify({
-      version: 1, altitude: altitude, peak: runPeakScore, roll: roll, gait: wp,
+    storageSet(endlessJourneyKey(), JSON.stringify({
+      version: 1, realm:selectedRealm, altitude: altitude, peak: runPeakScore, roll: roll, gait: wp,
       energy: energy, resolve: resolveMeter, snow: snowAccum, elapsed: elapsed,
       baseline: runBaselineScore, recorded: runRecorded, biggestFall: runBiggestRollback,
       falls: runBigSlides, milestones: runMilestonesHit
@@ -5784,6 +5905,7 @@
   }
 
   function modeLabel(mode) {
+    if(mode === "endless" && selectedRealm) return Realms.find(selectedRealm).name.toLowerCase();
     if (mode === "summit") return "absurd mode";
     if (mode === "resolve") return "resolve mode";
     if (mode === "run") return "run mode";
@@ -5794,10 +5916,12 @@
   }
 
   function bestKey(mode) {
+    if(mode === "endless" && selectedRealm) return Realms.key(selectedRealm,"best");
     return mode === "daily" ? "sisyphus5.best.daily." + dailyDate : "sisyphus5.best." + mode;
   }
 
   function milestoneKey(mode) {
+    if(mode === "endless" && selectedRealm) return Realms.key(selectedRealm,"milestones");
     return mode === "daily" ? "sisyphus5.milestones.daily." + dailyDate : "sisyphus5.milestones." + mode;
   }
 
@@ -6066,6 +6190,7 @@
       leanSlope: Number(leanSlope.toFixed(3)),
       loopError: loopError,
       sceneryReady: mtBgReady && foregroundTreeReady,
+      realm:selectedRealm,
       journey: { velocity: endlessVelocity, waiting: journeyNeedsPush, rolledBack: endlessFallStart == null ? 0 : Math.max(0, endlessFallStart - altitude), intensity: Journey.profile(altitude).intensity }
     };
   };
@@ -6669,6 +6794,7 @@
     return v - Math.floor(v);
   }
   function sampleStage(meters) {
+    if(selectedRealm && activeVisualMode()==="endless") return realmScenes.day(selectedRealm,sampleDay(0.34));
     meters = Math.max(0, meters);
     var raw = Math.floor(meters / STAGE_LENGTH);
     var idx = raw % STAGES.length;
@@ -7063,6 +7189,7 @@
     return ANCHOR_X - 164 - (altitude - mark) * GROUND_SCROLL;
   }
   function waterfallSceneReveal() {
+    if(selectedRealm) return 0;
     if (gameState === "title" || playMode === "run") return 0;
     var at = waterfallNearestMeters(altitude);
     var d = Math.abs(altitude - at);
@@ -7071,6 +7198,7 @@
     return t * t * (3 - 2 * t) * (1 - voidRevealFor(altitude)) * (1 - 0.78 * valleyHold) * bandGate(altitude, 0, 1450, 320);   // forest/waterfall lives low; never recycle it up high
   }
   function waterfallPathFeatureReveal(mark, featureLeft, featureRight, wxL, wxR) {
+    if(selectedRealm) return 0;
     if (gameState === "title" || playMode === "run") return 0;
     var fadePad = 210;
     var fadeSpan = 420;
@@ -7106,6 +7234,7 @@
     return ABOVE_CLOUDS_FIRST + idx * ABOVE_CLOUDS_SPACING;
   }
   function aboveCloudsSceneRevealFor(meters) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = aboveCloudsNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
@@ -7167,6 +7296,7 @@
     return GALAXY_FIRST + idx * GALAXY_SPACING;
   }
   function galaxySceneRevealFor(meters) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = galaxyNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
@@ -7182,6 +7312,7 @@
     return CANYON_FIRST + idx * CANYON_SPACING;
   }
   function canyonSceneRevealFor(meters) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = canyonNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
@@ -7197,6 +7328,7 @@
     return GREEK_FIRST + idx * GREEK_SPACING;
   }
   function greekSceneRevealFor(meters) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = greekNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
@@ -7212,6 +7344,7 @@
     return FLOWER_FIRST + idx * FLOWER_SPACING;
   }
   function flowerGroundRevealFor(meters) {
+    if(selectedRealm) return selectedRealm==="blossom"?1:0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = flowerNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
@@ -7222,6 +7355,8 @@
     return flowerGroundRevealFor(altitude);
   }
   function grassGroundReveal() {
+    if(selectedRealm) return ["hills","waterfalls","blossom"].indexOf(selectedRealm)>=0?1:0;
+    if(REALM_MENU_ENABLED && gameState === "title") return 1;
     if (playMode === "run" || gameState === "title") return 0;
     // Grass blankets the very start and the forest/waterfall band; it fades out as
     // you climb into the higher rocky realms (the rock atlas underneath shows
@@ -7236,6 +7371,7 @@
     return VALLEYS_FIRST + idx * VALLEYS_SPACING;
   }
   function valleysScenePresenceFor(meters) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = valleysNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
@@ -7253,12 +7389,14 @@
     return SNOW_FIRST + idx * SNOW_SPACING;
   }
   function snowSceneRevealFor(meters) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var at = snowNearestMeters(meters);
     var d = Math.abs(Math.max(0, meters) - at);
     return smoother01(clamp01(1 - d / SNOW_VIEW)) * (1 - 0.85 * realm4Max(meters)) * bandGate(meters, 0, 5200, 420);   // exclusive snow band (no recycle up high)
   }
   function snowCoverFor(meters) {
+    if(selectedRealm) return selectedRealm==="snow"?1:0;
     if (playMode === "run" || gameState === "title") return 0;
     meters = Math.max(0, meters);
     var at = snowNearestMeters(meters);
@@ -7294,6 +7432,7 @@
     { id: "thevoid",  first: 15000, lo: 14225, hi: 1e9,   view: 1400, arrive: "no gods left out here. push anyway." }
   ];
   function realm4RevealFor(meters, def) {
+    if(selectedRealm) return 0;
     if (playMode === "run" || gameState === "title") return 0;
     var m = Math.max(0, meters);
     var fade = 300;
@@ -7366,6 +7505,7 @@
   }
 
   function rockySceneryReveal() {
+    if(selectedRealm) return 0;
     if (gameState === "title" || playMode === "run") return 0;
     var up = smoother01(clamp01((altitude - 940) / 260));
     // The rocky pass is a distinct chapter, not a layer beneath the galaxy.
@@ -8084,6 +8224,11 @@
     if (!waterfallReady) return;
     alphaMul = alphaMul == null ? 1 : alphaMul;
     var at = waterfallNearestMeters(altitude);
+    if (QA_REALM_ART && realmArchitecture.waterfall(g, {
+      image:VW<VH ? realmWaterfallPortraitImg : realmWaterfallImg, portrait:VW<VH,
+      width:VW, height:VH, scroll:altitude-at,
+      opacity:reveal*alphaMul, time:tSec, reduced:REDUCED
+    })) return;
     var drift = REDUCED ? 0 : (altitude - at) * 0.045;
     var imgW = waterfallImg.naturalWidth || 1774;
     var imgH = waterfallImg.naturalHeight || 887;
@@ -8283,6 +8428,7 @@
   // pace, while staying in sync with the colour stage (same anchors) so its
   // height still reads the time of day.
   function continuousSkyCycle() {
+    if(selectedRealm) return selectedRealm==="moon-rome"?0.92:selectedRealm==="hills"?0.28:0.60;
     var pos = Math.max(0, visualMeters()) / STAGE_LENGTH;
     var i0 = Math.floor(pos);
     var f = pos - i0;                                  // linear within the stage = constant pace
@@ -8799,6 +8945,10 @@
   function v6TerrainLayers(day) {
     var meadowA = customize.look === "void" ? 0 : smoother01(clamp01(grassGroundReveal()));
     var pair = v6TerrainMaterialPair(altitude);
+    if(selectedRealm) {
+      var material=selectedRealm==="snow"?"snow":selectedRealm==="sunset-rome"?"greek":selectedRealm==="moon-rome"?"galaxy":"rock";
+      pair={first:material,firstW:1,second:"",secondW:0};
+    }
     var firstEntry = pair.first === "rock" ? { image: v6RockGround, ready: v6RockGroundReady } : v6BiomeGrounds[pair.first];
     var secondEntry = pair.second === "rock" ? { image: v6RockGround, ready: v6RockGroundReady } : v6BiomeGrounds[pair.second];
     var firstW = firstEntry && firstEntry.ready ? pair.firstW : 0;
@@ -8809,7 +8959,7 @@
     var layers = [];
     if (firstW > 0.002) layers.push({ id: pair.first, image: firstEntry.image, alpha: materialA * firstW / sum });
     if (secondW > 0.002) layers.push({ id: pair.second, image: secondEntry.image, alpha: materialA * secondW / sum });
-    if (meadowA > 0.002) layers.push({ id: "meadow", image: v6MeadowGround, alpha: meadowA });
+    if (meadowA > 0.002) layers.push({ id: "meadow", image: selectedRealm==="blossom" && v6BlossomGround.complete && v6BlossomGround.naturalWidth?v6BlossomGround:v6MeadowGround, alpha: meadowA });
     if (QA_STATE && document.body) {
       document.body.setAttribute("data-v6-terrain", JSON.stringify({
         first: pair.first,
@@ -9443,6 +9593,7 @@
   // endpoints, so we mask left-70..right+70 — guaranteeing no trunk or canopy ever
   // sits on a bridge (the user's hard rule: NEVER a tree on the bridge).
   function treeOnBridge(exL, exR) {
+    if(selectedRealm) return ["waterfalls","moon-rome","sunset-rome"].indexOf(selectedRealm)>=0;
     if (exR == null) exR = exL;   // back-compat: a single x = a zero-width point
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
     for (var wi = 0; wi < 4; wi++) {
@@ -9461,6 +9612,7 @@
   // an alpha 0..1 that DISSOLVES the tree over a margin as it nears the deck. 1 = fully
   // clear of any gorge, 0 = over the deck (no ground there to root a tree on).
   function treeBridgeFade(exL, exR) {
+    if(selectedRealm) return treeOnBridge(exL,exR)?0:1;
     if (exR == null) exR = exL;
     var margin = 170;   // ramp distance so trees fade near the gorge instead of snapping
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
@@ -9484,6 +9636,7 @@
   // Return the current bridge's exact span in the actor's slope-aligned local frame.
   // Shadows use this as a receiver mask: they can land on planks, never in the gorge.
   function bridgeDeckShadowSpan(theta) {
+    if(selectedRealm) return null; // Selected stone paths have their own receiver mask.
     if (gameState === "title" || playMode === "run") return null;
     if (bandGate(altitude, 0, 2800, 360) < 0.4) return null;
     var baseIdx = Math.floor((Math.max(0, altitude) - WATERFALL_FIRST) / WATERFALL_SPACING) - 1;
@@ -9509,14 +9662,16 @@
     return nearestGap < 900 ? nearest : null;
   }
   function drawTreeLayer(day, cfg) {
+    if(selectedRealm && ["hills","waterfalls"].indexOf(selectedRealm)<0) return;
+    if(selectedRealm==="waterfalls" && cfg.anchor!=="screen")return;
     if (!foregroundTreeReady || gameState !== "playing") return;   // playing only: avoids the intro-pan vertical offset
     // The low-mountain forest is a journey, not a short bell around the gorge:
     // start sparse after the opening meadow, hold a full dense stand through the
     // 1.1km climb, then ease away before the first high realm takes over.
-    var forestEnter = smoother01(clamp01((altitude - 120) / 360));
+    var forestEnter = selectedRealm==="waterfalls"?1:smoother01(clamp01((altitude - 120) / 360));
     // Hand the scene cleanly to the barren pass: the final pines disappear
     // before the v2 crags become dominant, so the two biomes never stack.
-    var forestExit = 1 - smoother01(clamp01((altitude - 900) / 240));
+    var forestExit = selectedRealm?1:1 - smoother01(clamp01((altitude - 900) / 240));
     var forestJourney = forestEnter * forestExit;
     var wfa = Math.max(waterfallSceneReveal(), forestJourney) * forestExit;
     if (wfa <= 0.02) return;
@@ -9618,7 +9773,7 @@
         bridgeTestL = treeWorldBase - 12;
         bridgeTestR = treeWorldBase + 12;
       }
-      var bridgeFade = treeBridgeFade(bridgeTestL, bridgeTestR);
+      var bridgeFade = selectedRealm && screenAnchored?1:treeBridgeFade(bridgeTestL, bridgeTestR);
       if (bridgeFade < 0.995) continue;                                          // hard cull near a gorge: never render a translucent tree
       var baseY;
       if (cfg.anchor === "screen") {
@@ -11701,6 +11856,20 @@
       var angle = Math.atan2(dy, dx);
       var a = reveal * (0.86 + reveal * 0.14);
 
+      if (QA_REALM_ART && playMode === "endless") {
+        var stoneLeft = Math.floor(Math.max(wxL, left - 56));
+        var stoneRight = Math.ceil(Math.min(wxR, right + 56));
+        g.save(); g.globalAlpha = a; g.translate(stoneLeft, 0);
+        realmArchitecture.bridge(g, {
+          width:stoneRight-stoneLeft, height:Math.max(yL,yR)+580,
+          surface:function(x){ return terrainLipAt(stoneLeft+x)-2; },
+          scroll:stoneLeft+Math.round(altitude*GROUND_SCROLL), span:250, pier:58, depth:480,
+          palette:v6TerrainNightAmount(day)>0.5 ? "moon" : "forest"
+        });
+        g.restore();
+        continue;
+      }
+
       // Rock arch ONLY where the ground is actually rock. On the grassy/forest
       // lower mountain its stone ends met GRASS, which looked wrong — grass fades
       // out by ~1400m, so gate the rock variant above that. Lower forest gorges
@@ -12604,11 +12773,12 @@
     }
     if (playMode === "endless") {
       if (eff < 0 && endlessFallStart == null) endlessFallStart = altitude;
-      if (eff < 0) eff = -Math.min(-eff, journeyProfile.fallSpeed);
+      if (eff < 0) eff = -Math.min(-eff, Journey.fallLimit(altitude, idleRollbackTimer));
       if (journeyNeedsPush || (braceHeld && bracePower > 0.5 && eff < 0)) {
         eff = 0; endlessVelocity = 0; slideVel = 0;
       }
-      endlessVelocity = Journey.approach(endlessVelocity, eff, eff > 0 ? 14 : 7, dt);
+      var catchRate = eff > 0 && endlessVelocity < 0 ? 26 : eff > 0 ? 14 : 7;
+      endlessVelocity = Journey.approach(endlessVelocity, eff, catchRate, dt);
       if (endlessVelocity < 0) endlessVelocity = -Math.min(-endlessVelocity, Math.max(0, altitude) / Math.max(dt, 0.001));
       eff = endlessVelocity;
     }
@@ -12747,19 +12917,75 @@
     }
   }
 
+  function drawSelectedRealmBackdrop() {
+    if(!selectedRealm || activeVisualMode()!=="endless") return;
+    var options={id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED};
+    realmScenes.backdrop(g,options);
+  }
+  function drawSelectedRealmStone(wxL,wxR,worldBottom,day) {
+    if(!selectedRealm || ["waterfalls","moon-rome","sunset-rome"].indexOf(selectedRealm)<0 || gameState==="title") return;
+    g.save();g.beginPath();
+    for(var x=Math.floor(wxL);x<=Math.ceil(wxR);x++){
+      var y=Math.round(terrainLipAt(x));g.rect(x,y,1,Math.max(0,worldBottom-y));
+    }
+    g.clip();g.setTransform(1,0,0,1,0,0);g.drawImage(realmBackdropFrame,0,0);g.restore();
+    var left=Math.floor(wxL), width=Math.ceil(wxR)-left;
+    var palette=selectedRealm==="moon-rome"?"moon":selectedRealm==="sunset-rome"?"sunset":"forest";
+    g.save();g.translate(left,0);
+    realmArchitecture.bridge(g,{width:width,height:worldBottom,surface:function(x){return terrainLipAt(left+x);},
+      scroll:left+Math.round(altitude*GROUND_SCROLL),span:280,pier:68,depth:580,palette:palette});
+    if(selectedRealm!=="waterfalls")realmArchitecture.colonnade(g,{width:width,height:300,spacing:390,
+      scroll:left+Math.round(altitude*GROUND_SCROLL),surface:function(x){return terrainLipAt(left+x)+4;},palette:palette});
+    g.restore();
+  }
+  function drawOpeningCliff(wxL,wxR,worldBottom,day) {
+    if(!REALM_MENU_ENABLED || (gameState!=="title" && selectedRealm!=="hills"))return;
+    var edge=ANCHOR_X-95-altitude*GROUND_SCROLL;
+    if(edge<wxL-70 || edge>wxR)return;
+    var lip=Math.round(terrainLipAt(edge));
+    function edgeAt(y){
+      var d=Math.max(0,y-lip);
+      return Math.round(edge+Math.min(35,d*0.10)+Math.sin(d*0.051)*3+Math.sin(d*0.019)*5);
+    }
+    g.save();g.beginPath();
+    for(var y=lip-3;y<worldBottom;y++)g.rect(wxL,y,Math.max(0,edgeAt(y)-wxL),1);
+    g.clip();g.setTransform(1,0,0,1,0,0);g.drawImage(realmBackdropFrame,0,0);g.restore();
+    for(var row=lip+8;row<worldBottom;row++){
+      var ex=edgeAt(row);
+      g.fillStyle="rgba(10,12,19,0.45)";g.fillRect(ex,row,3,1);
+      g.fillStyle="rgba(10,12,19,0.20)";g.fillRect(ex+3,row,6,1);
+      if(row%27<3){g.fillStyle=css(mix(day.ground,[169,146,122],0.35),0.40);g.fillRect(ex+9,row,8,1);}
+    }
+  }
+  function drawSelectedRealmSnow(wxL,wxR) {
+    if(selectedRealm!=="snow") return;
+    var colors=["#e0e9ec","#c6d8e2","#9bb6c9","#718caa"];
+    for(var x=Math.floor(wxL);x<Math.ceil(wxR);x++){
+      var worldX=x+altitude*GROUND_SCROLL;
+      var top=Math.round(terrainLipAt(x))-1;
+      var depth=18+Math.round(Math.sin(worldX*0.018)*5+Math.sin(worldX*0.052)*3);
+      for(var band=3;band>=0;band--){
+        g.fillStyle=colors[band];g.fillRect(x,top,1,Math.max(1,Math.round(depth*(0.30+band*0.24))));
+      }
+      if(Math.sin(worldX*0.14)>0.94){g.fillStyle="#e0e9ec";g.fillRect(x,top-1,1,2);}
+    }
+  }
   function drawEndlessValley(day) {
+    if(selectedRealm && selectedRealm!=="hills") return;
     if (activeVisualMode() !== "endless" || customize.look === "void") return;
-    var opacity = (1 - smoother01(clamp01((altitude - 850) / 270))) * Math.pow(1 - waterfallSceneReveal(), 2);
+    var opacity = selectedRealm==="hills"?1:(1 - smoother01(clamp01((altitude - 850) / 270))) * Math.pow(1 - waterfallSceneReveal(), 2);
     var entering = gameState === "title" ? 0 : gameState === "intro" ? smooth01(introPan) : 1;
     endlessScenery.draw(g, {
       width: VW, height: VH, day: day, tree: foregroundTreeImg,
       metres: altitude, opacity: opacity,
       opening: Math.round((1 - entering) * VH * 0.10),
-      titleAlpha: 1 - entering
+      titleAlpha: 1 - entering,
+      richForest: selectedRealm==="hills" || (REALM_MENU_ENABLED && gameState==="title")
     });
   }
 
   function drawEndlessHighland(day) {
+    if(selectedRealm) return;
     if (activeVisualMode() !== "endless" || customize.look === "void") return;
     var opacity = smoother01(clamp01((galaxySceneReveal() - 0.18) / 0.82)) * smoother01(clamp01((altitude - 1600) / 230));
     endlessScenery.highland(g, { width: VW, height: VH, mountains: mtBg,
@@ -12802,7 +13028,7 @@
     var shakeX = Math.round(Math.sin(tSec * 47.0) * shakeAmp);
     var shakeY = Math.round(Math.sin(tSec * 63.0 + 1.7) * shakeAmp * 0.55);
     var openingT = gameState === "title" ? 0 : (gameState === "intro" ? smooth01(introPan) : 1);
-    var openingDrop = Math.round((1 - openingT) * VH * 0.62);
+    var openingDrop = Math.round((1 - openingT) * VH * (REALM_MENU_ENABLED?0.15:0.62));
 
     // background: image if loaded, else sky gradient
     if (mtBgReady) {
@@ -12858,7 +13084,7 @@
       // The start-mountain backdrop belongs to the LOW mountain. Fade it out as you
       // climb so it stops leaking the same warm vista into every deep realm (each
       // deep realm owns its own sky/ground above this).
-      var mountainLayerAlpha = 1.0 * bgMountainFade * mountainWaterfallFade * bandGate(altitude, 0, 1750, 520);
+      var mountainLayerAlpha = 1.0 * bgMountainFade * mountainWaterfallFade * (selectedRealm==="hills"?1:bandGate(altitude, 0, 1750, 520));
       if (customize.look === "void") mountainLayerAlpha *= 0.06;   // void theme: no mountains, just the dark
       // The daytime plate is split into sky and transparent mountains. Slow
       // clouds drawn between them disappear behind the peaks with real
@@ -12975,7 +13201,8 @@
     drawMythicEvents(day, "sky");
     drawEndlessValley(day);
     drawEndlessHighland(day);
-    drawV6NightBackdropGrade(day);
+    drawSelectedRealmBackdrop();
+    if(!selectedRealm) drawV6NightBackdropGrade(day);
 
     // stars (dark skies only)
     var starA = Math.max(clamp01(day.night || 0) * 0.88, clamp01((0.2 - lum(day.sky[0])) / 0.2) * 0.9);
@@ -13037,6 +13264,16 @@
     // slope so the ground occludes the tree bases (they grow down the hillside).
     // The FOREGROUND sweep trees are drawn later, after the actor, to pass in front.
     drawBackgroundTrees(day);
+    if(selectedRealm==="blossom") realmScenes.cherryDepth(g,{
+      id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED,
+      surface:function(x){return curCamZtyBase+terrainLipAt((x-curCamZtxBase)/curCamZoom)*curCamZoom;}
+    });
+    if(REALM_MENU_ENABLED){
+      if(realmBackdropFrame.width!==VW || realmBackdropFrame.height!==VH){realmBackdropFrame.width=VW;realmBackdropFrame.height=VH;}
+      var realmBackdropContext=realmBackdropFrame.getContext("2d");
+      realmBackdropContext.imageSmoothingEnabled=false;
+      realmBackdropContext.drawImage(g.canvas,0,0,VW,VH);
+    }
 
     // zoom offset: everything scales uniformly around the anchor point (computed above,
     // curCamZtx/Zty/Zoom — reused here for the ground transform).
@@ -13140,6 +13377,9 @@
     drawBridgeRavineCutout(wxL, wxR, worldBottom, day, fadeTop, fadeBot);
     drawBridgeCliffFaces(wxL, wxR, worldBottom, day);
     drawWaterfallBridge(wxL, wxR, day);
+    drawSelectedRealmStone(wxL,wxR,worldBottom,day);
+    drawSelectedRealmSnow(wxL,wxR);
+    drawOpeningCliff(wxL,wxR,worldBottom,day);
     drawMonuments(wxL, wxR, day);
     drawBestFlag(wxL, wxR, day);
     drawVigil(wxL, wxR, day);
@@ -13400,7 +13640,9 @@
         // exact horizontal span plus a shallow deck strip, so the same directional
         // shadow continues across the planks but cannot spill into the gorge.
         g.beginPath();
-        if (bridgeShadowSpan) {
+        if (selectedRealm && ["waterfalls","moon-rome","sunset-rome"].indexOf(selectedRealm)>=0) {
+          g.rect(-actorW,0,actorW*3,15);
+        } else if (bridgeShadowSpan) {
           var shadowBridgeL = Math.floor(bridgeShadowSpan.left);
           var shadowBridgeR = Math.ceil(bridgeShadowSpan.right);
           g.rect(-actorW, 0, shadowBridgeL + actorW, actorH);                 // ground before the gorge
@@ -13676,7 +13918,7 @@
 	      }
 	      // man (local coords): baseX=0 standing on floorY=0; intro camera pans to him already ready
       if (gameState === "title") {
-        // hidden on title
+        if(REALM_MENU_ENABLED) sisyphus(manBlx, manBly, brad, BASE_SCALE, manBaseX, 0);
       } else if (gameState === "intro") {
         sisyphus(manBlx, manBly, brad, BASE_SCALE, manBaseX, 0);
       } else if (playMode === "summit" && modePhase === "summitRest" && modeTimer >= CHEER_LAND) {
@@ -13747,9 +13989,11 @@
     }
     drawForegroundRockMasses(day);   // monumental rocks sweep in front through the barren band
     drawForegroundTrees(day);   // close conifers sweeping IN FRONT of the figure (depth)
+    if(selectedRealm) realmScenes.cherryDepth(g,{id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED,foreground:true});
     drawRunAsh(day);
     drawRain(day);
     drawSnow(day);
+    if(selectedRealm)realmScenes.weather(g,{id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED});
     drawFireflies(day);
     drawMountainWipe(day);
     // Subtle vignette: gentle edge darkening for depth/compositing so the scene

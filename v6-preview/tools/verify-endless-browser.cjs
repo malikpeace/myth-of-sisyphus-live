@@ -97,15 +97,29 @@ fs.mkdirSync(out, {recursive:true});
       }
       const pushed = await page.evaluate(()=>window.__sisyphusDebug());
       assert.ok(pushed.score>start+10,'Comfortable taps should produce meaningful progress');
-      await page.waitForTimeout(8000);
+      const descent = await page.evaluate(() => new Promise(resolve => {
+        const trace = []; const start = performance.now();
+        function sample(now) {
+          const state = window.__sisyphusDebug();
+          trace.push({time:now,score:state.score,velocity:state.journey.velocity,state:state.state});
+          if(now-start<8000) requestAnimationFrame(sample); else resolve(trace);
+        }
+        requestAnimationFrame(sample);
+      }));
       const fallen = await page.evaluate(()=>window.__sisyphusDebug());
-      assert.ok(fallen.score>0,'No instant reset');
+      assert.ok(fallen.score>=0,'The stone cannot pass below the beginning');
+      assert.ok(descent.filter(p=>p.velocity<-5 && p.score>0).length>15,'Rollback must travel visibly rather than reset');
+      for(let i=1;i<descent.length;i++) {
+        const previous=descent[i-1], next=descent[i];
+        assert.equal(next.state,'playing','A slide does not reset the run');
+        assert.ok(previous.score-next.score<=320*(next.time-previous.time)/1000+3,'No score teleport during rollback');
+      }
       assert.ok(fallen.score<pushed.score-4,'The stone visibly rolls back when released');
-      assert.ok(pushed.score-fallen.score<8*48+1,'Rollback has a gradual speed limit');
+      if(altitude>=700) assert.ok(Math.min(...descent.map(p=>p.velocity))<-80,'A sustained slide should feel consequential');
       if(altitude===700) {
         await page.waitForTimeout(4000);
         const stillFalling=await page.evaluate(()=>window.__sisyphusDebug());
-        assert.ok(stillFalling.score<fallen.score-10,'Rollback must not stop at the old short fall limit');
+        assert.ok(stillFalling.score===0 || stillFalling.score<fallen.score-10,'Rollback continues until caught or the true bottom');
         fallen.score=stillFalling.score;
       }
       for(let tap=0;tap<8;tap++) { await page.touchscreen.tap(300,500); await page.waitForTimeout(350); }

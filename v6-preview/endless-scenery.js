@@ -32,7 +32,7 @@
       var shift = Math.round(options.metres * [0.13, 0.24, 0.43][depth]);
       var color = mix(forest, air, [0.78, 0.55, 0.28][depth]);
       color = color.map(function (v) { return Math.round(v / 3) * 3; });
-      var key = [w, h, shift, color.join(","), options.opening].join("|");
+      var key = [w, h, shift, color.join(","), options.opening,options.richForest].join("|");
       var layer = this.layers[depth];
       if (!layer) layer = this.layers[depth] = { canvas: document.createElement("canvas"), key: "" };
       if (layer.key !== key) {
@@ -63,6 +63,17 @@
           var treeH = (9 + depth * 7) * (0.60 + hash(i * 7 + seed) * 0.90);
           var stamp = this.tree(image, treeH, color);
           ctx.drawImage(stamp, Math.round(worldX - shift - stamp.width / 2), ridge(worldX) - stamp.height + 3);
+        }
+        if(options.richForest) {
+          // Overlapping canopy rows give the hillside mass, not a flat green band.
+          for(var band=1;band<=5;band++)for(var slot=start;slot<=end;slot++) {
+            var rowSeed=slot*7+seed+band*193;
+            var tx=Math.round(slot*spacing+hash(rowSeed)*spacing);
+            var treeHeight=(12+depth*7)*(0.7+hash(rowSeed+9)*0.55);
+            var canopy=this.tree(image,treeHeight,color,0.82-depth*0.10);
+            var bottom=ridge(tx)+band*(9+depth*5);
+            ctx.drawImage(canopy,Math.round(tx-shift-canopy.width/2),bottom-canopy.height);
+          }
         }
       }
       g.save();
