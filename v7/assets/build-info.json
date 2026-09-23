@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-09-07T10:55:52.300Z",
+  "runtime": "6-six-realms-1",
+  "runtimeChecksum": "a9470b2b7ad5cc599566a32ad195c735a4c80a9d2ad716a36e02d721deb14539",
+  "canonicalViewport": "bounded dynamic integer grid",
+  "endlessRotationSteps": 256,
+  "realms": [
+    "hills",
+    "waterfalls",
+    "moon-rome",
+    "snow",
+    "sunset-rome",
+    "blossom"
+  ],
+  "realmStartMeters": 0,
+  "automaticRealmTransitions": false,
+  "realmArtStatus": "candidate",
+  "v5Checksum": "3e3c5e76f68c31ce51255b7e1cd2185fac2103bef2c3d0132ea59c39a5050a9f"
+}

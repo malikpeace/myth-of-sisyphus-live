@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "status": "candidate",
+  "notes": "Offline material ramps for six-realm artwork. Runtime must not quantize or recolor these assets.",
+  "ramps": {
+    "sunsetSky": ["#70525e", "#9a6868", "#be7e69", "#d99870", "#efac75", "#fac182", "#ffdaa0"],
+    "sunsetStone": ["#252333", "#3d3348", "#564151", "#775760", "#9b7070", "#bd8e79"],
+    "sunsetSea": ["#764d59", "#a56a63", "#ce886b", "#e9a273", "#f8bf85", "#ffe0a3"],
+    "nightSky": ["#050c21", "#0b1735", "#142647", "#21385c", "#304c71", "#466386", "#65829d"],
+    "nightStone": ["#111a2a", "#202b40", "#32405a", "#485774", "#65758e", "#8999ac"],
+    "lamplight": ["#4c3540", "#76504b", "#a77357", "#d29c6e", "#f0c58c"],
+    "forest": ["#0b1c26", "#142e37", "#24414a", "#3d5658", "#5b7065", "#80907a"],
+    "water": ["#182f4c", "#254865", "#3f6581", "#6089a1", "#86afbd", "#b6ced2", "#e0e4db"],
+    "dusk": ["#292842", "#4a405b", "#6b5877", "#946c88", "#bd8197", "#e3a1a0", "#f2c8b0"],
+    "roseSky": ["#23142f", "#38234f", "#593058", "#7a3c6a", "#a74975", "#c86085", "#e58093"],
+    "warmSky": ["#e16781", "#ec7e87", "#f4928d", "#f7a390", "#fbbb97", "#fdd39f", "#ffe8b8"],
+    "roseMountain": ["#28203e", "#3c2c55", "#57375f", "#73486e", "#986082", "#ba7b99"],
+    "blossomGrass": ["#162522", "#26352c", "#3c4937", "#576245", "#757b52", "#999964", "#c2b888"],
+    "blossomSoil": ["#19131c", "#29212a", "#40313a", "#5e4750", "#82616a", "#a88082"],
+    "bark": ["#211925", "#392633", "#593746", "#805051", "#ad6b59", "#da916a"],
+    "blossom": ["#55334f", "#814764", "#ad6080", "#d9819e", "#eca2b0", "#f8c4c2", "#ffe3d3"]
+  },
+  "assets": [
+    {"id":"sunsetRomePortrait","source":"source/realm-sunset-rome-portrait-v1.png","output":"realm-sunset-rome-portrait-v1-native.png","width":320,"height":480,"ramps":["sunsetSky","sunsetStone","sunsetSea"]},
+    {"id": "blossomValleyWide", "source": "source/realm-blossom-valley-wide-v1.png", "output": "realm-blossom-valley-wide-v1-native.png", "width": 480, "height": 320, "ramps": ["roseSky", "warmSky", "roseMountain", "blossom"]},
+    {"id": "blossomValley", "source": "source/realm-blossom-valley-v1.png", "output": "realm-blossom-valley-v1-native.png", "width": 320, "height": 480, "ramps": ["roseSky", "warmSky", "roseMountain", "blossom"]},
+    {"id": "blossomGround", "source": "meadow-ground-v3.png", "output": "realm-blossom-ground-v1-native.png", "width": 512, "height": 512, "ramps": ["blossomGrass", "blossomSoil", "blossom"]},
+    {"id": "waterfallPortrait", "source": "source/realm-waterfall-portrait-v1.png", "output": "realm-waterfall-portrait-v1-native.png", "width": 320, "height": 480, "ramps": ["nightSky", "nightStone", "forest", "water", "dusk"]},
+    {"id": "waterfall", "source": "source/realm-waterfall-v1.png", "output": "realm-waterfall-v1-native.png", "width": 480, "height": 320, "ramps": ["nightSky", "nightStone", "forest", "water", "dusk"]},
+    {"id": "moonRome", "source": "source/realm-moon-rome-v1.png", "output": "realm-moon-rome-v1-native.png", "width": 480, "height": 320, "ramps": ["nightSky", "nightStone", "lamplight"]},
+    {"id": "cherryTree", "source": "source/realm-cherry-tree-v1.png", "output": "realm-cherry-tree-v1-native.png", "width": 192, "height": 192, "transparent": true, "ramps": ["bark", "blossom"]}
+  ]
+}

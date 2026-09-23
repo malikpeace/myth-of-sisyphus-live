@@ -1,0 +1,365 @@
+{
+  "version": 1,
+  "statusValues": ["reference", "candidate", "approved", "rejected"],
+  "assets": [
+    {
+      "id": "v5-sun-reference",
+      "path": "../../assets/sun-pixel.png",
+      "role": "protected-reference",
+      "status": "reference",
+      "smoothing": false,
+      "approvedException": "authored-alpha-glow",
+      "notes": "Keep the current hard sprite and compare strict versus atmospheric glow."
+    },
+    {
+      "id": "v5-boulder-reference",
+      "path": "../../render.png",
+      "role": "protected-reference",
+      "status": "reference",
+      "smoothing": false,
+      "notes": "Preserve the owner-approved V5 boulder appearance until staged frames win."
+    },
+    {
+      "id": "v5-foreground-tree-reference",
+      "path": "../../v5/assets/v5-pine-tree-1.png",
+      "role": "protected-reference",
+      "status": "reference",
+      "smoothing": false,
+      "approvedException": "slight-depth-blur"
+    },
+    {
+      "id": "v6-meadow-tiles",
+      "path": "meadow-tiles-v1.png",
+      "role": "terrain-atlas",
+      "status": "reference",
+      "nativeTile": [16, 16],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Retained as the original V6 proof-of-concept terrain for comparison."
+    },
+    {
+      "id": "v6-meadow-ground-v2",
+      "path": "meadow-ground-v2.png",
+      "source": "source/meadow-ground-imagegen-source-v2.png",
+      "role": "terrain-master",
+      "status": "rejected",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Retained for rollback. Rejected because the narrow palette, shallow grass band, and procedural deep-soil extension felt flatter and less alive than V5."
+    },
+    {
+      "id": "v6-meadow-ground-v3",
+      "path": "meadow-ground-v3.png",
+      "source": "../../v5/assets/v5-meadow-ground-approved.png",
+      "role": "terrain-master",
+      "status": "candidate",
+      "nativeSize": [512, 512],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Rebuilt directly from the protected V5 meadow reference at native logical-pixel scale. Doubles horizontal variation, deepens the living grass layer, preserves organic roots and stones, uses 25 opaque colors, and remains world-locked with no runtime rotation or smoothing."
+    },
+    {
+      "id": "v6-rock-ground-v1",
+      "path": "rock-ground-v1.png",
+      "source": "source/rock-ground-imagegen-source-v1.png",
+      "role": "terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "High-mountain slate master with no embedded boulders. Generated source was reduced, stone-palette mapped, cluster-cleaned, and rendered by the same world-locked column system as the meadow."
+    },
+    {
+      "id": "v6-ground-galaxy-v1",
+      "path": "ground-galaxy-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-valleys-v1",
+      "path": "ground-valleys-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-canyon-v1",
+      "path": "ground-canyon-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-greek-v1",
+      "path": "ground-greek-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-snow-v1",
+      "path": "ground-snow-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-storm-v1",
+      "path": "ground-storm-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-ruins-v1",
+      "path": "ground-ruins-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-volcanic-v1",
+      "path": "ground-volcanic-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-aurora-v1",
+      "path": "ground-aurora-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-bones-v1",
+      "path": "ground-bones-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-obsidian-v1",
+      "path": "ground-obsidian-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-elysium-v1",
+      "path": "ground-elysium-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-ground-void-v1",
+      "path": "ground-void-v1.png",
+      "source": "rock-ground-v1.png",
+      "role": "biome-terrain-master",
+      "status": "candidate",
+      "nativeSize": [256, 512],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "All biome sheets are offline palette bakes of the approved clean rock structure. Runtime changes sheets only through smooth material crossfades."
+    },
+    {
+      "id": "v6-boulder-frames-v5-approved",
+      "path": "boulder-frames-v5-approved.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-rotation-atlas",
+      "status": "reference",
+      "nativeFrame": [64, 64],
+      "frames": 64,
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Original single-size V6 atlas retained as a comparison reference."
+    },
+    {
+      "id": "v6-boulder-stage-0",
+      "path": "boulder-stage-0-52-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [52, 52],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Native opening boulder stage. Runtime stage changes use hysteresis."
+    },
+    {
+      "id": "v6-boulder-stage-1",
+      "path": "boulder-stage-1-84-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [84, 84],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-boulder-stage-2",
+      "path": "boulder-stage-2-115-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [115, 115],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-boulder-stage-3",
+      "path": "boulder-stage-3-147-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [147, 147],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-boulder-stage-4",
+      "path": "boulder-stage-4-178-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [178, 178],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-boulder-stage-5",
+      "path": "boulder-stage-5-209-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [209, 209],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false
+    },
+    {
+      "id": "v6-boulder-stage-6",
+      "path": "boulder-stage-6-241-16f.png",
+      "source": "../../assets/boulder-granite-sprite-v2.png",
+      "role": "boulder-stage-atlas",
+      "status": "candidate",
+      "nativeFrame": [241, 241],
+      "frames": 16,
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Native final boulder stage. All seven atlases are built offline with hard alpha and nearest-neighbor rotation."
+    },
+    {
+      "id": "v6-mountain-plate-candidate",
+      "path": "mountain-plate-v6-candidate.png",
+      "source": "mountain-source-imagegen-v1.png",
+      "role": "distant-mountain-plate",
+      "status": "candidate",
+      "nativeSize": [480, 300],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "Generated source was chroma-keyed, cropped by an integer factor, palette-mapped, and hard-alpha cleaned before use."
+    },
+    {
+      "id": "v6-mountain-plate-v2",
+      "path": "mountain-plate-v6-v2.png",
+      "source": "source/mountain-plate-imagegen-source-v2.png",
+      "role": "distant-mountain-plate",
+      "status": "candidate",
+      "nativeSize": [480, 300],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "RC5 mountain-only plate. The generated source is chroma-keyed, reduced to a 240 x 150 logical master, quantized to 17 opaque colors with hard alpha, then enlarged exactly 2x for the V6 grid."
+    },
+    {
+      "id": "v6-rocky-path-props-v4",
+      "path": "rocky-path-props-v4.png",
+      "source": "rocky-path-props-source-v3.png",
+      "role": "rocky-path-props",
+      "status": "candidate",
+      "nativeFrame": [128, 64],
+      "frames": 6,
+      "smoothing": false,
+      "rotationAllowed": true,
+      "notes": "RC10 low-profile path stones. Six component-fitted hard-alpha cells share the dark slate terrain palette; runtime grading keeps them planted rather than pasted on."
+    },
+    {
+      "id": "v6-rocky-background-crags-v4",
+      "path": "rocky-background-crags-v4.png",
+      "source": "rocky-background-crags-source-v3.png",
+      "role": "rocky-background-depth",
+      "status": "candidate",
+      "nativeFrame": [192, 168],
+      "frames": 5,
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "RC10 distant barren crags fully replace forest rows in the rocky pass. Five component-fitted cells use a shared limited slate palette and hard alpha."
+    },
+    {
+      "id": "v6-rocky-foreground-masses-v4",
+      "path": "rocky-foreground-masses-v4.png",
+      "source": "rocky-foreground-masses-source-v3.png",
+      "role": "rocky-foreground-occluders",
+      "status": "candidate",
+      "nativeFrame": [240, 320],
+      "frames": 4,
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "RC10 monumental close-camera formations. Two authored landmark encounters use four available hard-alpha cells, remain fully opaque, and bury their sheet bases below the viewport so Sisyphus passes behind natural silhouettes."
+    },
+    {
+      "id": "v6-floating-islands-absurd-v1",
+      "path": "floating-islands-absurd-v1-pixel.png",
+      "source": "floating-islands-absurd-v1-chroma.png",
+      "role": "elysium-floating-islands",
+      "status": "candidate",
+      "nativeSize": [384, 256],
+      "smoothing": false,
+      "rotationAllowed": false,
+      "notes": "RC10 sparse impossible temple islands for the Elysium realm. The generated source was chroma-keyed, component-cleaned, hard-alpha rebuilt, and reduced to a compact pixel palette."
+    }
+  ]
+}
