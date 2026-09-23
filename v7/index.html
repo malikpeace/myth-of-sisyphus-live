@@ -2329,6 +2329,11 @@
   // then returns. No banner, sound or shake — milestones stay silent by request.
   var pullT = -1, pullMark = 0, pullNext = 0;
   var gustCd = 0, prevGust = 0;
+  // V7 groove: steady, well-timed alternating taps build it; in it his stride
+  // lengthens, warm motes lift off the stone and the taps play a lyre line.
+  var grooveLv = 0, grooveStep = 0, grooveIdle = 0, grooveMoteAcc = 0, grooveLastTap = 0, grooveAvg = 330, groovePhrase = 0;
+  var GROOVE_SCALE = [293.66, 349.23, 392.0, 440.0, 523.25, 587.33];      // D minor pentatonic
+  var GROOVE_MEL = [[0, 2, 3, 2, 4, 3, 1, 2], [0, 2, 3, 4, 5, 4, 3, 2], [3, 2, 0, 1, 2, 4, 3, 0], [4, 5, 4, 3, 2, 3, 1, 0]];
   var PULL_IN = 0.9, PULL_HOLD = 2.1, PULL_OUT = 1.1, PULL_ZOOM = 0.46;
   var playMode = "endless", modePhase = "play", modeTimer = 0, momentumStreak = 0, momentumLevel = 0, rhythmPulse = 0, rhythmBreak = 0;
   var resolveMeter = 0, cleanPushStreak = 0, bestCleanPushStreak = 0;
@@ -3407,6 +3412,16 @@
         tone(56 * jit, 0.13, "square", 0.020);
         rhythmPulse = Math.max(rhythmPulse, 0.5);   // the 8th-push grunt gets a visual partner: a bigger stone pop
       }
+    } else if (kind === "groove") {
+      // the taps become a lyre line: pluck on every beat, a low root joins at
+      // 60%, a high shimmer at 90%. It is the player's own rhythm, never a loop.
+      var gst = grooveStep++;
+      if (gst % 8 === 0) groovePhrase = gst === 0 ? 0 : (groovePhrase + 1 + Math.floor(Math.random() * 3)) % GROOVE_MEL.length;
+      var gf = GROOVE_SCALE[GROOVE_MEL[groovePhrase][gst % 8]], gl = clamp01((grooveLv - 0.3) / 0.7);
+      tone(gf, 0.42, "triangle", 0.004 + 0.016 * gl);
+      tone(gf * 2.003, 0.2, "sine", 0.002 + 0.005 * gl);
+      if (grooveLv > 0.6 && gst % 4 === 0) tone(73.42, 0.9, "sine", 0.026);
+      if (grooveLv > 0.9 && gst % 8 === 4) tone(gf * 3, 0.6, "sine", 0.0045);
     } else if (kind === "thunderRoll") {
       // crack now, the roll arrives a beat later and grumbles away
       noiseBurst(0.10, 0.07, 2800);
@@ -6320,7 +6335,7 @@
         return { avg: Math.round(sum / n * 100) / 100, max: Math.round(mx * 100) / 100, samples: n };
       },
       pullBack: function (m) { startPullBack(m || 250); return pullT; },
-      feel: function () { return { pull: +pullAmt().toFixed(2), wind: +windGustPower.toFixed(2), VW: VW, VH: VH, catchT: catchT, catches: catchesThisRun, fx: fxP.length, lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
+      feel: function () { return { pull: +pullAmt().toFixed(2), wind: +windGustPower.toFixed(2), groove: +grooveLv.toFixed(2), gstep: grooveStep, VW: VW, VH: VH, catchT: catchT, catches: catchesThisRun, fx: fxP.length, motes: fxP.filter(function (p) { return p.col[0] === 255 && p.col[1] === 236; }).length, effort: +effort.toFixed(2), lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
       drive: function (seconds, hz) {
         seconds = Math.max(0.5, Number(seconds) || 5);
         hz = Math.max(1, Number(hz) || 6.5);
@@ -10005,7 +10020,7 @@
       fxP.push({ rel: !!o.rel, wx: x + (o.rel ? 0 : base) + (Math.random() - 0.5) * (o.jx || 2), y: y + (Math.random() - 0.5) * (o.jy || 1),
         vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0, max: (o.life || 0.55) * (0.7 + Math.random() * 0.6),
         grav: o.grav != null ? o.grav : 90, col: o.col || fxDustCol(), size: o.size || (Math.random() < 0.35 ? 2 : 1),
-        drag: o.drag != null ? o.drag : 2.2, grow: o.grow || 0 });
+        drag: o.drag != null ? o.drag : 2.2, grow: o.grow || 0, front: !!o.front });
     }
   }
   function updateFx(dt) {
@@ -10025,11 +10040,12 @@
       }
     }
   }
-  function drawFx() {
+  function drawFx(front) {
     if (!fxP.length || REDUCED) return;
     var base = altitude * GROUND_SCROLL;
     for (var i = 0; i < fxP.length; i++) {
       var p = fxP[i], k = p.life / p.max;
+      if (!!p.front !== !!front) continue;
       // hold full strength for the first half, then fade; dust puffs billow as they fade
       var a = k < 0.45 ? 0.95 : 0.95 * (1 - (k - 0.45) / 0.55);
       if (p.grow) a *= 0.72;
@@ -10071,6 +10087,16 @@
       g.fillStyle = css(gold, pa * 0.9);
       g.fillRect(bx, by - 7, 1, 7);
       g.fillRect(bx + 1, by - 7, 3, 2);
+    }
+    if (pa > 0.4) {
+      var cl = cairnList(-zx / z, (VW - zx) / z);
+      g.font = "700 6px ui-monospace, SF Mono, Menlo, Consolas, monospace"; g.textAlign = "center"; g.textBaseline = "bottom";
+      for (var ci = 0; ci < cl.length; ci++) {
+        if (cl[ci].m >= pullMark) continue;
+        var cxs = Math.round(zx + cl[ci].x * z), cys = Math.round(zy + (terrainLipAt(cl[ci].x) - 12) * z) - 2;
+        g.fillStyle = css([10, 12, 18], 0.5 * (pa - 0.4) / 0.6); g.fillText(String(cl[ci].m), cxs + 1, cys + 1);
+        g.fillStyle = css(gold, 0.85 * (pa - 0.4) / 0.6); g.fillText(String(cl[ci].m), cxs, cys);
+      }
     }
     var lx = Math.round(zx + (ANCHOR_X + fxBoulderX * 0.5) * z);
     var ly = Math.round(zy + (ANCHOR_Y - fxBrad * 2 - 16) * z) - 16;
@@ -10157,6 +10183,18 @@
     var fall = -lastEff;
     if (catchT < 0 && fall > 6 && altitude > 0.5) { startCatch(fall); return; }
     if (catchT >= 0) { tapKick = 0.6; rhythmPulse = Math.max(rhythmPulse, 0.5); return; }
+    grooveIdle = 0;
+    // "in the groove" = alternating AND a steady tempo (each gap within ~20% of the running beat)
+    var gNow = performance.now ? performance.now() : Date.now(), gGap = gNow - grooveLastTap;
+    grooveLastTap = gNow;
+    var steady = false;
+    if (gGap > 130 && gGap < 650) {
+      steady = Math.abs(gGap - grooveAvg) / grooveAvg < 0.2;
+      grooveAvg += (gGap - grooveAvg) * 0.3;
+    }
+    if (lastJudgeKind >= 2 && lastJudgeKind !== 9 && steady) grooveLv = Math.min(1, grooveLv + 0.075);
+    else if (lastJudgeKind !== 9) grooveLv *= lastJudgeKind >= 2 ? 0.8 : 0.35;   // off the beat: the groove falls apart
+    if (grooveLv > 0.3 && lastJudgeKind >= 2) playSound("groove");
     if (lastJudgeKind === -1) return;                 // mashing one side is not a heave
     var good = lastJudgeKind >= 2 || lastJudgeKind === 9;
     tapKick = good ? 1 : 0.7;
@@ -10691,6 +10729,36 @@
   // Your best is a place, not a number: a small flag stands planted at the
   // exact meter of your record. You climb toward it, pass it, and — when the
   // slide takes you — watch it go by in the wrong direction.
+  // V7 landmarks: a small cairn every 100 m, planted beside the path. Deliberately
+  // tiny and wordless (the old carved monuments read as clutter); their numbers
+  // only appear during the Pull-Back, when the camera shows the whole trail.
+  function cairnList(wxL, wxR) {
+    var out = [], m0 = Math.max(100, Math.ceil((altitude + (wxL - 20 - ANCHOR_X) / GROUND_SCROLL) / 100) * 100);
+    for (var m = m0; ; m += 100) {
+      var x = ANCHOR_X - 12 + (m - altitude) * GROUND_SCROLL;
+      if (x > wxR + 20) break;
+      if (!bridgeGapActiveAt(x, 10)) out.push({ m: m, x: x });
+    }
+    return out;
+  }
+  function drawCairns(wxL, wxR, day) {
+    if (gameState === "title" || playMode === "run" || playMode === "summit") return;
+    var list = cairnList(wxL, wxR), dusk = selectedRealm === "dusk";
+    var stone = dusk ? [10, 6, 16] : mix(day.ground, [150, 146, 138], 0.5);
+    var dark = dusk ? stone : mix(stone, [0, 0, 0], 0.35), lite = mix(stone, [255, 255, 255], dusk ? 0 : 0.22);
+    var rimCol = dusk && duskActive() ? duskLight().col : null;
+    for (var i = 0; i < list.length; i++) {
+      var cx = Math.round(list[i].x), cy = Math.round(terrainLipAt(list[i].x)) + 1, big = list[i].m % 500 === 0;
+      var rows = big ? [[11, 3], [9, 3], [7, 3], [5, 2], [3, 2]] : [[9, 3], [7, 3], [5, 2], [3, 2]];
+      var y = cy;
+      for (var r2 = 0; r2 < rows.length; r2++) {
+        var rw = rows[r2][0], rh = rows[r2][1], off = (r2 % 2 ? 1 : 0) - (r2 === 2 ? 1 : 0);
+        y -= rh;
+        g.fillStyle = css(r2 === 0 ? dark : stone, 0.95); g.fillRect(cx - (rw >> 1) + off, y, rw, rh);
+        g.fillStyle = css(rimCol || lite, rimCol ? 0.8 : 0.7); g.fillRect(cx - (rw >> 1) + off + (rimCol ? rw - 2 : 0), y, rimCol ? 2 : rw - 1, 1);
+      }
+    }
+  }
   function drawBestFlag(wxL, wxR, day) {
     if (gameState === "title" || playMode === "run") return;
     var bestM = Math.max(0, Math.round(runStartBest || 0));
@@ -12426,7 +12494,7 @@
       r(frontFootX - 5 * s, frontFootY - 1 * s, 9 * s, 3 * s, figInk);
     } else {
       // legs, striding with movement
-      var stepReach = 5 * s * (1 - windLean * 0.4);     // tighter stance — feet stay under the body so the back leg never splays flat on a slope
+      var stepReach = 5 * s * (1 - windLean * 0.4) * (1 + (REDUCED ? 0 : grooveLv) * 0.3);     // tighter stance — feet stay under the body so the back leg never splays flat on a slope
       var stepLift = 4 * s;
       var kneeBend = 3 * s;      // more knee bend reads as braced/planted, not a straight-legged sprawl
       for (var leg = 0; leg < 2; leg++) {
@@ -12757,6 +12825,18 @@
     gustCd = Math.max(0, gustCd - dt);
     if (windGustPower > 0.42 && prevGust <= 0.42 && gustCd <= 0 && gameState === "playing") { playSound("gust"); gustCd = 2.4; }
     prevGust = windGustPower;
+    grooveIdle += dt;
+    if (gameState !== "playing" || modePhase !== "play") grooveLv = 0;
+    else if (grooveIdle > 0.65) grooveLv = Math.max(0, grooveLv - dt * 0.9);
+    if (grooveLv < 0.05) grooveStep = 0;
+    if (grooveLv > 0.45 && effort > 0.1 && !REDUCED) {
+      grooveMoteAcc += dt * (grooveLv - 0.35) * 22;
+      while (grooveMoteAcc >= 1) {
+        grooveMoteAcc -= 1;
+        var mx = ANCHOR_X + fxBoulderX + (Math.random() - 0.5) * fxBrad * 1.2;
+        spawnFx(mx, terrainLipAt(mx) - fxBrad * (0.5 + Math.random() * 0.9), 1, { col: [255, 236, 178], dir: -Math.PI / 2 - 0.4, spread: 1.2, speed: 12, life: 1.4, grav: -12, size: 2, drag: 1.2, front: true });
+      }
+    } else grooveMoteAcc = 0;
     if (isPostcardOpen()) {
       effort = 0;
       slideVel = 0;
@@ -13695,6 +13775,7 @@
     drawSelectedRealmDusk(wxL,wxR,worldBottom);
     drawOpeningCliff(wxL,wxR,worldBottom,day);
     drawMonuments(wxL, wxR, day);
+    drawCairns(wxL, wxR, day);
     drawBestFlag(wxL, wxR, day);
     drawVigil(wxL, wxR, day);
     drawMilestonePillar();
@@ -14312,6 +14393,7 @@
       g.imageSmoothingEnabled = false;
       g.drawImage(lowC, 0, 0, sw, sh, ztx - Math.round(padLeft * zoom), zty - Math.round(ACTOR_PAD_TOP * zoom), Math.round(actorW * zoom), Math.round(actorH * zoom));
     }
+    g.save(); g.translate(curCamZtx, curCamZty); g.scale(curCamZoom, curCamZoom); drawFx(true); g.restore();   // groove motes float in front
     drawForegroundRockMasses(day);   // monumental rocks sweep in front through the barren band
     drawForegroundTrees(day);   // close conifers sweeping IN FRONT of the figure (depth)
     if(selectedRealm) realmScenes.cherryDepth(g,{id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED,foreground:true});
