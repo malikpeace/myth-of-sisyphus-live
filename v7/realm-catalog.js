@@ -6,7 +6,8 @@
     {id:"moon-rome", name:"Moonlit Rome", theme:"roman", light:"night"},
     {id:"snow", name:"The Snow", theme:"snow", light:"overcast"},
     {id:"sunset-rome", name:"Sunset Rome", theme:"roman", light:"sunset"},
-    {id:"blossom", name:"The Blossom", theme:"cherry", light:"pink-sunset"}
+    {id:"blossom", name:"The Blossom", theme:"cherry", light:"pink-sunset"},
+    {id:"dusk", name:"The Dusk", theme:"silhouette", light:"dusk"}
   ].map(function (entry) { return Object.freeze(entry); });
   Object.freeze(entries);
   function find(id) {

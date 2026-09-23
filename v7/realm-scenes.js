@@ -6,7 +6,8 @@
     "moon-rome":[[5,12,33],[11,23,53],[20,38,71],[48,65,90]],
     snow:[[73,91,112],[112,132,150],[159,180,194],[208,220,228]],
     "sunset-rome":[[68,47,74],[157,81,88],[221,133,102],[249,191,124]],
-    blossom:[[34,25,49],[82,45,78],[172,83,118],[244,155,152]]
+    blossom:[[34,25,49],[82,45,78],[172,83,118],[244,155,152]],
+    dusk:[[29,21,55],[106,44,97],[233,118,90],[247,179,108]]
   };
   function Scenes(architecture){this.architecture=architecture;this.images={};}
   Scenes.prototype.image=function(key,path){
@@ -18,9 +19,9 @@
     base.stage=id; base.r4={}; base.aboveClouds=base.galaxy=base.valleys=base.canyon=base.greek=0;
     base.snow=id==="snow"?1:0; base.rain=0; base.night=id==="moon-rome"?1:0;
     base.grass=base.grassMat=["hills","waterfalls","blossom"].indexOf(id)>=0?1:0;
-    base.ground=id==="snow"?[170,188,204]:id==="moon-rome"?[34,43,64]:id==="sunset-rome"?[121,83,72]:id==="blossom"?[65,61,70]:[64,89,60];
+    base.ground=id==="dusk"?[10,6,16]:id==="snow"?[170,188,204]:id==="moon-rome"?[34,43,64]:id==="sunset-rome"?[121,83,72]:id==="blossom"?[65,61,70]:[64,89,60];
     base.far=base.sky[2].slice();base.mid=base.sky[1].slice();base.near=base.sky[0].slice();
-    base.cloud=id==="hills"?[230,238,231]:base.sky[2].slice();
+    base.cloud=id==="hills"?[230,238,231]:id==="dusk"?[138,58,102]:base.sky[2].slice();
     base.tint=[0,0,0];base.tintA=0;
     base.sun.a=id==="hills"?0.85:id==="blossom"?0.7:0;
     base.cycle=id==="hills"?0.34:id==="moon-rome"?0.02:0.60;
@@ -28,6 +29,7 @@
   };
   Scenes.prototype.backdrop=function(g,o){
     if(o.id==="hills")return false;
+    if(o.id==="dusk")return root.SisyphusDusk?root.SisyphusDusk.backdrop(g,o):false;
     var image, w=o.width,h=o.height;
     if(o.id==="waterfalls")return this.architecture.waterfall(g,{
       image:this.image(h>w?"fallsPortrait":"falls",h>w?"v7/assets/realm-waterfall-portrait-v1-native.png":"v7/assets/realm-waterfall-v1-native.png"),
@@ -70,6 +72,7 @@
     if(depth)this.architecture.petals(g,o);
   };
   Scenes.prototype.weather=function(g,o){
+    if(o.id==="dusk"){if(root.SisyphusDusk)root.SisyphusDusk.front(g,o);return;}
     if(o.id!=="snow" || o.reduced)return;
     var force=Math.min(1,0.35+o.metres/2400), count=Math.round(44+force*56);
     g.save();

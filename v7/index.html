@@ -1870,6 +1870,8 @@
   .realm-snow { background-image:url("assets/snow-peaks-realm-px.png"); }
   .realm-sunset-rome { background-image:url("assets/greek-sunset-realm-px.png"); }
   .realm-blossom { background-image:url("v7/assets/realm-cherry-tree-v1-native.png"); background-color:#623e56; }
+  .realm-dusk { grid-column:1/-1; background-color:#34204f; image-rendering:pixelated; }
+  .realm-dusk::after { content:"new"; position:absolute; top:8px; right:8px; padding:2px 6px; border:1px solid #f7b36c; border-radius:3px; color:#f7b36c; font-size:9px; letter-spacing:1px; text-transform:uppercase; background:rgba(10,6,16,.55); }
   #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
   @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
@@ -2054,8 +2056,9 @@
 <script src="v7/endless-journey.js?v=v7-1"></script>
 <script src="v7/endless-scenery.js?v=v7-1"></script>
 <script src="v7/realm-architecture.js?v=v7-1"></script>
-<script src="v7/realm-catalog.js?v=v7-1"></script>
-<script src="v7/realm-scenes.js?v=v7-1"></script>
+<script src="v7/realm-catalog.js?v=v7-2"></script>
+<script src="v7/realm-dusk.js?v=v7-2"></script>
+<script src="v7/realm-scenes.js?v=v7-2"></script>
 <script>
 (function () {
   "use strict";
@@ -3404,6 +3407,16 @@
         tone(56 * jit, 0.13, "square", 0.020);
         rhythmPulse = Math.max(rhythmPulse, 0.5);   // the 8th-push grunt gets a visual partner: a bigger stone pop
       }
+    } else if (kind === "thunderRoll") {
+      // crack now, the roll arrives a beat later and grumbles away
+      noiseBurst(0.10, 0.07, 2800);
+      try {
+        var tac = ensureAudio(), tt0 = tac.currentTime + 0.25 + Math.random() * 0.6;
+        var ts = tac.createBufferSource(); ts.buffer = audio4NoiseBuffer(tac); ts.playbackRate.value = 0.5;
+        var tf = tac.createBiquadFilter(); tf.type = "lowpass"; tf.frequency.setValueAtTime(420, tt0); tf.frequency.exponentialRampToValueAtTime(90, tt0 + 2.4);
+        var tg = tac.createGain(); tg.gain.setValueAtTime(0.0001, tt0); tg.gain.exponentialRampToValueAtTime(0.20, tt0 + 0.12); tg.gain.exponentialRampToValueAtTime(0.0001, tt0 + 2.8);
+        ts.connect(tf); tf.connect(tg); tg.connect(audioMaster); ts.start(tt0, Math.random() * 2); ts.stop(tt0 + 2.9);
+      } catch (e) {}
     } else if (kind === "gust") {
       // a gust arrives: filtered air rushing past, swelling then falling away
       try {
@@ -5237,6 +5250,19 @@
     preferredMode = "endless";
     refreshControlHintCopy(preferredMode); refreshPreferredMode();
   }
+  // The Dusk card is painted by the realm itself, so the menu shows exactly what you get.
+  function duskThumb() {
+    var c=document.createElement("canvas"); c.width=240; c.height=80; var x=c.getContext("2d");
+    window.SisyphusDusk.backdrop(x,{width:240,height:80,metres:0,time:4,preview:true,groundY:62});
+    x.fillStyle="#0a0610";
+    for(var i=0;i<240;i++){var gy=Math.round(70-i*0.05+Math.sin(i*0.05)*1.5); x.fillRect(i,gy,1,80-gy); if(i%3===0&&Math.sin(i*1.7)>0.2) x.fillRect(i,gy-1-(i%2),1,1+(i%2));}
+    x.fillStyle="#f7b36c"; for(i=0;i<240;i++) x.fillRect(i,Math.round(70-i*0.05+Math.sin(i*0.05)*1.5),1,1);
+    x.fillStyle="#0a0610"; x.beginPath(); x.arc(108,57,7,0,Math.PI*2); x.fill();          // stone
+    x.fillRect(95,52,2,13); x.fillRect(96,50,5,3); x.fillRect(97,53,5,2); x.fillRect(94,64,2,3); x.fillRect(98,62,2,4);
+    x.beginPath(); x.arc(96,48,2.2,0,Math.PI*2); x.fill();                                    // figure
+    x.strokeStyle="rgba(247,179,108,0.85)"; x.lineWidth=1; x.beginPath(); x.arc(108,57,6.5,-1.9,-0.2); x.stroke();
+    return c.toDataURL();
+  }
   function refreshRealmPicker() {
     var picker = document.getElementById("realmpicker");
     if (!picker || !REALM_MENU_ENABLED) return;
@@ -5256,6 +5282,7 @@
       button.className="realm-choice realm-"+realm.id; button.dataset.realm=realm.id;
       var name=document.createElement("strong"); name.textContent=realm.name;
       var best=document.createElement("span"); best.className="realm-best";
+      if(realm.id==="dusk") { try { button.style.backgroundImage="url("+duskThumb()+")"; } catch (_) {} }
       button.append(name,best); button.addEventListener("click",function(){selectRealm(realm.id);});
       choices.appendChild(button);
     });
@@ -8605,6 +8632,7 @@
   // so the stone reads as actually lit by the sky's light, not flatly shaded.
   function currentSunLight(day) {
     if (customize.look === "void") return null;   // the void has no light
+    if (duskActive()) { var dl = duskLight(); return { x: dl.x, y: dl.y, strength: dl.strength, col: dl.col }; }
     var cycle = continuousSkyCycle();
     var brightSky = Math.max(lum(day.sky[1]), lum(day.sky[2]), lum(day.sky[3]));
     var topLum = lum(day.sky[0]);
@@ -12518,6 +12546,7 @@
       var rimDX = actorRimX / rimLen, rimDY = actorRimY / rimLen;
       var coolMoonRim = actorRimColor[2] > actorRimColor[0] + 18 ? 0.11 : 0;
       var rimAlpha = 0.075 + rimT * (0.16 + coolMoonRim);
+      if (selectedRealm === "dusk") rimAlpha = 0.22 + rimT * 0.68;
       var rimColor = css(actorRimColor, rimAlpha);
       var rimWidth = Math.max(1, Math.round(2.1 * s));
       for (var rsi = 0; rsi < rimSegments.length; rsi++) {
@@ -13163,9 +13192,39 @@
     }
   }
 
+  // V7 Dusk realm helpers: the scene module owns sky/sun/storm; the game asks it for light.
+  function duskGroundY() { return curCamZtyBase + ANCHOR_Y * curCamZoom; }
+  function duskActive() { return selectedRealm === "dusk" && !!window.SisyphusDusk && activeVisualMode() === "endless"; }
+  function duskLight() { return window.SisyphusDusk.light({ width: VW, height: VH, metres: altitude, time: tSec, groundY: duskGroundY() }); }
+  function duskStrike(storm) {
+    if (gameState !== "playing") return;
+    shakePulse = Math.max(shakePulse, 0.18 + storm * 0.2);
+    playSound("thunderRoll");
+    pulseHaptic(8);
+  }
+  function drawSelectedRealmDusk(wxL, wxR, worldBottom) {
+    if (!duskActive()) return;
+    var L = duskLight(), rim = css(L.col, 0.34 + 0.5 * L.strength);
+    var ink = "#0a0610", scroll = altitude * GROUND_SCROLL, x0 = Math.floor(wxL), x1 = Math.ceil(wxR), tops = [];
+    // one solid shape, not per-column rects: at zoom != 1 the columns' anti-aliased seams let the old texture bleed through
+    g.fillStyle = ink;
+    g.beginPath(); g.moveTo(x0 - 1, worldBottom);
+    for (var x = x0; x < x1; x++) { var tp = Math.round(terrainLipAt(x)); tops.push(tp); g.lineTo(x, tp); }
+    g.lineTo(x1 + 1, tops[tops.length - 1]); g.lineTo(x1 + 1, worldBottom); g.closePath(); g.fill();
+    g.fillStyle = rim;
+    for (x = x0; x < x1; x++) g.fillRect(x, tops[x - x0], 1, 1);                    // the sun catches the crest
+    g.fillStyle = ink;
+    for (x = x0; x < x1; x++) {                                                     // silhouette grass + reeds, world-locked
+      var wx = Math.round(x + scroll), hs = hash(wx * 0.731);
+      if (hs < 0.42) continue;
+      var bh = 1 + Math.round(hash(wx * 1.37) * 3) * (hs > 0.94 ? 3 : 1);
+      var lean = REDUCED ? 0 : Math.sin(tSec * 2 + wx * 0.05) * (0.4 + windGustPower * 1.2) - windGustPower * 2.2;
+      for (var k = 0; k < bh; k++) g.fillRect(Math.round(x + lean * (k + 1) / (bh + 1)), tops[x - x0] - 1 - k, 1, 1);
+    }
+  }
   function drawSelectedRealmBackdrop() {
     if(!selectedRealm || activeVisualMode()!=="endless") return;
-    var options={id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED};
+    var options={id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED,groundY:duskGroundY(),onStrike:duskStrike};
     realmScenes.backdrop(g,options);
   }
   function drawSelectedRealmStone(wxL,wxR,worldBottom,day) {
@@ -13453,7 +13512,7 @@
     if(!selectedRealm) drawV6NightBackdropGrade(day);
 
     // stars (dark skies only)
-    var starA = Math.max(clamp01(day.night || 0) * 0.88, clamp01((0.2 - lum(day.sky[0])) / 0.2) * 0.9);
+    var starA = selectedRealm === "dusk" ? 0 : Math.max(clamp01(day.night || 0) * 0.88, clamp01((0.2 - lum(day.sky[0])) / 0.2) * 0.9);
     if (starA > 0.02) {
       g.fillStyle = "rgba(255,255,255," + starA + ")";
       for (var i = 0; i < 22; i++) {
@@ -13500,7 +13559,7 @@
     var cloudSceneDim = cloudAtmosphereDim(day);
     var cl = css(day.cloud, (gameState === "title" ? 0.18 : 1) * cloudSceneDim);
     var cx = [60, 200, 350, 130, 430, 280], cy = [44, 30, 56, 70, 24, 84], cs = [1.5, 1.9, 1.3, 1.1, 1.4, 1.2];
-    if ((day.galaxy || 0) < 0.35) {
+    if ((day.galaxy || 0) < 0.35 && selectedRealm !== "dusk") {
       var usedCloudSprites = cloudSceneDim > 0.025 && drawMovingCloudSprites(day, cloudSceneDim, "front");
       if (!usedCloudSprites) {
         for (var c = 0; c < cx.length; c++) {
@@ -13509,7 +13568,7 @@
         }
       }
     }
-    if ((day.galaxy || 0) < 0.55) drawBirds(day);
+    if ((day.galaxy || 0) < 0.55 && selectedRealm !== "dusk") drawBirds(day);
     drawWindVeil(day);
     drawStormLightning((day.r4 && day.r4.storm) || 0);   // grade-safe, terrain-anchored strike layer
     drawBackgroundRockSpines(day);   // distant barren crags, rooted behind the slope
@@ -13633,6 +13692,7 @@
     drawWaterfallBridge(wxL, wxR, day);
     drawSelectedRealmStone(wxL,wxR,worldBottom,day);
     drawSelectedRealmSnow(wxL,wxR);
+    drawSelectedRealmDusk(wxL,wxR,worldBottom);
     drawOpeningCliff(wxL,wxR,worldBottom,day);
     drawMonuments(wxL, wxR, day);
     drawBestFlag(wxL, wxR, day);
@@ -13779,7 +13839,7 @@
       // Cast contact shadow on the ground: a flattened blob under the stone + figure,
       // now BIGGER + DARKER and offset AWAY from the light so it reads as a real cast
       // shadow (the sun pushes it to the far side), grounding them with depth.
-      if (!REDUCED && gameState !== "title") {
+      if (!REDUCED && gameState !== "title" && !duskActive()) {   // a silhouette world has no cast shadows
         var bridgeShadowSpan = bridgeDeckShadowSpan(actorTheta);
         // Physically-informed cast shadow. Treat the light vector as a sun ray,
         // project the stone/body away from it, then draw the projection as many
@@ -14125,7 +14185,8 @@
         // FIXED bright value (baked from render.png), so without this it reads as a
         // glowing orb against the dark sky. Skipped in the void (pale stone = anchor).
         var bDark = 0;
-        if (customize.look === "noir") bDark = 0.55;
+        if (selectedRealm === "dusk") bDark = 1.2;
+        else if (customize.look === "noir") bDark = 0.55;
         else if (customize.look !== "void") bDark = clamp01((0.34 - lum(day.sky[2])) / 0.26) * 0.42;
         var spr = stagedRock || boulderSprite();
         if (bDark > 0.01) {
@@ -14138,7 +14199,7 @@
           darkRockG.clearRect(0, 0, sw2, sh2);
           darkRockG.drawImage(spr, 0, 0);
           darkRockG.globalCompositeOperation = "source-atop";
-          darkRockG.fillStyle = css([16, 20, 38], bDark * 0.8);
+          darkRockG.fillStyle = bDark > 1 ? "rgba(10,6,16,0.93)" : css([16, 20, 38], bDark * 0.8);
           darkRockG.fillRect(0, 0, sw2, sh2);
           darkRockG.globalCompositeOperation = "source-over";
           spr = darkRockC;
@@ -14149,7 +14210,14 @@
         // darker terminator opposite it. Drawn AFTER the (rotating) texture in the
         // non-rotating frame, clipped to the stone, so the lit side stays toward the
         // sun while the texture spins underneath — reads as real directional light.
-        if (sunL && sunL.strength > 0.04 && customize.look !== "void") {
+        if (sunL && sunL.strength > 0.04 && selectedRealm === "dusk") {
+          var rimAng = Math.atan2(ly, lx), rimW = Math.max(1, Math.round(brad * 0.08));
+          g.save();
+          g.strokeStyle = css(sunL.col, Math.min(1, 0.35 + 0.6 * sunL.strength));
+          g.lineWidth = rimW;
+          g.beginPath(); g.arc(blx, bly, brad - rimW * 0.5 - 0.5, rimAng - 1.05, rimAng + 1.05); g.stroke();
+          g.restore();
+        } else if (sunL && sunL.strength > 0.04 && customize.look !== "void") {
           var hx = blx + lx * brad * 0.5, hy = bly + ly * brad * 0.5;
           g.save();
           g.beginPath(); g.arc(blx, bly, brad - 1, 0, Math.PI * 2); g.clip();
@@ -14250,7 +14318,8 @@
     drawRunAsh(day);
     drawRain(day);
     drawSnow(day);
-    if(selectedRealm)realmScenes.weather(g,{id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED});
+    if(selectedRealm)realmScenes.weather(g,{id:selectedRealm,width:VW,height:VH,metres:altitude,time:tSec,reduced:REDUCED,wind:windGustPower,groundY:duskGroundY(),
+      surface:function(x){return curCamZtyBase+terrainLipAt((x-curCamZtxBase)/curCamZoom)*curCamZoom;}});
     drawFireflies(day);
     drawMountainWipe(day);
     // Subtle vignette: gentle edge darkening for depth/compositing so the scene
