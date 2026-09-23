@@ -2321,6 +2321,11 @@
   var catchT = -1, catchDur = 0, catchV0 = 0, lastEff = 0, catchesThisRun = 0;
   var lurchX = 0, lurchV = 0, camPunchX = 0, tapKick = 0;
   var fxBoulderX = 40, fxBrad = 30;
+  // V7 PULL-BACK: at each record mark the camera quietly eases far out so you see
+  // how much mountain is behind you (a golden trail) and how much is still above,
+  // then returns. No banner, sound or shake — milestones stay silent by request.
+  var pullT = -1, pullMark = 0, pullNext = 0;
+  var PULL_IN = 0.9, PULL_HOLD = 2.1, PULL_OUT = 1.1, PULL_ZOOM = 0.46;
   var playMode = "endless", modePhase = "play", modeTimer = 0, momentumStreak = 0, momentumLevel = 0, rhythmPulse = 0, rhythmBreak = 0;
   var resolveMeter = 0, cleanPushStreak = 0, bestCleanPushStreak = 0;
   // RUSH (Fun) mode + shared timing legibility. comboCount drives the arcade
@@ -5792,7 +5797,7 @@
     shakePulse = 0;
     snowAccum = 0;
     hitStopT = 0;
-    fxP = []; catchT = -1; lastEff = 0; catchesThisRun = 0; lurchX = 0; lurchV = 0; camPunchX = 0; tapKick = 0;
+    pullT = -1; fxP = []; catchT = -1; lastEff = 0; catchesThisRun = 0; lurchX = 0; lurchV = 0; camPunchX = 0; tapKick = 0;
     audio4.pushCount = 0;
     audio4.duckUntil = 0;
     strain = 0;
@@ -6076,6 +6081,7 @@
         runMilestones[mark] = Date.now();
         runMilestonesHit += 1;
         saveMilestones(playMode, runMilestones);
+        startPullBack(mark);
         // Milestone marks (100/250/500m…) no longer announce themselves along the
         // way — removed by request. No banner, panel, shake, hit-stop, haptic, or
         // sound. Tracking stays silent so stats/achievements/ranks are unaffected.
@@ -6274,7 +6280,8 @@
         for (var i = 0; i < n; i++) { sum += qaFrameMs[i]; if (qaFrameMs[i] > mx) mx = qaFrameMs[i]; }
         return { avg: Math.round(sum / n * 100) / 100, max: Math.round(mx * 100) / 100, samples: n };
       },
-      feel: function () { return { catchT: catchT, catches: catchesThisRun, fx: fxP.length, lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
+      pullBack: function (m) { startPullBack(m || 250); return pullT; },
+      feel: function () { return { pull: +pullAmt().toFixed(2), catchT: catchT, catches: catchesThisRun, fx: fxP.length, lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
       drive: function (seconds, hz) {
         seconds = Math.max(0.5, Number(seconds) || 5);
         hz = Math.max(1, Number(hz) || 6.5);
@@ -9992,6 +9999,54 @@
       g.fillRect(px, py, sz, sz);
     }
   }
+  function pullAmt() {
+    if (pullT < 0) return 0;
+    if (pullT < PULL_IN) { var a = pullT / PULL_IN; return 1 - Math.pow(1 - a, 3); }
+    if (pullT < PULL_IN + PULL_HOLD) return 1;
+    return 1 - smoother01(clamp01((pullT - PULL_IN - PULL_HOLD) / PULL_OUT));
+  }
+  function startPullBack(mark) {
+    if (REDUCED || gameState !== "playing") return;
+    if (playMode === "summit" && mark > SUMMIT_ALT - 220) return;   // never crowd the summit choreography
+    pullT = 0; pullMark = mark; pullNext = 0;
+    for (var ni = 0; ni < MILESTONES.length; ni++) if (MILESTONES[ni] > mark) { pullNext = MILESTONES[ni]; break; }
+  }
+  function drawPullTrail() {
+    var pa = pullAmt();
+    if (pa <= 0.01) return;
+    var z = curCamZoom, zx = curCamZtx, zy = curCamZty;
+    var startX = ANCHOR_X - Math.max(0, altitude) * GROUND_SCROLL;      // where this climb began
+    var x0 = Math.max(startX, -zx / z - 4), x1 = ANCHOR_X - 10;
+    var gold = [246, 208, 124], step = Math.max(3, Math.round(6 / z));
+    var flow = (tSec * 22) % step;                                       // dots drift up the trail toward him
+    for (var k = 0, x = x1 - (step - flow); x >= x0; x -= step, k++) {
+      if (bridgeGapActiveAt(x, 4)) continue;
+      var sx = Math.round(zx + x * z), sy = Math.round(zy + (terrainLipAt(x) - 3) * z);
+      var near = clamp01((x - x0) / 90);
+      g.fillStyle = css(gold, pa * (0.30 + 0.60 * near));
+      g.fillRect(sx, sy, 2, 1);
+    }
+    if (startX >= x0 - 1) {
+      var bx = Math.round(zx + startX * z), by = Math.round(zy + terrainLipAt(startX) * z);
+      g.fillStyle = css(gold, pa * 0.9);
+      g.fillRect(bx, by - 7, 1, 7);
+      g.fillRect(bx + 1, by - 7, 3, 2);
+    }
+    var lx = Math.round(zx + (ANCHOR_X + fxBoulderX * 0.5) * z);
+    var ly = Math.round(zy + (ANCHOR_Y - fxBrad * 2 - 16) * z) - 16;
+    g.textAlign = "center"; g.textBaseline = "top";
+    g.font = "700 10px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+    var main = pullMark + "M";
+    g.fillStyle = css([10, 12, 18], 0.55 * pa); g.fillText(main, lx + 1, ly + 1);
+    g.fillStyle = css([252, 244, 224], 0.95 * pa); g.fillText(main, lx, ly);
+    if (pullNext) {
+      g.font = "700 7px ui-monospace, SF Mono, Menlo, Consolas, monospace";
+      var sub = "NEXT " + pullNext + "M";
+      g.fillStyle = css([10, 12, 18], 0.45 * pa); g.fillText(sub, lx + 1, ly + 13);
+      g.fillStyle = css(gold, 0.85 * pa); g.fillText(sub, lx, ly + 12);
+    }
+    g.textAlign = "start"; g.textBaseline = "alphabetic";
+  }
   function startCatch(v) {
     catchV0 = Math.min(90, v);
     catchDur = Math.max(0.24, Math.min(0.8, 0.22 + catchV0 / 130));
@@ -12619,6 +12674,7 @@
     camPunchX *= Math.exp(-dt * 11);
     tapKick = Math.max(0, tapKick - dt * 4);
     updateFx(dt);
+    if (pullT >= 0) { pullT += dt; if (pullT > PULL_IN + PULL_HOLD + PULL_OUT) pullT = -1; }
     if (isPostcardOpen()) {
       effort = 0;
       slideVel = 0;
@@ -13155,6 +13211,8 @@
     if (playMode === "summit" && modePhase === "summitLaunch") {
       zoom *= lerp(1, 0.58, summitFallProgress(summitFlight));
     }
+    var pullA = pullAmt();
+    if (pullA > 0.001) zoom *= lerp(1, PULL_ZOOM, pullA);
     var S = BASE_SCALE * zoom;
     // v4: ambient shake hard-capped at ~40% of the old worst case — effort still
     // reads, but the screen never vibrates violently at altitude. Big moments
@@ -13371,6 +13429,11 @@
       focusX -= Math.round(camDX * zoom * 0.9);
       focusY -= Math.round(camDY * zoom * 0.9);
     }
+    if (pullA > 0.001) {
+      // frame the climb: him low-left, the rest of the mountain rising up-right
+      focusX = Math.round(lerp(focusX, VW * 0.30, pullA * 0.55));
+      focusY = Math.round(lerp(focusY, VH * 0.64, pullA * 0.45));
+    }
     // Camera transform computed EARLY (before clouds/trees) so the trees can anchor to
     // the real drawn ground. (focusX/focusY are final here — the summit-launch block
     // above already adjusted them.)
@@ -13525,6 +13588,7 @@
     drawDailyTargetMarker(wxL, wxR, day);
     drawQuoteSign(wxL, wxR);
     g.restore();
+    drawPullTrail();
 
     if (gameState === "again" && playMode === "summit") {
       // The stone is already below; keep the result panel clean instead of leaving
