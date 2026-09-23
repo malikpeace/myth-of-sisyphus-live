@@ -232,6 +232,17 @@
       drawRidge(g, o, G - h * 0.06, h * 0.09, 0.017, 4.1, scroll * 0.06, R[1], { kind: "temple", cell: 520, p: 0.35, size: Math.max(6, Math.round(h * 0.025)) });
       drawRidge(g, o, G - h * 0.025, h * 0.07, 0.024, 7.7, scroll * 0.11, R[2], { kind: "cypress", cell: 34, p: 0.55, size: Math.max(9, Math.round(h * 0.045)) });
       drawRidge(g, o, G + h * 0.01, h * 0.06, 0.035, 2.2, scroll * 0.20, R[3], { kind: "cypress", cell: 46, p: 0.62, size: Math.max(12, Math.round(h * 0.07)) });
+      var ff = smooth((n - 0.5) / 0.3) * (1 - storm);
+      if (ff > 0.02 && !o.reduced) {                        // fireflies come out after dark
+        for (var fI = 0; fI < 18; fI++) {
+          var fx = ((hash(fI * 4.7) * (w + 40) - scroll * 0.2 + Math.sin(t * 0.6 + fI) * 8) % (w + 40) + (w + 40)) % (w + 40) - 20;
+          var fy = G - h * (0.02 + hash(fI * 2.3) * 0.12) + Math.sin(t * 0.9 + fI * 1.7) * 3;
+          var blink = Math.max(0, Math.sin(t * (1.3 + hash(fI) * 1.4) + fI * 2.1));
+          if (blink < 0.25) continue;
+          g.fillStyle = css([236, 250, 170], ff * blink * 0.9); g.fillRect(Math.round(fx), Math.round(fy), 1, 1);
+          g.fillStyle = css([236, 250, 170], ff * blink * 0.22); g.fillRect(Math.round(fx) - 1, Math.round(fy), 3, 1); g.fillRect(Math.round(fx), Math.round(fy) - 1, 1, 3);
+        }
+      }
       g.restore();
       return true;
     },
