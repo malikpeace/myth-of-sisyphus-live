@@ -2325,6 +2325,7 @@
   // how much mountain is behind you (a golden trail) and how much is still above,
   // then returns. No banner, sound or shake — milestones stay silent by request.
   var pullT = -1, pullMark = 0, pullNext = 0;
+  var gustCd = 0, prevGust = 0;
   var PULL_IN = 0.9, PULL_HOLD = 2.1, PULL_OUT = 1.1, PULL_ZOOM = 0.46;
   var playMode = "endless", modePhase = "play", modeTimer = 0, momentumStreak = 0, momentumLevel = 0, rhythmPulse = 0, rhythmBreak = 0;
   var resolveMeter = 0, cleanPushStreak = 0, bestCleanPushStreak = 0;
@@ -3403,6 +3404,16 @@
         tone(56 * jit, 0.13, "square", 0.020);
         rhythmPulse = Math.max(rhythmPulse, 0.5);   // the 8th-push grunt gets a visual partner: a bigger stone pop
       }
+    } else if (kind === "gust") {
+      // a gust arrives: filtered air rushing past, swelling then falling away
+      try {
+        var gac = ensureAudio(), gt = gac.currentTime;
+        var gs = gac.createBufferSource(); gs.buffer = audio4NoiseBuffer(gac); gs.playbackRate.value = 0.8;
+        var gf = gac.createBiquadFilter(); gf.type = "bandpass"; gf.Q.value = 1.1;
+        gf.frequency.setValueAtTime(420, gt); gf.frequency.exponentialRampToValueAtTime(1500, gt + 0.45); gf.frequency.exponentialRampToValueAtTime(380, gt + 1.5);
+        var gg = gac.createGain(); gg.gain.setValueAtTime(0.0001, gt); gg.gain.exponentialRampToValueAtTime(0.10, gt + 0.4); gg.gain.exponentialRampToValueAtTime(0.0001, gt + 1.6);
+        gs.connect(gf); gf.connect(gg); gg.connect(audioMaster); gs.start(gt, Math.random() * 2); gs.stop(gt + 1.7);
+      } catch (e) {}
     } else if (kind === "grab") {
       // hands and heels hit the runaway stone: a scrape starting under load
       sweepTone(150, 62, 0.14, "triangle", 0.045);
@@ -3533,7 +3544,8 @@
       audio4.rumbleGain.gain.setTargetAtTime(rGain, t, 0.10);
       audio4.rumbleFilter.frequency.setTargetAtTime(85 + speed01 * 150 + strain * 210, t, 0.12);
       audio4.rumbleSrc.playbackRate.setTargetAtTime(1.1 - scale01 * 0.52, t, 0.2);
-      audio4.windGain.gain.setTargetAtTime(clamp01(windGustPower) * 0.052, t, 0.16);
+      audio4.windGain.gain.setTargetAtTime(clamp01(windGustPower) * 0.085, t, 0.16);
+      audio4.windFilter.frequency.setTargetAtTime(520 + clamp01(windGustPower) * 640, t, 0.25);
     } catch (e) {}
   }
   function sweepTone(f0, f1, dur, type, gain) {
@@ -6281,7 +6293,7 @@
         return { avg: Math.round(sum / n * 100) / 100, max: Math.round(mx * 100) / 100, samples: n };
       },
       pullBack: function (m) { startPullBack(m || 250); return pullT; },
-      feel: function () { return { pull: +pullAmt().toFixed(2), catchT: catchT, catches: catchesThisRun, fx: fxP.length, lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
+      feel: function () { return { pull: +pullAmt().toFixed(2), wind: +windGustPower.toFixed(2), VW: VW, VH: VH, catchT: catchT, catches: catchesThisRun, fx: fxP.length, lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
       drive: function (seconds, hz) {
         seconds = Math.max(0.5, Number(seconds) || 5);
         hz = Math.max(1, Number(hz) || 6.5);
@@ -10047,6 +10059,42 @@
     }
     g.textAlign = "start"; g.textBaseline = "alphabetic";
   }
+  // V7 wind, foreground: streaks and blown debris cross IN FRONT of him, right to
+  // left (a headwind), so a gust reads as a force you are pushing through.
+  function drawWindGust(day) {
+    var w = clamp01(windGustPower * 1.6) * (REDUCED ? 0.35 : 1);   // a wind zone idles ~0.3 and gusts to ~0.8
+    if (w < 0.04 || gameState !== "playing") return;
+    var sc = mix(day.sky[2] || [200, 210, 220], [255, 255, 255], 0.86);
+    var n = Math.round(8 + w * 30), span = VW + 180;
+    for (var i = 0; i < n; i++) {
+      var sp = 170 + hash(i * 3.7) * 240, life = span / sp;
+      var tt = tSec / life + hash(i * 5.1), cyc = Math.floor(tt), ph = tt - cyc;
+      if (hash(i * 2.9 + cyc * 3.3) > 0.3 + w * 0.65) continue;
+      var x = VW + 90 - ph * span;
+      var y = Math.round(VH * 0.10 + hash(i * 9.3 + cyc * 1.7) * VH * 0.72 + Math.sin(tSec * 3 + i + x * 0.02) * 2);
+      var len = 22 + Math.round(hash(i * 1.3 + cyc) * 60 * w);
+      var a = w * (0.34 + hash(i * 4.4) * 0.36) * Math.min(1, Math.sin(ph * Math.PI) * 1.8);
+      var xr = Math.round(x);
+      g.fillStyle = css(sc, a); g.fillRect(xr, y, Math.round(len * 0.4), 1);
+      g.fillStyle = css(sc, a * 0.5); g.fillRect(xr + Math.round(len * 0.4), y, Math.round(len * 0.35), 1);
+      g.fillStyle = css(sc, a * 0.2); g.fillRect(xr + Math.round(len * 0.75), y, Math.round(len * 0.25), 1);
+    }
+    var snowy = (day.snow || 0) > 0.3, grassy = (day.grassMat || 0) > 0.3;
+    var cols = snowy ? [[244, 248, 255], [214, 226, 240]] : grassy ? [[112, 150, 62], [150, 178, 84], [232, 170, 196]] : [fxDustCol(), fxGritCol()];
+    var m = Math.round(w * 40);
+    for (var j = 0; j < m; j++) {
+      var dsp = 150 + hash(j * 6.1) * 200, dl = span / dsp;
+      var dt2 = tSec / dl + hash(j * 8.3), dc = Math.floor(dt2), dp = dt2 - dc;
+      var dx = Math.round(VW + 90 - dp * span);
+      var dy = Math.round(VH * (0.30 + hash(j * 4.7 + dc * 2.1) * 0.46) + Math.sin(tSec * (3 + hash(j) * 3) + j * 1.7) * 7 + dp * 14);
+      var col = cols[Math.floor(hash(j * 3.3 + dc) * cols.length) % cols.length];
+      var flip = Math.sin(tSec * (9 + hash(j * 2.2) * 8) + j) > 0;   // tumbling: flat, then edge-on
+      var big = hash(j * 5.9) > 0.55;
+      g.fillStyle = css(col, (0.75 + 0.25 * hash(j * 7.7)) * Math.min(1, w * 1.4));
+      g.fillRect(dx, dy, flip ? (big ? 3 : 2) : 1, flip ? 1 : (big ? 3 : 2));
+      if (big) g.fillRect(dx + (flip ? 1 : 0), dy + (flip ? 1 : 1), 1, 1);
+    }
+  }
   function startCatch(v) {
     catchV0 = Math.min(90, v);
     catchDur = Math.max(0.24, Math.min(0.8, 0.22 + catchV0 / 130));
@@ -10849,7 +10897,7 @@
       var by = Math.round(terrainLipAt(bx));
       var bh = 2 + Math.round(seed * 3);
       // gentle wind sway — blades lean with a travelling sine, harder in a gust
-      var bSway = REDUCED ? 0 : Math.round((0.5 + windGustPower * 2.2) * Math.sin(tSec * 2.0 + bx * 0.05 + seed * 6));
+      var bSway = REDUCED ? 0 : Math.round((0.5 + windGustPower * 1.6) * Math.sin(tSec * 2.0 + bx * 0.05 + seed * 6) - windGustPower * 2.6);
       g.fillStyle = css(blade, 0.16 + bladeT * 0.74);
       g.fillRect(bx + bSway, by - bh, seed > 0.82 ? 2 : 1, bh);
     }
@@ -10948,7 +10996,7 @@
         var th = (15 + Math.round(hash(c * 5.7) * 11)) * (0.80 + greenT * 0.28);
         var tw = th * tuftAR;
         var tAlpha = (0.62 + greenT * 0.38) * (0.84 + density * 0.16);
-        var shear = REDUCED ? 0 : (0.012 + windGustPower * 0.05) * Math.sin(tSec * 1.7 + x * 0.022 + c * 0.7);
+        var shear = REDUCED ? 0 : (0.012 + windGustPower * 0.07) * Math.sin(tSec * (1.7 + windGustPower * 2.2) + x * 0.022 + c * 0.7) + windGustPower * 0.22;
         g.save();
         g.translate(x, baseY);
         g.rotate(Math.atan2(terrainLipAt(x + 11) - terrainLipAt(x - 11), 22) * 0.6);  // lean partway with the slope (grass still favours 'up')
@@ -12303,10 +12351,12 @@
     // drive lowers the hips, sends the shoulder into the hand, then eases back.
     var pushDrive = (!REDUCED && gameState === "playing" && modePhase === "play")
       ? smoother01(clamp01(Math.max(heavePulse / 0.72, rhythmPulse * 0.78))) : 0;
-    var hipX = ax - brace * 4 * s - stumble * 1.8 * s + pushDrive * 1.15 * s;
+    // V7 wind: head down, shoulder low into the gust, shorter steps
+    var windLean = (!REDUCED && gameState === "playing" && modePhase === "play") ? clamp01(windGustPower) * (1 - brace) : 0;
+    var hipX = ax - brace * 4 * s - stumble * 1.8 * s + pushDrive * 1.15 * s - windLean * 0.6 * s;
     var hipY = gY - 14 * s + bob + brace * 2 * s + stumble * 2.4 * s + pushDrive * 0.75 * s;
-    var shX = hipX + (9 + brace * 4 + stumble * 2.0 + pushDrive * 1.85) * s;
-    var shY = hipY - (13 - brace * 1.5 - pushDrive * 0.5) * s + bob * 0.5 + stumble * 0.8 * s;   // torso digs into the rock
+    var shX = hipX + (9 + brace * 4 + stumble * 2.0 + pushDrive * 1.85 + windLean * 1.5) * s;
+    var shY = hipY - (13 - brace * 1.5 - pushDrive * 0.5 - windLean * 1.1) * s + bob * 0.5 + stumble * 0.8 * s;   // torso digs into the rock
 
     if (brace > 0.08) {
       var backFootX = hipX - (19 + brace * 3 + pushDrive * 1.15) * s, backFootY = floorY;
@@ -12348,7 +12398,7 @@
       r(frontFootX - 5 * s, frontFootY - 1 * s, 9 * s, 3 * s, figInk);
     } else {
       // legs, striding with movement
-      var stepReach = 5 * s;     // tighter stance — feet stay under the body so the back leg never splays flat on a slope
+      var stepReach = 5 * s * (1 - windLean * 0.4);     // tighter stance — feet stay under the body so the back leg never splays flat on a slope
       var stepLift = 4 * s;
       var kneeBend = 3 * s;      // more knee bend reads as braced/planted, not a straight-legged sprawl
       for (var leg = 0; leg < 2; leg++) {
@@ -12637,8 +12687,8 @@
     var type = "";
     if ((day.snow || 0) > 0.18) type = "ice";
     else if ((day.canyon || 0) > 0.40) type = r > 0.55 ? "ledge" : "gravel";
-    else if (r > 0.83) type = "wind";
-    else if (r > 0.68) type = "gravel";
+    else if (r > 0.78) type = "wind";
+    else if (r > 0.66) type = "gravel";
     else if (r > 0.58) type = "ledge";
     var altitudePressure = playMode === "endless" ? Journey.profile(meters).hazard : 1;
     return { type: type, amount: type ? fade * (0.45 + r * 0.35) * altitudePressure : 0, phase: local };
@@ -12675,6 +12725,9 @@
     tapKick = Math.max(0, tapKick - dt * 4);
     updateFx(dt);
     if (pullT >= 0) { pullT += dt; if (pullT > PULL_IN + PULL_HOLD + PULL_OUT) pullT = -1; }
+    gustCd = Math.max(0, gustCd - dt);
+    if (windGustPower > 0.42 && prevGust <= 0.42 && gustCd <= 0 && gameState === "playing") { playSound("gust"); gustCd = 2.4; }
+    prevGust = windGustPower;
     if (isPostcardOpen()) {
       effort = 0;
       slideVel = 0;
@@ -13588,6 +13641,7 @@
     drawDailyTargetMarker(wxL, wxR, day);
     drawQuoteSign(wxL, wxR);
     g.restore();
+    drawWindGust(day);
     drawPullTrail();
 
     if (gameState === "again" && playMode === "summit") {
