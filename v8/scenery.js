@@ -217,6 +217,7 @@
       var x0 = Math.round(bx - half), x1 = Math.round(bx + half);
       for (var x = x0; x <= x1; x++) {
         if (x < 0 || x >= w) continue;
+        if (opts.hole && x >= opts.hole.x0 && x <= opts.hole.x1 && py >= opts.hole.y0 && py <= opts.hole.y1 && ((x + py) & 1)) continue;   // see-through dither over the hero
         var u = half > 0.01 ? (x - bx) / half : 0, c;
         // lit from one side; tier undersides get the dark tone so tiers read as layered boughs
         if (tierPos > 0.82) c = pal.dark;

@@ -7,6 +7,9 @@
   var PX = root.PX, V8 = { realms: {}, fb: null, pal: null, key: "", realm: null, shade1: new Uint8Array(256), shade2: new Uint8Array(256), stats: { ms: 0 } };
 
   V8.register = function (id, realm) { V8.realms[id] = realm; realm.id = id; };
+  // realms can raise game events (e.g. V8.emit("strike", 0.8) for lightning: the game adds the thunder, haptics and shake)
+  V8.onEvent = null;
+  V8.emit = function (name, arg) { if (V8.onEvent) V8.onEvent(name, arg); };
   V8.has = function (id) { return !!V8.realms[id]; };
 
   V8.buildShade = function (pal) {

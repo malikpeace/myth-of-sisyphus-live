@@ -30,8 +30,8 @@
       cloth = PX.mix([206, 194, 164], A, 0.16 + 0.3 * (1 - bright)); hair = PX.mix([42, 28, 20], A, 0.1);
     } else {
       var ink = PX.mix([7, 6, 12], A, 0.045);
-      T = [ink, PX.mix(ink, A, 0.10), PX.mix(ink, C, 0.10 * kk + 0.02), PX.mix(ink, C, 0.34 * kk + 0.03)];
-      cloth = PX.mix(ink, [162, 72, 46], 0.58 + 0.30 * bright); hair = PX.mix(ink, [70, 60, 76], 0.35);
+      T = [ink, PX.mix(ink, A, 0.075), PX.mix(ink, C, 0.20 * kk + 0.03), PX.mix(ink, C, 0.48 * kk + 0.04)];
+      cloth = PX.mix(ink, [176, 80, 50], 0.62 + 0.30 * bright); hair = PX.mix(ink, [86, 72, 64], 0.30 + 0.25 * kk);
     }
     if (o.cosmetic === "bronze") T = T.map(function (c) { return PX.mix(c, [96, 112, 88], 0.55); });
     var rim = PX.mix(C, [255, 255, 255], 0.22);
@@ -67,8 +67,8 @@
     var idle = (P.playing && P.activity < 0.035 && P.effort < 0.055 && P.slideEffort < 0.04 && stumble < 0.04) ? (Math.sin(P.tSec * 2.05) * 0.5 + 0.5) * (P.reduced ? 0.28 : 1) : 0;
     var hip = { x: ax - brace * 4 * s - stumble * 1.8 * s + pd * 1.15 * s - wl * 0.6 * s,
                 y: gY - 16 * s + bob + brace * 2 * s + stumble * 2.4 * s + pd * 0.75 * s };
-    var sh = { x: hip.x + (8.4 + brace * 4 + stumble * 2.0 + pd * 1.85 + wl * 1.5) * s,
-               y: hip.y - (12 - brace * 1.5 - pd * 0.5 - wl * 1.1) * s + bob * 0.5 + stumble * 0.8 * s };
+    var sh = { x: hip.x + (7.4 + brace * 4 + stumble * 2.0 + pd * 1.85 + wl * 1.5) * s,
+               y: hip.y - (12.9 - brace * 1.5 - pd * 0.5 - wl * 1.1) * s + bob * 0.5 + stumble * 0.8 * s };
     var idleHeadT = 1 - smooth01(clamp01(P.activity / 0.06));
     var neck = { x: sh.x - 0.1 * s, y: sh.y - (1.3 + 1.1 * idleHeadT) * s };
     var headR = 4.7 * s;
@@ -213,11 +213,12 @@
     PX.disc(sp, head.x, head.y, hr, function (x, y, u, v) {
       var dot = u * L2[0] + v * L2[1];
       if (lod < 0.35) return dot > 0.2 && k > 0.05 ? SLOT.RIM : SLOT.T1;
-      if (v < -0.15 && u < 0.45) return dot > 0.45 && !isColor && k > 0.06 ? SLOT.RIM : (dot > 0.35 ? SLOT.HAIRHI : SLOT.HAIR);
-      if (u > 0.25 && v > 0.15) return SLOT.BEARD;
+      if (v < -0.2 && u < 0.5) return dot > 0.62 ? SLOT.HAIRHI : SLOT.HAIR;                       // hair cap
+      if (u > 0.2 && v > 0.2) return SLOT.BEARD;                                                    // beard along the jaw
       if (isColor && u > 0.35 && v > -0.35 && v < -0.05 && lod > 0.7) return SLOT.EYE;
-      return dot > 0.6 ? SLOT.T3 : dot > 0.05 ? SLOT.T2 : SLOT.T1;
+      return dot > 0.55 ? SLOT.T3 : dot > 0.0 ? SLOT.T2 : SLOT.T1;
     });
+    if (lod > 0.55) sp.set(head.x + hr + 0.4, head.y + hr * 0.05, isColor ? SLOT.T2 : (k > 0.06 ? SLOT.T3 : SLOT.T1));   // the nose: a face in profile, looking at the stone
     if (cos === "headband" && lod > 0.45) PX.capsule(sp, head.x - hr * 0.9, head.y - hr * 0.25, head.x + hr * 0.7, head.y - hr * 0.25, Math.max(0.6, 0.6 * z * s), Math.max(0.6, 0.6 * z * s), function () { return SLOT.BAND; });
     if (cos === "laurel" && lod > 0.45) for (var li = -2; li <= 2; li++) sp.set(head.x + li * 1.6 * z * s, head.y - hr - (Math.abs(li) % 2) * z * s * 0.8, SLOT.LAUREL);
 

@@ -25,6 +25,14 @@
     I.soil = pal.ramp("soil", H(["#120c0a", "#1d1210", "#2c1a15", "#43291f", "#5d3a29", "#7c5238"]));
     I.stone = pal.ramp("stone", H(["#161a1c", "#252b2d", "#383f41", "#51585a", "#707676", "#929695"]));
     I.flower = pal.ramp("flower", H(["#f2eee0", "#e7a6bd", "#c95e89", "#e8554f", "#f1c84b"]));
+    I.clay = pal.ramp("clay", H(["#22110d", "#361a14", "#4e2a1e", "#6b3b27", "#8a4f31", "#a86a40"]));
+    I.rockbed = pal.ramp("rockbed", H(["#1a1615", "#2a2422", "#3b332f", "#50463f", "#685b50", "#82725f"]));
+    I.deep = pal.ramp("deep", H(["#070506", "#0d090b", "#150d12", "#1f1218", "#2b1820"]));
+    I.ember = pal.ramp("ember", H(["#5a1c10", "#9b3413", "#e0631a", "#ffb03a"]));
+    I.bone = pal.ramp("bone", H(["#6b5f4e", "#a89a80", "#d8ccb0", "#f2ead2"]));
+    I.terra = pal.ramp("terra", H(["#5a2a1c", "#8c4a2c", "#b8683a", "#dc9256"]));
+    I.metal = pal.ramp("metal", H(["#1c1f22", "#34393d", "#545b60", "#7b848a"]));
+    I.bush = pal.ramp("bush", H(["#10261a", "#1a3a22", "#25522c", "#357038", "#4c8f44", "#6cae4f"]));
     I.ink = pal.ramp("ink", H(["#080b0d"]));
     R.pal = pal;
     built = "";
@@ -89,10 +97,29 @@
     else { fb.set(x, y, p + 3); fb.set(x, y - 1, p + 3); fb.set(x + 1, y, p + 4); }
   }
 
+  // ---- tiny pixel bitmaps for buried relics ('.' empty; digits = tone 0..3 of the named ramp) ----
+  var RELICS = [
+    { ramp: "bone", rows: ["..1223..", ".12333..", "..2331..", "...231..", "...221..", "..1231..", ".12333..", "..1221.."] },                       // a long bone standing in the soil
+    { ramp: "bone", rows: [".122221.", "12333321", "13303031", "13303031", "12333321", ".123321.", "..1221.."] },                                 // a skull
+    { ramp: "terra", rows: ["..1221..", ".123321.", ".13..31.", ".123321.", "..1231..", "...11..."] },                                              // amphora shard
+    { ramp: "metal", rows: ["1221....", "2..21...", "2..2.21.", "1221.2.2", "...1.2.2", "....1221"] },                                              // chain links
+    { ramp: "ember", rows: ["..23..", ".2333.", "23333.", ".2332.", "..22.."] }                                                                      // a coin / ember glint
+  ];
+  function drawRelic(fb, r, x, y, flip) {
+    var ramp = I[r.ramp];
+    for (var yy = 0; yy < r.rows.length; yy++) for (var xx = 0; xx < r.rows[yy].length; xx++) {
+      var ch = r.rows[yy].charAt(flip ? r.rows[yy].length - 1 - xx : xx); if (ch === ".") continue;
+      fb.set(x + xx, y + yy, ramp + parseInt(ch, 10));
+    }
+  }
+
   R.ground = function (fb, S, pal) {
-    var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip;
-    var G = I.grass, So = I.soil, x, y;
-    var grassD = Math.max(12, Math.round(70 * zoom)), soilRef = Math.max(20, 60 * zoom);
+    var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip, adj = S.adj || 1;
+    var G = I.grass, x, y;
+    var grassDu = 70, topDu = 118, clayDu = 196, rockDu = 282;               // depth (world units) where each layer starts
+    var grassD = Math.max(12, Math.round(grassDu * zoom));
+    var lean = S.reduced ? 0 : (S.windGust || 0) * 3.2;
+    var heroX = Math.round(S.ztx + S.anchorX * zoom);
     // slope-edge pines: small firs standing on the ridge line further up the mountain (they appear as the climb steepens)
     var pineDensity = clamp01((S.altitude - 30) / 260);
     if (pineDensity > 0.02) {
@@ -105,63 +132,167 @@
         Sc.pine(fb, psx, pl + 2, ph, pc * 31 + 5, { dark: I.pine, mid: I.pine + 2, light: I.pine + 3, trunk: I.trunk + 1 }, { slim: 0.30, light: -1 });
       }
     }
-    // the meadow, column by column
+    // the ground, column by column
     for (x = 0; x < w; x++) {
       var lip = lipA[x]; if (lip >= h) continue;
       var wxF = (x - S.ztx) / zoom + sc, wx = Math.floor(wxF);
       var c1 = PX.h2(wx, 11), c2 = PX.h2(wx, 23), c3 = PX.h2(wx, 37);
       var patch = PX.vnoise(wxF * 0.018, 3.3, 1.7);                        // big lighter / darker swathes of meadow
       var lvBase = 2.3 + 1.7 * c1 + 1.4 * (patch - 0.5);
+      var sway = S.reduced ? 0 : (lean + 0.55 * Math.sin(S.tSec * 2.1 + wxF * 0.03)) ;
       var tip = 1 + Math.floor(c2 * c2 * 5.2);
-      for (var kk = 1; kk <= tip; kk++) {                                  // blade tips break the skyline
-        var ty = lip - kk; if (ty < 0) continue;
-        d[ty * w + x] = G + clamp(Math.floor(lvBase + 1.4 - kk * 0.55 + PX.BAYER4[ty & 3][x & 3] * 0.8), 1, 6);
+      for (var kk = 1; kk <= tip; kk++) {                                  // blade tips break the skyline (and lean with the wind)
+        var ty = lip - kk, tx = x + Math.round(sway * (kk / 6)); if (ty < 0 || tx < 0 || tx >= w) continue;
+        d[ty * w + tx] = G + clamp(Math.floor(lvBase + 1.4 - kk * 0.55 + PX.BAYER4[ty & 3][tx & 3] * 0.8), 1, 6);
       }
+      // per-column layer boundaries wobble so strata are wavy, never ruler-straight
+      var b1 = topDu + 9 * Math.sin(wxF * 0.021 + 1.3) + 5 * Math.sin(wxF * 0.057), b2 = clayDu + 12 * Math.sin(wxF * 0.017 + 4.1) + 6 * Math.sin(wxF * 0.049 + 2), b3 = rockDu + 14 * Math.sin(wxF * 0.013 + 0.4) + 7 * Math.sin(wxF * 0.041);
       var y0 = Math.max(0, lip);
       for (y = y0; y < h; y++) {
-        var dd = y - lip, idx;
-        if (dd < grassD) {
+        var dd = y - lip, du = dd / zoom, idx, bay = PX.BAYER4[y & 3][x & 3];
+        if (du < grassDu) {
           var t = dd / grassD;
-          var s = PX.h2(wx * 3 + 1, Math.floor((dd + c1 * 7) / 3.4));
-          var lvf = lvBase + 0.9 - 3.7 * Math.pow(t, 0.95) + (s - 0.5) * 1.7 + PX.BAYER4[y & 3][x & 3] * 0.9;
+          var wxs = wx + Math.round(sway * (1 - t) * 1.6);                   // blades lean: the streak drifts sideways toward the tip
+          var s = PX.h2(wxs * 3 + 1, Math.floor((dd + c1 * 7) / 3.4));
+          var lvf = lvBase + 0.9 - 3.7 * Math.pow(t, 0.95) + (s - 0.5) * 1.7 + bay * 0.9;
           idx = G + clamp(Math.floor(lvf), 0, 6);
-          if (s > 0.955 && t < 0.72) idx = G + 6;
-          else if (s < 0.05 && t > 0.15) idx = G + 1;
-        } else {
-          var sd = dd - grassD, st = sd / soilRef;
-          var strata = 0.55 * Math.sin(dd * 0.31 + c3 * 6) + (PX.h2(wx >> 1, dd >> 1) - 0.5) * 0.9;
-          var sl = 4.3 - st * 1.5 + strata + PX.BAYER4[y & 3][x & 3] * 0.8;
-          idx = So + clamp(Math.floor(sl), 0, 5);
-          var pb = PX.h2(wx >> 3, (dd >> 3) + 50);                             // pebbles
-          if (pb > 0.88) { var px = wx & 7, py = dd & 7; if (px >= 2 && px <= 5 && py >= 3 && py <= 5) idx = I.stone + (py === 3 ? 3 : (px < 4 ? 2 : 1)); }
+          if (s > 0.955 && t < 0.72) idx = G + 6; else if (s < 0.05 && t > 0.15) idx = G + 1;
+        } else if (du < b1) {                                                // loam: dark, crumbly, rooty
+          var sl = 3.5 - (du - grassDu) / 46 + (PX.h2(wx >> 1, dd >> 1) - 0.5) * 1.5 + bay * 0.8;
+          idx = I.soil + clamp(Math.floor(sl), 0, 5);
+          if (PX.h2(wx, dd + 900) > 0.985) idx = I.soil;                     // specks
+        } else if (du < b2) {                                                // clay: warmer, banded
+          var band = 0.9 * Math.sin(du * 0.36 + PX.vnoise(wxF * 0.04, du * 0.05, 3) * 5) + (PX.h2(wx >> 1, (dd >> 1) + 70) - 0.5) * 1.1;
+          idx = I.clay + clamp(Math.floor(3.0 + band + bay * 0.8 - (du - b1) / 90), 0, 5);
+        } else if (du < b3) {                                                // bedrock: masonry-like blocks with 1-px joints
+          var rowH = 15, bi = Math.floor((du - b2) / rowH), off = (bi & 1) ? 13 : 0, bw = 28;
+          var cx = Math.floor((wxF + off) / bw), fx = (wxF + off) - cx * bw, fy = (du - b2) - bi * rowH;
+          var bt = PX.h2(cx * 7 + bi, 31);
+          var joint = fx < 1.2 / zoom || fy < 1.1 / zoom;
+          var lvr = 2.3 + bt * 2.0 + bay * 0.7 - (fy > rowH * 0.7 ? 0.6 : 0) + (fx < 4 && fy > 3 ? 0.4 : 0);
+          idx = joint ? I.rockbed + 0 : I.rockbed + clamp(Math.floor(lvr), 1, 5);
+          if (!joint && PX.h2(wx, dd + 300) > 0.985) idx = I.rockbed + 5;
+        } else {                                                             // the deep: near-black, violet glints, a few embers
+          var ex = (du - b3);
+          var lvd = 2.6 - ex / 130 + (PX.h2(wx >> 1, dd >> 1) - 0.5) * 1.1 + bay * 0.7;
+          idx = I.deep + clamp(Math.floor(lvd), 0, 4);
+          var eh = PX.h2(wx, dd + 500);
+          if (eh > 0.9975) idx = I.ember + (eh > 0.9992 ? 3 : 2); else if (eh > 0.995) idx = I.ember;
         }
         d[y * w + x] = idx;
       }
     }
-    // flowers: world-locked cells, painted after the grass so they sit on top of it
-    var cw = 34, ch = 30, wl2 = (0 - S.ztx) / zoom + sc - cw, wr2 = (w - S.ztx) / zoom + sc + cw;
+    // embedded stones (loam .. bedrock): shaded blobs, lit from the upper left
+    var scw = 24, sch = 20, wl3 = (0 - S.ztx) / zoom + sc - scw, wr3 = (w - S.ztx) / zoom + sc + scw, rowMax = Math.ceil(((h - 0) / zoom) / sch) + 2;
+    for (var sc0 = Math.floor(wl3 / scw); sc0 <= Math.ceil(wr3 / scw); sc0++) {
+      for (var sr = 4; sr < 4 + rowMax; sr++) {
+        var sh = PX.h2(sc0 * 3 + 1, sr * 5 + 2); if (sh < 0.83) continue;
+        var swx = sc0 * scw + PX.h2(sc0, sr + 41) * scw, sdu = sr * sch + PX.h2(sc0, sr + 43) * sch;
+        var ssx = Math.round(S.ztx + (swx - sc) * zoom); if (ssx < -8 || ssx > w + 8) continue;
+        var ssy = Math.round(lipA[clamp(ssx, 0, w - 1)] + sdu * zoom); if (ssy < 4 || ssy > h + 4) continue;
+        var rr = Math.max(1.6, (3 + 3.5 * PX.h2(sc0, sr + 47)) * zoom * 1.2), sd = swx < 0 ? 0 : 0;
+        var base = sdu > (rockDu - 30) ? I.rockbed : I.stone;
+        for (var by = -Math.ceil(rr); by <= Math.ceil(rr); by++) for (var bx = -Math.ceil(rr * 1.3); bx <= Math.ceil(rr * 1.3); bx++) {
+          var ex2 = bx / 1.3, dist2 = ex2 * ex2 + by * by; if (dist2 > rr * rr) continue;
+          var lit = (-(ex2 * 0.7 + by * 0.7)) / rr;                          // >0 toward the upper left
+          var tone = lit > 0.45 ? 4 : lit > 0.05 ? 3 : lit > -0.4 ? 2 : 1;
+          if (dist2 > (rr - 1) * (rr - 1) && lit < 0.2) tone = 0;             // dark rim on the shaded side
+          fb.set(ssx + bx, ssy + by, base + Math.min(5, tone));
+        }
+      }
+    }
+    // roots: dark branching lines hanging from the turf into the loam
+    var rcell = 46, wl4 = (0 - S.ztx) / zoom + sc - rcell, wr4 = (w - S.ztx) / zoom + sc + rcell;
+    for (var rc = Math.floor(wl4 / rcell); rc <= Math.ceil(wr4 / rcell); rc++) {
+      if (PX.h2(rc, 61) < 0.45) continue;
+      var rwx = rc * rcell + PX.h2(rc, 62) * rcell, rsx = Math.round(S.ztx + (rwx - sc) * zoom); if (rsx < -20 || rsx > w + 20) continue;
+      var cxp = rsx, cyp = lipA[clamp(rsx, 0, w - 1)] + Math.round(grassDu * zoom * 0.92), len = Math.round((22 + 34 * PX.h2(rc, 63)) * zoom * 1.3), dir = PX.h2(rc, 64) < 0.5 ? -1 : 1;
+      for (var st = 0; st < len; st++) {
+        cyp += 1; if (PX.h2(rc * 31 + st, 65) < 0.42) cxp += dir; else if (PX.h2(rc * 17 + st, 66) < 0.16) cxp -= dir;
+        fb.set(cxp, cyp, I.soil + (st & 3 ? 1 : 0)); if (st < len * 0.4) fb.set(cxp + 1, cyp, I.soil);
+        if (st > 5 && st % 9 === 0 && PX.h2(rc * 13 + st, 67) < 0.7) { var bxp = cxp, byp = cyp; for (var bs = 0; bs < 6; bs++) { byp += (bs & 1); bxp += dir * 1; fb.set(bxp, byp, I.soil + 1); } }
+      }
+    }
+    // buried relics: bones, skulls, amphora shards, chain links and coins, deep in the clay and bedrock
+    var rlc = 150, wl5 = (0 - S.ztx) / zoom + sc - rlc, wr5 = (w - S.ztx) / zoom + sc + rlc;
+    for (var lc = Math.floor(wl5 / rlc); lc <= Math.ceil(wr5 / rlc); lc++) {
+      for (var lr = 0; lr < 3; lr++) {
+        var lh = PX.h2(lc * 5 + lr, 81); if (lh < 0.60) continue;
+        var lwx = lc * rlc + PX.h2(lc, lr + 82) * rlc, ldu = 150 + lr * 110 + PX.h2(lc, lr + 83) * 80;
+        var lsx = Math.round(S.ztx + (lwx - sc) * zoom); if (lsx < -14 || lsx > w + 14) continue;
+        var lsy = Math.round(lipA[clamp(lsx, 0, w - 1)] + ldu * zoom); if (lsy < 2 || lsy > h - 2) continue;
+        drawRelic(fb, RELICS[Math.floor(PX.h2(lc, lr + 84) * RELICS.length) % RELICS.length], lsx, lsy, PX.h2(lc, lr + 85) > 0.5);
+      }
+    }
+    // flowers with stems, tufts and bushes on the meadow (world-locked; kept clear of the hero)
+    var cw = 34, wl2 = (0 - S.ztx) / zoom + sc - cw, wr2 = (w - S.ztx) / zoom + sc + cw;
     for (var fc = Math.floor(wl2 / cw); fc <= Math.ceil(wr2 / cw); fc++) {
       for (var fr = 0; fr < 3; fr++) {
         var fh = PX.h2(fc, fr + 90); if (fh < 0.55) continue;
         var fwx = fc * cw + PX.h2(fc, fr + 95) * cw, fdu = 7 + fr * 19 + PX.h2(fc, fr + 99) * 9;
         var fsx = Math.round(S.ztx + (fwx - sc) * zoom); if (fsx < 1 || fsx > w - 2) continue;
         var fsy = Math.round(lipA[fsx] + fdu * zoom); if (fsy < 1 || fsy > h - 2) continue;
-        flowerAt(fb, fsx, fsy, Math.floor(fh * 8) % 4);
+        var lx = Math.round(sway * 0.25);
+        fb.set(fsx, fsy + 1, G + 2); fb.set(fsx + lx, fsy + 2, G + 3);       // stem
+        flowerAt(fb, fsx + lx, fsy, Math.floor(fh * 8) % 4);
       }
+    }
+    var bcell = 120, wl6 = (0 - S.ztx) / zoom + sc - bcell, wr6 = (w - S.ztx) / zoom + sc + bcell;
+    for (var bc = Math.floor(wl6 / bcell); bc <= Math.ceil(wr6 / bcell); bc++) {
+      var bh = PX.h2(bc, 111); if (bh < 0.52) continue;
+      var bwx = bc * bcell + PX.h2(bc, 112) * bcell * 0.85, bsx = Math.round(S.ztx + (bwx - sc) * zoom); if (bsx < -20 || bsx > w + 20) continue;
+      if (Math.abs(bsx - heroX) < 46 * zoom + 24) continue;                 // keep the hero's surroundings calm
+      var bsy = lipA[clamp(bsx, 0, w - 1)] + Math.round(4 * zoom), kind = Math.floor(PX.h2(bc, 113) * 3);
+      if (kind === 0) {                                                     // a bush: three dithered leaf tones, a few berries
+        var brr = Math.max(4, Math.round((9 + 7 * PX.h2(bc, 114)) * zoom * 1.3));
+        for (var yy = -brr; yy <= 2; yy++) for (var xx = -Math.round(brr * 1.5); xx <= Math.round(brr * 1.5); xx++) {
+          var ex3 = xx / 1.5, d3 = ex3 * ex3 + yy * yy; if (d3 > brr * brr || yy > 1) continue;
+          var lit2 = (-(ex3 * 0.5 + yy * 0.85)) / brr, bt2 = lit2 + (PX.BAYER4[(bsy + yy) & 3][(bsx + xx) & 3]) * 0.5;
+          fb.set(bsx + xx + Math.round(sway * 0.3 * (-yy / brr)), bsy + yy, I.bush + (bt2 > 0.55 ? 5 : bt2 > 0.2 ? 4 : bt2 > -0.2 ? 3 : bt2 > -0.55 ? 2 : 1));
+        }
+        if (PX.h2(bc, 115) > 0.5) { fb.set(bsx - 1, bsy - brr + 2, I.flower + 3); fb.set(bsx + 2, bsy - Math.round(brr * 0.5), I.flower + 3); fb.set(bsx - 3, bsy - Math.round(brr * 0.4), I.flower + 2); }
+      } else if (kind === 1) {                                              // a small boulder, lit like the big one
+        var rr2 = Math.max(3, Math.round((6 + 5 * PX.h2(bc, 116)) * zoom * 1.3));
+        for (var y2 = -rr2; y2 <= 1; y2++) for (var x2 = -Math.round(rr2 * 1.4); x2 <= Math.round(rr2 * 1.4); x2++) {
+          var e4 = x2 / 1.4, d4 = e4 * e4 + y2 * y2 * 1.15; if (d4 > rr2 * rr2 || y2 > 1) continue;
+          var lit3 = (-(e4 * 0.7 + y2 * 0.7)) / rr2, tn = lit3 > 0.5 ? 4 : lit3 > 0.1 ? 3 : lit3 > -0.35 ? 2 : 1;
+          if (d4 > (rr2 - 1) * (rr2 - 1) && lit3 < 0.3) tn = 0;
+          fb.set(bsx + x2, bsy + y2, I.stone + tn);
+        }
+      } else {                                                              // a fern: fanned fronds
+        var fl = Math.max(4, Math.round((8 + 6 * PX.h2(bc, 117)) * zoom * 1.3));
+        for (var fa = -3; fa <= 3; fa++) { var ang = fa * 0.32; for (var ft = 1; ft <= fl; ft++) { var fx2 = Math.round(Math.sin(ang) * ft * 0.9 + sway * 0.2 * (ft / fl)), fy2 = -Math.round(Math.cos(ang) * ft * 0.85 + Math.sin(ft * 0.25 + fa) * 0.4); fb.set(bsx + fx2, bsy + fy2, I.bush + (ft > fl * 0.6 ? 5 : ft > fl * 0.3 ? 4 : 3)); } }
+      }
+    }
+    // butterflies drifting over the meadow (a couple of pixels, three wing frames)
+    if (!S.reduced && S.altitude < 900) for (var bf = 0; bf < 3; bf++) {
+      var bx0 = ((PX.h1(bf * 9 + 2) * w * 1.4 + S.tSec * (6 + bf * 3) - sc * zoom * 0.0) % (w + 40)) - 20, by0 = lipA[clamp(Math.round(bx0), 0, w - 1)] - 10 - 12 * PX.h1(bf * 5 + 1) + Math.sin(S.tSec * 2 + bf * 2) * 5;
+      var wf = Math.floor(S.tSec * 8 + bf) % 3, col = bf === 0 ? I.flower + 4 : (bf === 1 ? I.flower + 1 : I.flower);
+      var bxr = Math.round(bx0), byr = Math.round(by0);
+      fb.set(bxr, byr, I.ink);
+      if (wf === 0) { fb.set(bxr - 1, byr - 1, col); fb.set(bxr + 1, byr - 1, col); } else if (wf === 1) { fb.set(bxr - 1, byr, col); fb.set(bxr + 1, byr, col); } else { fb.set(bxr - 1, byr + 1, col); fb.set(bxr + 1, byr + 1, col); }
     }
   };
 
-  // foreground: giant crisp pines sweeping past in front of him, then light wind streaks
+  // foreground: giant crisp pines sweeping past in front of him (dithered see-through where they'd hide him), and drifting pollen
   R.front = function (fb, S, pal) {
-    var w = fb.w, h = fb.h, sc = S.scroll, zoom = S.zoom, cell = 780;
-    var fgZ = 1.7, wl = (0 - S.ztx) / (zoom * fgZ) + sc * 0 , k0 = Math.floor((sc * fgZ - w * 1.2) / cell) - 1, k1 = Math.ceil((sc * fgZ + w * 2.2) / cell) + 1;
-    if (S.altitude > 60) for (var k = k0; k <= k1; k++) {
-      var hh = PX.h1(k * 9 + 4); if (hh < 0.45) continue;
-      var sx = Math.round(k * cell + PX.h1(k * 3 + 2) * 300 - sc * fgZ * zoom * 0.62 + w * 0.2);
-      // (positions scroll faster than the ground so they read as being close to the camera)
-      if (sx < -80 || sx > w + 80) continue;
-      var th = Math.round(h * (1.05 + 0.5 * PX.h1(k * 5 + 1)));
-      Sc.pine(fb, sx, h + 6, th, k * 17 + 3, { dark: I.pine, mid: I.pine + 1, light: I.pine + 2, trunk: I.trunk }, { slim: 0.36, light: -1 });
+    var w = fb.w, h = fb.h, zoom = S.zoom, fs = S.scroll * 1.45, cell = 1150;
+    if (S.altitude > 110) {
+      var heroX = Math.round(S.ztx + S.anchorX * zoom), heroY = S.lip[Math.max(0, Math.min(w - 1, heroX))];
+      var k0 = Math.floor(((0 - S.ztx) / zoom + fs) / cell) - 1, k1 = Math.ceil(((w - S.ztx) / zoom + fs) / cell) + 1;
+      for (var k = k0; k <= k1; k++) {
+        if (PX.h1(k * 9 + 4) < 0.5) continue;
+        var fx = k * cell + PX.h1(k * 3 + 2) * 500, sx = Math.round(S.ztx + (fx - fs) * zoom);
+        if (sx < -100 || sx > w + 100) continue;
+        var th = Math.round(h * (0.95 + 0.5 * PX.h1(k * 5 + 1)));
+        Sc.pine(fb, sx, h + 8, th, k * 17 + 3, { dark: I.pine, mid: I.pine + 1, light: I.pine + 2, trunk: I.trunk }, { slim: 0.30, light: -1, hole: { x0: heroX - 40, x1: heroX + 60, y0: heroY - 80, y1: heroY + 30 } });
+      }
+    }
+    if (!S.reduced) for (var m = 0; m < 14; m++) {                            // pollen / dust motes catching the light
+      var mx = ((PX.h1(m * 7 + 1) * (w + 60) - S.tSec * (3 + PX.h1(m) * 4) - S.scroll * zoom * 0.05) % (w + 60) + (w + 60)) % (w + 60) - 30;
+      var my = (PX.h1(m * 11 + 3) * 0.6 + 0.06) * h + Math.sin(S.tSec * (0.7 + PX.h1(m * 3) * 0.6) + m * 2.1) * 5;
+      var tw = Math.floor(S.tSec * 2 + m) & 1;
+      fb.set(Math.round(mx), Math.round(my), I.sun + 2); if (tw) fb.set(Math.round(mx) + 1, Math.round(my), I.sun + 1);
     }
   };
 
