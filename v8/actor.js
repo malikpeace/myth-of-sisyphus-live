@@ -75,7 +75,7 @@
     var ox = P.ox, oy = P.oy;
     function map(lx, ly) { return [ox + z * (lx * cs + ly * sn), oy + z * (-lx * sn + ly * cs)]; }
     var sfig = s * z, lod = clamp01((sfig - 0.34) / 0.52);
-    var stonePal = stonePalette(P), heroPal = Hero.palette({ look: P.look, cosmetic: P.cosmetic, ambient: P.ambient, sunCol: P.sunCol, sunK: P.sunK, bright: P.bright, ground: P.ground });
+    var stonePal = stonePalette(P), heroPal = Hero.palette({ look: P.look, cosmetic: P.cosmetic, ambient: P.ambient, sunCol: P.sunCol, sunK: P.sunK, bright: P.bright, ground: P.ground, bgLum: P.bgLum });
     var pal = stonePal.slice(); for (var q = 0; q < heroPal.length; q++) if (heroPal[q]) pal[q] = heroPal[q];
     var Rpx = P.brad * z, sq = P.squash || 0;
     var rx = Math.max(3, Math.round(Rpx * (1 + sq))), ry = Math.max(3, Math.round(Rpx * (1 - sq)));
@@ -156,7 +156,21 @@
 
   // ---- V8 indexed framebuffer output ----
   //   shade1 / shade2: Uint8Array(256) LUTs (one / two steps darker along each palette ramp)
+  // what the man stands against: the luminance of the backdrop behind his torso and head (smoothed, quantised) so his skin and linen can be lifted or darkened to stay readable
+  var bgSmooth = -1;
+  function surroundLum(fb, pal, P) {
+    var z = P.z, s = P.s * HERO_SCALE, x0 = Math.round(P.ox - 24 * z * s), x1 = Math.round(P.ox + 6 * z * s), y0 = Math.round(P.oy - 46 * z * s), y1 = Math.round(P.oy - 8 * z * s), sum = 0, n = 0, xs, ys;
+    x0 = Math.max(0, x0); x1 = Math.min(fb.w - 1, Math.max(x0 + 3, x1)); y0 = Math.max(0, y0); y1 = Math.min(fb.h - 1, Math.max(y0 + 3, y1));
+    for (ys = 0; ys < 5; ys++) for (xs = 0; xs < 7; xs++) {
+      var px = x0 + Math.round((x1 - x0) * xs / 6), py = y0 + Math.round((y1 - y0) * ys / 4), e = pal.rgb[fb.d[py * fb.w + px]];
+      if (e) { sum += (0.2126 * e[0] + 0.7152 * e[1] + 0.0722 * e[2]) / 255; n++; }
+    }
+    var l = n ? sum / n : 0.45;
+    bgSmooth = bgSmooth < 0 ? l : bgSmooth + (l - bgSmooth) * 0.16;
+    return Math.round(bgSmooth * 14) / 14;
+  }
   function frameFb(fb, pal, P, shade1, shade2) {
+    if (P.bgLum == null) P.bgLum = surroundLum(fb, pal, P);
     var R = prepare(P); if (!R) return null;
     if (!P.noShadow && !P.reduced && R.appear > 0.02) {
       var strong = (P.sunK == null ? 0.5 : P.sunK) > 0.18, d = fb.d, w = fb.w, h = fb.h, apr = R.appear, B4s = PX.BAYER4;
