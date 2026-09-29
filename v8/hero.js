@@ -200,51 +200,58 @@
       ".hhhhhhhhh.",
       "hhhhhhhssS.",
       "hhhhhssSkS.",
-      "hhhhdssseS.",
-      "hhhldsssssS",
-      ".hhlsssbbm.",
-      ".lhlsbbbbb.",
+      "hhhhbssseS.",
+      "hhhlbbssssS",
+      ".hhlbbssbbs",
+      ".lhlsbbsmbb",
       "..ll.bbbbb.",
-      ".....bbbb.." ] },
-    { r: 3.75, cx: 4, cy: 4, rows: [                       // 9 x 9
-      "..hHHhh..",
-      ".hhhhhhh.",
-      "hhhhhssS.",
-      "hhhhssSkS",
-      "hhhdssseS",
-      "hhldssssS",
-      ".hlssbbbm",
-      ".lhlsbbbb",
-      "..l.bbbb." ] },
+      ".....bbb..." ] },
+    { r: 3.75, cx: 4, cy: 4, rows: [                       // 10 x 9
+      "..hHHhh...",
+      ".hhhhhhh..",
+      "hhhhhssS..",
+      "hhhhssSkS.",
+      "hhhbssseS.",
+      "hhlbbssssS",
+      ".hlbsssbb.",
+      ".lhsbbsmb.",
+      "..l.bbbb.." ] },
     { r: 3.0, cx: 3, cy: 3, rows: [                        // 8 x 7
       "..hHhh..",
       ".hhhhhh.",
       "hhhhssS.",
-      "hhhssSkS",
-      "hhdssseS",
-      ".hlsbbbm",
+      "hhhbsseS",
+      "hhlbbssS",
+      ".lhsbbbb",
       "...bbbb." ] },
     { r: 2.35, cx: 2, cy: 3, rows: [                       // 6 x 6
       ".hHhh.",
       "hhhhsS",
-      "hhhskS",
-      "hhdseS",
-      ".lsbbb",
+      "hhbseS",
+      "hlbssS",
+      ".lbbbb",
       "..bbb." ] },
     { r: 0, cx: 1, cy: 2, rows: [                          // 4 x 4
       ".hh.",
       "hhsS",
-      "hdse",
+      "hbse",
       ".bbb" ] }
   ];
   (function () { HEADS.forEach(function (H) { H.w = 0; H.rows.forEach(function (r) { if (r.length > H.w) H.w = r.length; }); }); })();
+  // one or two loose strands behind the head: a flick that grows with effort and wind and waves a pixel up and down (never a long tail)
+  function hairWisp(HB, tr, wave) {
+    if (HB.r < 2.9 || tr < 0.3) return null;
+    var r0 = HB.cy, rowA = HB.rows[r0], rowB = HB.rows[r0 + 1], cA = rowA.search(/[^.]/), out = [[cA - 1, r0 + (wave > 0.4 ? 1 : 0), "h"]];
+    if (tr > 0.75 && rowB) out.push([rowB.search(/[^.]/) - 2, r0 + 1 + (wave < -0.2 ? -1 : 0), "l"]);
+    return out;
+  }
   function pickHead(hr) { for (var i = 0; i < HEADS.length; i++) if (hr >= HEADS[i].r) return HEADS[i]; return HEADS[HEADS.length - 1]; }
   // colour look: letters -> palette slots;  shadow look: one dark body colour plus a rim of light where the sun grazes the edge
   var HSLOT = {
     color: { h: SLOT.HAIR, H: SLOT.HAIRHI, l: SLOT.HAIRLO, S: SLOT.T3, s: SLOT.T2, d: SLOT.T1, D: SLOT.T0, k: SLOT.T0, e: SLOT.EYE, b: SLOT.BEARD, m: SLOT.T1 },
     shadow: { h: SLOT.HAIR, H: SLOT.HAIR, l: SLOT.HAIR, S: SLOT.T2, s: SLOT.T1, d: SLOT.T0, D: SLOT.T0, k: SLOT.T0, e: SLOT.T1, b: SLOT.HAIR, m: SLOT.T0 }
   };
-  function stampHead(sp, HB, hx, hy, phi, isColor, L2, lightOn) {
+  function stampHead(sp, HB, hx, hy, phi, isColor, L2, lightOn, wisp) {
     var map = HSLOT[isColor ? "color" : "shadow"], rows = HB.rows, cx = HB.cx, cy = HB.cy, t2 = Math.tan(phi / 2), sn = Math.sin(phi);
     var ox = Math.round(hx), oy = Math.round(hy), pts = [], mask = {}, r, c;
     for (r = 0; r < rows.length; r++) for (c = 0; c < rows[r].length; c++) {
@@ -252,6 +259,11 @@
       var dx = c - cx, dy = r - cy;
       dx = dx - Math.round(dy * t2); dy = dy + Math.round(dx * sn); dx = dx - Math.round(dy * t2);        // three integer shears = a small rotation that never drops a pixel
       pts.push([ox + dx, oy + dy, ch]); mask[(ox + dx) + "," + (oy + dy)] = 1;
+    }
+    if (wisp) for (var wi = 0; wi < wisp.length; wi++) {                                                       // loose hair streaming back (moved by the same rotation)
+      var wx = wisp[wi][0] - cx, wy = wisp[wi][1] - cy;
+      wx = wx - Math.round(wy * t2); wy = wy + Math.round(wx * sn); wx = wx - Math.round(wy * t2);
+      pts.push([ox + wx, oy + wy, wisp[wi][2]]);
     }
     var rx = L2[0] < -0.45 ? -1 : (L2[0] > 0.45 ? 1 : 0), ry = L2[1] < -0.45 ? -1 : (L2[1] > 0.45 ? 1 : 0);
     for (var i = 0; i < pts.length; i++) {
@@ -306,7 +318,8 @@
     var legs = J.legs.map(function (l) { return { foot: m(l.foot), knee: m(l.knee), far: l.far, plant: l.plant, ang: l.ang || 0, ground: m(l.ground || l.foot) }; });
     var cosm = P.cosmetic;
 
-    if (lod < 0.16) { drawSimple(sp, P, J, legs, hip, sh, shB, neck, head, hr, tone, R, minR); return; }
+    var huT = dirL(Math.sin(J.ht), -Math.cos(J.ht)), headPhi = Math.max(-0.5, Math.min(0.5, Math.atan2(huT[0], -huT[1])));
+    if (lod < 0.16) { drawSimple(sp, P, J, legs, hip, sh, shB, neck, head, hr, tone, R, minR, headPhi); return; }
 
     // plowed dirt behind the dug-in heel (pixel clusters in the ground's own colours)
     if (J.brace > 0.08 && P.playing && lod > 0.4) {
@@ -414,7 +427,8 @@
 
     // ---- head: a hand-authored bitmap chosen by size (see HEADS), tilted a little with the neck ----
     var hu = dirL(Math.sin(J.ht), -Math.cos(J.ht)), hf = dirL(Math.cos(J.ht), Math.sin(J.ht));
-    stampHead(sp, pickHead(hr), head.x, head.y, Math.max(-0.5, Math.min(0.5, Math.atan2(hu[0], -hu[1]))), isColor, L2, rimOn);
+    var HBm = pickHead(hr), hwTr = clamp01(0.22 + P.activity * 0.5 + (P.windLean || 0) * 1.6), hwWave = P.reduced ? 0 : Math.sin(P.tSec * 5.3 + P.wp * 6.28);
+    stampHead(sp, HBm, head.x, head.y, headPhi, isColor, L2, rimOn, hairWisp(HBm, hwTr, hwWave));
     if (cosm === "headband" && lod > 0.45) { var hb0 = [head.x - hf[0] * hr * 0.95 + hu[0] * hr * 0.42, head.y - hf[1] * hr * 0.95 + hu[1] * hr * 0.42], hb1 = [head.x + hf[0] * hr * 0.8 + hu[0] * hr * 0.42, head.y + hf[1] * hr * 0.8 + hu[1] * hr * 0.42]; PX.capsule(sp, hb0[0], hb0[1], hb1[0], hb1[1], Math.max(0.6, 0.6 * hz), Math.max(0.6, 0.6 * hz), function () { return SLOT.BAND; }); }
     if (cosm === "laurel" && lod > 0.45) for (var li = -2; li <= 2; li++) sp.set(head.x + li * 1.6 * hz, head.y - hr * 1.05 - (Math.abs(li) % 2) * hz * 0.8, SLOT.LAUREL);
 
@@ -451,7 +465,7 @@
   // the small figure (camera far away): a few capsules and a glint; never vanishes
   // the small figure (the camera is far away: about 9 out of 10 metres of the climb). Not a boot on a stick: a slim man with a head and hair, V-shaped shoulders,
   // a pale kilt patch, two skinny legs, an arm to the stone and a glint of sun.
-  function drawSimple(sp, P, J, legs, hip, sh, shB, neck, head, hr, tone, R, minR) {
+  function drawSimple(sp, P, J, legs, hip, sh, shB, neck, head, hr, tone, R, minR, headPhi) {
     var s = P.s, z = P.z, L2 = P.light || [-0.4, -0.8], k = P.lightK == null ? 0.6 : P.lightK, i, isColor = P.look === "color";
     var rimOn = k > 0.03 || (!isColor && P.bgLum != null && P.bgLum < 0.2);
     function Rm(u, lo) { return Math.max(lo, u * z); }
@@ -470,8 +484,7 @@
     if (!J.cheer) { PX.capsule(sp, sh.x, sh.y, elbow.x, elbow.y, Rm(2.6 * s, 1.0), Rm(2.1 * s, 0.9), lim(false)); PX.capsule(sp, elbow.x, elbow.y, hand.x, hand.y, Rm(2.1 * s, 0.9), Rm(1.6 * s, 0.8), lim(false)); }
     else J.arms.forEach(function (a) { var e = m2(a.elbow), h = m2(a.hand); PX.capsule(sp, sh.x, sh.y, e.x, e.y, Rm(2.4 * s, 1.0), Rm(1.9 * s, 0.9), lim(a.far)); PX.capsule(sp, e.x, e.y, h.x, h.y, Rm(1.9 * s, 0.9), Rm(1.4 * s, 0.8), lim(a.far)); });
     var hh = Math.max(hr, 1.9), hx = head.x, hy = head.y;
-    PX.disc(sp, hx, hy, hh, function (x, y, u, v) { return (v < -0.05 || u < -0.35) ? (isColor ? SLOT.HAIR : SLOT.T0) : (isColor ? SLOT.T2 : SLOT.T1); });
-    sp.set(hx + hh * 0.62, hy + hh * 0.2, isColor ? SLOT.T1 : SLOT.T0);                                          // a dark pixel for the eye / face line
+    stampHead(sp, HEADS[HEADS.length - 1], hx, hy, headPhi || 0, isColor, L2, rimOn);                          // the same hand-drawn head, smallest size
     if (isColor) outlinePass(sp);
     if (rimOn) { sp.set(hx + L2[0] * hh, hy + L2[1] * hh, SLOT.GLINT); sp.set(sh.x + L2[0] * Rm(5 * s, 2), sh.y + L2[1] * Rm(5 * s, 2), SLOT.GLINT); }
   }
