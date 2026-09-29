@@ -28,7 +28,7 @@
       var f = 0.46 + 0.54 * bright;
       var base = [[54, 30, 46], [106, 60, 56], [166, 104, 68], [222, 160, 104]].map(function (c) { return [c[0] * f, c[1] * f, c[2] * f]; });   // hue-shifted: cool plum shadows, warm lights
       T = [PX.mix(base[0], A, 0.14), PX.mix(base[1], A, 0.10), PX.mix(base[2], C, 0.12 * kk), PX.mix(base[3], C, 0.24 * kk)];
-      cloth = PX.mix([228, 216, 190], A, 0.12 + 0.28 * (1 - bright)); hair = PX.mix([54, 36, 30], A, 0.10);
+      cloth = PX.mix([228, 216, 190], A, 0.12 + 0.28 * (1 - bright)); hair = PX.mix([72, 46, 34], A, 0.10);
       sash = PX.mix([176, 62, 46], A, 0.10 + 0.2 * (1 - bright)); sandal = PX.mix([88, 56, 38], A, 0.12); outCol = PX.mix([30, 18, 26], A, 0.08);
     } else {
       ink = PX.mix([7, 6, 12], A, 0.045);
@@ -41,7 +41,8 @@
     p[SLOT.T0] = T[0]; p[SLOT.T1] = T[1]; p[SLOT.T2] = T[2]; p[SLOT.T3] = T[3];
     p[SLOT.RIM] = k > 0.06 ? PX.mix(T[3], rim, clamp01(0.35 + kk * 0.7)) : T[3];
     p[SLOT.CLOTH] = cloth; p[SLOT.CLOTHHI] = PX.mix(cloth, C, 0.30 * kk + 0.10); p[SLOT.CLOTHSH] = PX.mix(cloth, T[0], 0.32); p[SLOT.CLOTHDEEP] = PX.mix(cloth, T[0], 0.62);
-    p[SLOT.HAIR] = hair; p[SLOT.HAIRHI] = PX.mix(hair, PX.mix(C, [176, 112, 64], 0.55), 0.34 * kk + 0.08);   // a warm chestnut sheen, never grey p[SLOT.HAIRLO] = PX.mix(hair, [8, 6, 10], 0.5); p[SLOT.BEARD] = PX.mix(hair, T[1], 0.22);
+    p[SLOT.HAIR] = hair; p[SLOT.HAIRHI] = PX.mix(PX.mix(hair, [150, 98, 60], 0.55), C, 0.16 * kk); p[SLOT.HAIRLO] = PX.mix(hair, [14, 10, 14], 0.42);
+    p[SLOT.BEARD] = o.look === "color" ? PX.mix(PX.mix([104, 66, 44], A, 0.10), C, 0.10 * kk) : PX.mix(hair, T[1], 0.30);
     p[SLOT.SASH] = sash; p[SLOT.SANDAL] = sandal; p[SLOT.BELT] = PX.mix(T[0], [72, 48, 34], 0.5); p[SLOT.OUT] = outCol;
     p[SLOT.EYE] = [16, 12, 14];
     p[SLOT.WRAP] = [214, 208, 190]; p[SLOT.BAND] = [188, 52, 52]; p[SLOT.LAUREL] = [158, 176, 96]; p[SLOT.AURA] = [150, 132, 230];
@@ -75,7 +76,17 @@
     var hip = { x: ax - brace * 3.0 * s - stumble * 1.8 * s + pd * 1.1 * s - wl * 0.6 * s,
                 y: gY - hipH + bob + brace * 2.2 * s + stumble * 2.6 * s + pd * 0.8 * s };
     var lean = 0.62 + brace * 0.30 + stumble * 0.16 + pd * 0.09 + wl * 0.12 + giantT * 0.05 - idle * 0.03;     // spine angle from vertical (rad)
-    var sh = { x: hip.x + Math.sin(lean) * TORSO * s, y: hip.y - Math.cos(lean) * TORSO * s + bob * 0.4 + stumble * 0.8 * s };
+    // where his hands will land on the stone, and therefore where his shoulders must be for the arms to be nearly straight (a real push: extended arms,
+    // body a diagonal from heel to hand) - this stands him back from small and medium stones instead of pressing his face into them
+    var smallGripT = 1 - smooth01(clamp01((P.ratio - 1.0) / 0.72));
+    var shY0 = hip.y - Math.cos(lean) * TORSO * s + bob * 0.4 + stumble * 0.8 * s;
+    var handY = shY0 + lerp(-1 * s, 4.7 * s, smallGripT);
+    var rel = clamp(handY - P.bly, -P.brad + 3, P.brad - 3), halfw = Math.sqrt(Math.max(0, P.brad * P.brad - rel * rel));
+    var handX = P.blx - halfw + 1.2 * s;
+    var armMax = 0.955 * (UARM + FARM) * s, ddy = handY - shY0, reachX = Math.sqrt(Math.max(0, armMax * armMax - ddy * ddy));
+    var fit = clamp((handX - reachX) - (hip.x + Math.sin(lean) * TORSO * s), -10 * s, 3 * s) * (1 - giantT);
+    hip.x += fit;
+    var sh = { x: hip.x + Math.sin(lean) * TORSO * s, y: shY0 };
     var idleHeadT = 1 - smooth01(clamp01(P.activity / 0.06));
     var nl = lean * 0.95 - 0.08, neckLen = (2.7 + 0.7 * idleHeadT) * s;
     var neck = { x: sh.x + Math.sin(nl) * neckLen, y: sh.y - Math.cos(nl) * neckLen };
@@ -105,11 +116,8 @@
       }
     }
     for (var li = 0; li < legs.length; li++) legs[li].ground = { x: legs[li].foot.x - 1.0 * s, y: gY };
-    // arms: both hands on the stone's surface
-    var smallGripT = 1 - smooth01(clamp01((P.ratio - 1.0) / 0.72));
-    var handY = sh.y + lerp(-1 * s, 4.7 * s, smallGripT);
-    var rel = clamp(handY - P.bly, -P.brad + 3, P.brad - 3), halfw = Math.sqrt(Math.max(0, P.brad * P.brad - rel * rel));
-    var hand = { x: P.blx - halfw + 1.2 * s, y: handY };
+    // arms: both hands on the stone's surface (handX / handY from above; the second hand a little higher)
+    var hand = { x: handX, y: handY };
     var rel2 = clamp(handY - 2.2 * s - P.bly, -P.brad + 3, P.brad - 3), hand2 = { x: P.blx - Math.sqrt(Math.max(0, P.brad * P.brad - rel2 * rel2)) + 1.4 * s, y: handY - 2.2 * s };
     var shB = { x: sh.x + 0.7 * s, y: sh.y - 0.8 * s };
     var elbow = PX.ik2(sh.x, sh.y, hand.x, hand.y, UARM * s, FARM * s, -1);
@@ -290,18 +298,20 @@
     PX.limb(sp, sh.x, sh.y, neck.x, neck.y, NE, NE, tone(false), 1);
     if (isColor && lod > 0.55) { var hsx = head.x + shx * 0.8, hsy = head.y + shy * 0.8; for (var ay = -Math.ceil(hr); ay <= Math.ceil(hr); ay++) for (var ax2 = -Math.ceil(hr); ax2 <= Math.ceil(hr); ax2++) if (ax2 * ax2 + ay * ay <= hr * hr) { var sx = Math.floor(hsx + ax2), sy = Math.floor(hsy + ay), dk = castShade(sx, sy); if (dk) sp.set(sx, sy, dk); } }
 
-    // ---- head: a proper skull + jaw, hair with a hairline, a full beard, brow, eye, nose, ear ----
+    // ---- head: skull + jaw, hair (cap, sideburn, streaming tail), a short full beard on the chin and jaw only, visible skin at the cheek / eye / brow ----
     var hu = dirL(Math.sin(J.ht), -Math.cos(J.ht)), hf = dirL(Math.cos(J.ht), Math.sin(J.ht)), hrr = hr * 1.02;
     var bx0 = Math.floor(head.x - hrr * 1.6), bx1 = Math.ceil(head.x + hrr * 1.6), by0 = Math.floor(head.y - hrr * 1.6), by1 = Math.ceil(head.y + hrr * 1.6);
     for (var py = by0; py <= by1; py++) for (var px2 = bx0; px2 <= bx1; px2++) {
       var rx2 = px2 + 0.5 - head.x, ry2 = py + 0.5 - head.y, lu = (rx2 * hu[0] + ry2 * hu[1]) / hr, lf = (rx2 * hf[0] + ry2 * hf[1]) / hr;
-      var skull = (lu / 1.07) * (lu / 1.07) + (lf / 0.95) * (lf / 0.95) <= 1, jaw = ((lf - 0.3) / 0.62) * ((lf - 0.3) / 0.62) + ((lu + 0.44) / 0.56) * ((lu + 0.44) / 0.56) <= 1;
-      var hairVol = ((lf + 0.24) / 1.05) * ((lf + 0.24) / 1.05) + ((lu - 0.1) / 1.1) * ((lu - 0.1) / 1.1) <= 1 && (lu > 0.0 || lf < -0.34);
-      var beardVol = ((lf - 0.12) / 0.7) * ((lf - 0.12) / 0.7) + ((lu + 0.6) / 0.46) * ((lu + 0.6) / 0.46) <= 1 && lf > -0.32;
-      if (!(skull || jaw || hairVol || beardVol)) continue;
-      var hairLine = lf >= 0.3 ? 0.56 : 0.56 - (0.3 - lf) * 1.55, nxn = rx2 / (hr * 1.1), nyn = ry2 / (hr * 1.1), dS = nxn * L2[0] + nyn * L2[1], dF = (nxn * FL[0] + nyn * FL[1]) * (isColor ? 0.55 : 0), dd = Math.max(dS, dF), slot;
-      if (lu > hairLine && (skull || hairVol) || (hairVol && !skull && lu > -0.2)) slot = dS > 0.62 && k > 0.05 ? SLOT.HAIRHI : (dd > -0.25 ? SLOT.HAIR : SLOT.HAIRLO);
-      else if (lu < -0.10 && lf > -0.30 && (jaw || beardVol || skull)) slot = dS > 0.7 && k > 0.06 ? SLOT.HAIRHI : (dd > -0.1 ? SLOT.BEARD : SLOT.HAIRLO);
+      var skull = (lu / 1.05) * (lu / 1.05) + (lf / 0.95) * (lf / 0.95) <= 1;
+      var jaw = ((lf - 0.34) / 0.6) * ((lf - 0.34) / 0.6) + ((lu + 0.42) / 0.5) * ((lu + 0.42) / 0.5) <= 1;
+      var hairBack = ((lf + 0.34) / 0.92) * ((lf + 0.34) / 0.92) + ((lu - 0.05) / 1.12) * ((lu - 0.05) / 1.12) <= 1 && lu > -0.34;      // hair covers the back of the skull, down to the nape
+      if (!(skull || jaw || hairBack)) continue;
+      var nxn = rx2 / (hr * 1.1), nyn = ry2 / (hr * 1.1), dS = nxn * L2[0] + nyn * L2[1], dF = isColor ? (nxn * FL[0] + nyn * FL[1]) * 0.5 : 0, dd = Math.max(dS, dF), slot;
+      var hairTop = lu > 0.44 - Math.max(0, lf - 0.2) * 0.26 && lf < 0.92;                                                          // the hairline slopes back from the brow
+      var beard = lu < -0.36 && lf > -0.22 && lf < 1.0 && (jaw || skull);                                                              // chin + jaw only
+      if (hairTop || (hairBack && lf < -0.12 && lu > -0.34)) slot = dS > 0.84 && k > 0.05 ? SLOT.HAIRHI : (dd > -0.30 ? SLOT.HAIR : SLOT.HAIRLO);
+      else if (beard) slot = dS > 0.80 && k > 0.06 ? SLOT.HAIRHI : (dd > -0.35 ? SLOT.BEARD : SLOT.HAIR);
       else if (skull || jaw) slot = tone(false)(px2, py, nxn, nyn);
       else continue;
       sp.set(px2, py, slot);
@@ -319,8 +329,8 @@
       var h0 = [head.x - hf[0] * 0.75 * hr + hu[0] * 0.55 * hr, head.y - hf[1] * 0.75 * hr + hu[1] * 0.55 * hr];
       var h1 = [h0[0] - hf[0] * tr * hr * 0.9 + fwdV[0] * 0, h0[1] - hf[1] * tr * hr * 0.9 + wave * hz + 0.5 * hz];
       var h2 = [h1[0] - hf[0] * tr * hr * 0.75, h1[1] + 1.6 * hz + wave * hz];
-      PX.capsule(sp, h0[0], h0[1], h1[0], h1[1], R(1.5 * s), R(0.95 * s), function () { return SLOT.HAIR; });
-      PX.capsule(sp, h1[0], h1[1], h2[0], h2[1], R(0.95 * s), R(0.4 * s), function () { return SLOT.HAIRLO; });
+      PX.capsule(sp, h0[0], h0[1], h1[0], h1[1], R(1.25 * s), R(0.8 * s), function (x, y, u, v) { return v < -0.2 ? SLOT.HAIRHI : SLOT.HAIR; });
+      PX.capsule(sp, h1[0], h1[1], h2[0], h2[1], R(0.8 * s), R(0.32 * s), function () { return SLOT.HAIR; });
     }
     if (cosm === "headband" && lod > 0.45) { var hb0 = [head.x - hf[0] * hr * 0.95 + hu[0] * hr * 0.42, head.y - hf[1] * hr * 0.95 + hu[1] * hr * 0.42], hb1 = [head.x + hf[0] * hr * 0.8 + hu[0] * hr * 0.42, head.y + hf[1] * hr * 0.8 + hu[1] * hr * 0.42]; PX.capsule(sp, hb0[0], hb0[1], hb1[0], hb1[1], Math.max(0.6, 0.6 * hz), Math.max(0.6, 0.6 * hz), function () { return SLOT.BAND; }); }
     if (cosm === "laurel" && lod > 0.45) for (var li = -2; li <= 2; li++) sp.set(head.x + li * 1.6 * hz, head.y - hr * 1.05 - (Math.abs(li) % 2) * hz * 0.8, SLOT.LAUREL);

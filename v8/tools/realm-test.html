@@ -24,13 +24,16 @@ src.onload = function () {
   for (let m = 100; m < alt + 400; m += 100) { const x = ANCHOR_X - 12 + (m - alt) * 7.2; if (x > (0 - ztx) / zoom - 20 && x < (w - ztx) / zoom + 20) cairns.push({ m: m, x: x }); }
   const S = { w, h, zoom, ztx, zty, altitude: alt, scroll, tSec: t, reduced: false, anchorX: ANCHOR_X, anchorY: ANCHOR_Y, horizonY: HORIZON, lip, slope, openingT: open, realmId: realm,
     windGust: parseFloat(q.get('wind') || '0'), gameState: 'playing', pull: 0, bestM: parseFloat(q.get('best') || '0'), oldBestPassed: false, cairns: q.get('cairns') === '0' ? [] : cairns };
-  const theta = Math.atan(slope), s = 1.32, scl = Math.min(4.6, 0.62 + alt / 900 * 2.4), brad = Math.round(28 * s * scl);
-  const bly = -brad + 2 * s, blx = Math.round((19 - 11 * Math.max(0, Math.min(1, (scl - 1) / 3.6))) * s) + brad;
+  // the game's own stone sizing (index.html: boulderScaleNow / v8Geometry): scale 0.62 -> 2.85 over 1200 m (smoothstep), radius 32 * 1.32 * scale
+  const ss = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  const theta = Math.atan(slope), s = 1.32, scl = q.get('scl') ? parseFloat(q.get('scl')) : 0.62 + (2.85 - 0.62) * ss(alt / 1200), brad = Math.round(32 * s * scl);
+  const growT = Math.max(0, Math.min(1, (scl - 1) / (2.85 - 1)));
+  const bly = -brad + 2 * s, blx = Math.round((19 - 11 * growT) * s) + brad;
   const RL = V8.realms[realm], L = RL.light ? RL.light(S) : { x: w * 0.4, y: h * 0.15, k: 0.8, col: [255, 236, 190], ambient: [96, 150, 200], bright: 0.9, ground: [70, 110, 44] };
   const ox = ztx + ANCHOR_X * zoom, oy = zty + (ANCHOR_Y + 3) * zoom;
   const rcx = ox + zoom * (blx * Math.cos(theta) + bly * Math.sin(theta)), rcy = oy + zoom * (-blx * Math.sin(theta) + bly * Math.cos(theta));
   let dx = L.x - rcx, dy = L.y - rcy; const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
-  const A = { z: zoom, s, ox, oy, theta, blx, bly, brad, ratio: brad / (28 * s), roll: t * 2.1, squash: 0, lurchX: 0, manBaseX: 0, mode: q.get('mode') || 'push', wp: t * 0.78, activity: parseFloat(q.get('act') || '1'), effort: 0.9, slideEffort: 0, brace: parseFloat(q.get('brace') || '0'), stumble: parseFloat(q.get('stumble') || '0'), pushDrive: parseFloat(q.get('pd') || '0'), windLean: parseFloat(q.get('wl') || '0'), groove: 0,
+  const A = { z: zoom, s, ox, oy, theta, blx, bly, brad, ratio: brad / (32 * s), roll: t * 2.1, squash: 0, lurchX: 0, manBaseX: 0, mode: q.get('mode') || 'push', wp: t * 0.78, activity: parseFloat(q.get('act') || '1'), effort: 0.9, slideEffort: 0, brace: parseFloat(q.get('brace') || '0'), stumble: parseFloat(q.get('stumble') || '0'), pushDrive: parseFloat(q.get('pd') || '0'), windLean: parseFloat(q.get('wl') || '0'), groove: 0,
     cheer: { release: parseFloat(q.get('rel') || '1'), arms: parseFloat(q.get('arms') || '1'), jump: parseFloat(q.get('jump') || '0.4') },
     tSec: t, pushTime: 3, reduced: false, playing: true, cosmetic: q.get('cos') || 'none', look: q.get('look') || 'shadow',
     light: [dx, dy], sunK: L.k, sunCol: L.col, ambient: L.ambient, bright: L.bright, ground: L.ground, rockMat: RL.rock.mat, rockStyle: RL.rock.style,
