@@ -48,7 +48,8 @@
     p[SLOT.BRONZE] = [222, 190, 110]; p[SLOT.SWEAT] = [140, 190, 236];
     var g = o.ground || [82, 58, 40];
     p[SLOT.DIRT0] = PX.mix(g, [0, 0, 0], 0.42); p[SLOT.DIRT1] = PX.mix(g, [40, 26, 18], 0.55); p[SLOT.DIRT2] = PX.mix(g, [200, 176, 140], 0.25);
-    p[SLOT.CAPE] = PX.mix(T[0], [30, 26, 40], 0.5); p[SLOT.CAPEHI] = PX.mix(T[1], C, 0.15 * kk);
+    if (o.look === "color") { p[SLOT.CAPE] = PX.mix([112, 30, 42], A, 0.10 + 0.2 * (1 - bright)); p[SLOT.CAPEHI] = PX.mix([184, 64, 56], C, 0.16 * kk); }
+    else { p[SLOT.CAPE] = PX.mix(T[0], [30, 26, 40], 0.5); p[SLOT.CAPEHI] = PX.mix(T[1], C, 0.15 * kk); }
     p[SLOT.GLINT] = PX.mix(C, [255, 255, 255], 0.4);
     return p;
   }
@@ -204,9 +205,12 @@
       }
     }
     // cloak (cosmetic): a cape trailing behind
-    if (cosm === "cloak") {
-      var cape = [A(J.sh.x - 2 * s, J.sh.y + 1 * s), A(J.hip.x - 4 * s, J.hip.y + 2 * s), A(J.hip.x - (17 + J.brace * 4) * s, -3 * s), A(J.hip.x - 6 * s, -2 * s)];
-      PX.poly(sp, cape, function (x, y) { return ((x + y) & 3) === 0 ? SLOT.CAPEHI : SLOT.CAPE; });
+    if (cosm === "cloak") {                                                                                            // a cape hung from the shoulders, streaming back with his effort and the wind
+      var fl = (P.reduced ? 0.4 : 1) * (0.7 + P.activity * 1.3 + (P.windLean || 0) * 2.4), wv = P.reduced ? 0 : Math.sin(P.tSec * 3.1 + P.wp * 6.28) * 0.9;
+      var cN = A(J.sh.x - 3.0 * s, J.sh.y - 1.6 * s), cS = A(J.sh.x - 0.2 * s, J.sh.y + 3.4 * s), cH = A(J.hip.x - 2.2 * s, J.hip.y + 1.5 * s);
+      var cape = [cN, cS, [cH[0] - 1.0 * hz - fl * 3.0 * hz + wv * hz, cH[1] + 8 * hz], [cH[0] - 3.6 * hz - fl * 6.4 * hz + wv * 1.5 * hz, cH[1] + 15 * hz],
+                  [cN[0] - 5.5 * hz - fl * 8.0 * hz + wv * 0.6 * hz, cN[1] + 15 * hz], [cN[0] - 3.0 * hz - fl * 4.4 * hz, cN[1] + 5 * hz]];
+      PX.poly(sp, cape, function (x, y) { return ((x + y) & 3) === 0 || y < cN[1] + 2 * hz ? SLOT.CAPEHI : SLOT.CAPE; });
     }
 
     // ---- muscle silhouettes (rig units; half-widths toward the front / the back of each limb) ----
