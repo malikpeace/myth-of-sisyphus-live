@@ -5027,7 +5027,98 @@
     return y + lines.length * lineHeight;
   }
 
+  // ---- pixel postcard (V8): the live frame at a whole-number upscale, dithered bands, bitmap type, pixel ladder ----
+  function pixTextW(str, px) { return (String(str).length * 6 - 1) * px; }
+  function pixText(ctx, str, x, y, px, col, sh) {
+    str = String(str).toUpperCase();
+    for (var pass = sh ? 0 : 1; pass < 2; pass++) {
+      ctx.fillStyle = pass === 0 ? sh : col;
+      for (var i = 0; i < str.length; i++) {
+        var rows = V8.glyph(str.charAt(i));
+        for (var r = 0; r < 7; r++) for (var q = 0; q < 5; q++) if (rows[r].charAt(q) === "#") ctx.fillRect(x + (i * 6 + q) * px + (pass === 0 ? Math.min(px, 6) : 0), y + r * px + (pass === 0 ? Math.min(px, 6) : 0), px, px);
+      }
+    }
+  }
+  function pixLines(str, px, maxW) {          // greedy word wrap for the bitmap face
+    var words = String(str).toUpperCase().split(/\s+/), lines = [], cur = "";
+    for (var i = 0; i < words.length; i++) {
+      var t = cur ? cur + " " + words[i] : words[i];
+      if (cur && pixTextW(t, px) > maxW) { lines.push(cur); cur = words[i]; } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
   function drawPostcardPng(summary, format) {
+    if (!window.V8 || !V8.glyph) return drawPostcardPngLegacy(summary, format);
+    var s = summary || runSummary();
+    var primary = recordMomentVerdict(s, s.headline || s.quote || "the mountain remembers");
+    format = format === "story" ? "story" : "square";
+    var c = document.createElement("canvas"), ctx = c.getContext("2d");
+    c.width = 1080; c.height = format === "story" ? 1920 : 1080;
+    var W = c.width, H = c.height, P = 6, CREAM = "#fcf4e0", INK = "#0a0c12", story = format === "story";
+    var pad = story ? 108 : 84, maxW = W - pad * 2, cx = W / 2, i;
+    // ---- layout first (text blocks decide where the solid bands end) ----
+    var head = postcardHeadline(s).toUpperCase(), hp = pixTextW(head, 6) <= maxW ? 6 : 3, dupHead = String(primary).toUpperCase() === head;
+    var topY = story ? 150 : 60, y = topY;
+    var headY = y; if (!dupHead) y += 7 * hp + 24;
+    var titleY = y; y += 7 * 9 + (story ? 56 : 34);
+    var scoreTxt = String(s.score).padStart(4, "0") + "M", sp = story ? 24 : 18; while (pixTextW(scoreTxt, sp) > maxW && sp > 6) sp -= 3;
+    var scoreY = y, scoreBottom = y + 7 * sp;
+    var meta = modeLabel(s.mode).replace(" mode", "") + " . best " + String(s.best).padStart(4, "0") + "m . " + currentRank().name.toLowerCase();
+    if (runBigSlides > 0) meta += " . " + runBigSlides + (runBigSlides === 1 ? " great fall" : " great falls");
+    var metaLines = pixLines(meta, 3, maxW).slice(0, 2), mh = 21, mgap = 12;
+    var yEnd = H - (story ? 150 : 72), yMeta = yEnd - (metaLines.length * mh + (metaLines.length - 1) * mgap);
+    var gameEl = document.getElementById("game"), hasLadder = story || !gameEl || gameEl.width >= gameEl.height;   // a portrait frame in a square card needs the room for the picture
+    var sq = 7 * P, gp = 2 * P, ladderW = 7 * sq + 6 * gp, lx0 = Math.round((cx - ladderW / 2) / P) * P, ly0 = hasLadder ? yMeta - 36 - (2 * sq + gp) : yMeta;
+    var qp = 6, qLines = pixLines(primary, qp, maxW); if (qLines.length > 2) { qp = 3; qLines = pixLines(primary, qp, maxW); }
+    qLines = qLines.slice(0, qp === 6 ? 2 : 3);
+    var qh = 7 * qp, qgap = qp === 6 ? 18 : 9, qy = ly0 - 34 - (qLines.length * qh + (qLines.length - 1) * qgap);
+    var topSolid = scoreBottom + 30, topStep = topSolid + (story ? 130 : 84), botSolid = qy - 26, botStep = botSolid - (story ? 130 : 84);
+    // ---- the live frame at a WHOLE-number upscale (every game pixel a perfect square), figure centred in the window between the bands ----
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#0b0c10"; ctx.fillRect(0, 0, W, H);
+    var game = document.getElementById("game");
+    if (game && game.width > 0) {
+      var k = Math.max(1, Math.ceil(Math.max(W / game.width, H / game.height) - 0.02));   // (a 2% shortfall is invisible; it saves a whole zoom step on phone frames)
+      var dw = game.width * k, dh = game.height * k;
+      var hx = (curCamZtx || 0) + ANCHOR_X * (curCamZoom || 1), hy = (curCamZty || 0) + ANCHOR_Y * (curCamZoom || 1) - (fxBrad || 0) * (curCamZoom || 1) * 0.9;   // centre on man + stone together
+      var winMid = (topStep + botStep) / 2 + 30;
+      var dx = Math.round(W * 0.42 - hx * k), dy = Math.round(winMid - hy * k);
+      dx = dw >= W ? Math.max(W - dw, Math.min(0, dx)) : Math.round((W - dw) / 2); dy = dh >= H ? Math.max(H - dh, Math.min(0, dy)) : Math.round((H - dh) / 2);
+      ctx.drawImage(game, 0, 0, game.width, game.height, dx, dy, dw, dh);
+    }
+    // ---- bands: solid ink, then a few STEPS of ordered dither (75 / 50 / 25 %) on the postcard's own pixel grid ----
+    var bw = Math.ceil(W / P), bh = Math.ceil(H / P), BAY = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    ctx.fillStyle = "#07080c";
+    for (var by = 0; by < bh; by++) {
+      var yy = by * P + P / 2, a2 = 0;
+      if (yy < topStep) a2 = yy <= topSolid ? 1 : 1 - (yy - topSolid) / (topStep - topSolid);
+      if (yy > botStep) a2 = Math.max(a2, yy >= botSolid ? 1 : (yy - botStep) / (botSolid - botStep));
+      a2 = Math.round(a2 * 4) / 4;
+      if (a2 <= 0) continue;
+      for (var bx = 0; bx < bw; bx++) if (a2 >= 1 || (BAY[by & 3][bx & 3] + 0.5) / 16 < a2) ctx.fillRect(bx * P, by * P, P, P);
+    }
+    // ---- type ----
+    if (!dupHead) pixText(ctx, head, Math.round(cx - pixTextW(head, hp) / 2), headY, hp, "rgba(252,244,224,0.66)", INK);
+    var title = "MYTH OF SISYPHUS";
+    pixText(ctx, title, Math.round(cx - pixTextW(title, 9) / 2), titleY, 9, CREAM, INK);
+    pixText(ctx, scoreTxt, Math.round(cx - pixTextW(scoreTxt, sp) / 2), scoreY, sp, CREAM, INK);
+    for (i = 0; i < qLines.length; i++) pixText(ctx, qLines[i], Math.round(cx - pixTextW(qLines[i], qp) / 2), qy + i * (qh + qgap), qp, "rgba(252,244,224,0.9)", INK);
+    var LADDER_COLS = ["#4f9e54", "#4a7fc1", "#d8d8d8", "#8d6cc9", "#c98a4a", "#c9a84a", "#4a7fc1", "#8a6a48", "#b34a42", "#5aa87e", "#cfc9bd", "#6a5a8e", "#c9b87a", "#1a1a22"];
+    var peak = Math.max(Math.round(s.score || 0), Math.round(runPeakScore || 0));
+    for (var li = 0; hasLadder && li < 14; li++) {
+      var lxx = lx0 + (li % 7) * (sq + gp), lyy = ly0 + Math.floor(li / 7) * (sq + gp), lit = peak >= REALM_LADDER[li].m;
+      if (lit) {
+        ctx.fillStyle = LADDER_COLS[li]; ctx.fillRect(lxx, lyy, sq, sq);
+        ctx.fillStyle = "rgba(255,255,255,0.34)"; ctx.fillRect(lxx, lyy, sq, P); ctx.fillRect(lxx, lyy, P, sq);
+        ctx.fillStyle = "rgba(0,0,0,0.38)"; ctx.fillRect(lxx, lyy + sq - P, sq, P); ctx.fillRect(lxx + sq - P, lyy, P, sq);
+        if (li === 13) { ctx.fillStyle = "rgba(220,224,236,0.9)"; ctx.fillRect(lxx + 2 * P, lyy + 2 * P, 3 * P, P); ctx.fillRect(lxx + 2 * P, lyy + 4 * P, 3 * P, P); ctx.fillRect(lxx + 2 * P, lyy + 3 * P, P, P); ctx.fillRect(lxx + 4 * P, lyy + 3 * P, P, P); }
+      } else { ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(lxx, lyy, sq, sq); ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fillRect(lxx + P, lyy + P, sq - 2 * P, sq - 2 * P); }
+    }
+    for (i = 0; i < metaLines.length; i++) pixText(ctx, metaLines[i], Math.round(cx - pixTextW(metaLines[i], 3) / 2), yMeta + i * (mh + mgap), 3, "rgba(252,244,224,0.68)", INK);
+    return c.toDataURL("image/png");
+  }
+  function drawPostcardPngLegacy(summary, format) {
     var s = summary || runSummary();
     var c = document.createElement("canvas"), ctx = c.getContext("2d");
     var primary = recordMomentVerdict(s, s.headline || s.quote || "the mountain remembers");
@@ -6426,6 +6517,7 @@
         document.body.appendChild(img);
         return "preview shown";
       },
+      postcardData: function (format) { return drawPostcardPng(runSummary(playMode, Math.max(scoreNow(), runPeakScore)), format || "square"); },
       postcardPreviewOff: function () {
         var old = document.getElementById("qa-postcard-preview");
         if (old) old.remove();
