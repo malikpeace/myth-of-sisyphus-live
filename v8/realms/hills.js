@@ -36,6 +36,7 @@
     I.abyss = pal.ramp("abyss", H(["#0a0d18", "#0f1526", "#151d38", "#1d2a4c", "#28396a"]));
     I.crystal = pal.ramp("crystal", H(["#241a4d", "#4630a0", "#6d4fd6", "#9f86f2", "#d8cbff"]));
     I.ink = pal.ramp("ink", H(["#080b0d"]));
+    R.footprint = { col: I.soil + 3, hi: I.soil + 5 }; R.birdIdx = I.mid;            // bare earth showing through the turf; birds dark against the sky
     R.pal = pal;
     built = "";
     buildScene(S);

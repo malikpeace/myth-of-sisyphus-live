@@ -2074,6 +2074,7 @@
 <script src="v8/actor.js?v=v8-1"></script>
 <script src="v8/scenery.js?v=v8-1"></script>
 <script src="v8/core.js?v=v8-1"></script>
+<script src="v8/overlays.js?v=v8-1"></script>
 <script src="v8/realms/hills.js?v=v8-1"></script>
 <script src="v8/realms/_bridge.js?v=v8-1"></script>
 <script src="v8/realms/waterfalls.js?v=v8-1"></script>
@@ -2416,7 +2417,7 @@
   var oldBestApproachShown = false, oldBestPassed = false, oldBestFlash = 0, oldBestBird = 0, oldBestSavedToday = false;
   var newBestPulse = 0, challengePulse = 0, dailyImprovedPulse = 0, dailyTargetPassed = false, dailyTargetPulse = 0;
   var mythicEvent = { type: "", t: 0, dur: 0, seed: 0 };
-  var mythicCooldown = 12, forcedEvent = params.get("event") || "";
+  var mythicCooldown = 12, forcedEvent = params.get("event") || ""; var qaMythicHold = null;
   var windGustPower = 0;
   // v4: persistent snow build-up within a run — the longer you push through
   // snowfall, the whiter (and slicker) the ground becomes.
@@ -6387,6 +6388,7 @@
         return { avg: Math.round(sum / n * 100) / 100, max: Math.round(mx * 100) / 100, samples: n };
       },
       pullBack: function (m) { startPullBack(m || 250); return pullT; },
+      mythic: function (type, p) { qaMythicHold = null; triggerMythicEvent(type); qaMythicHold = (p == null ? null : clamp01(Number(p))); if (qaMythicHold != null) mythicEvent.t = qaMythicHold * mythicEvent.dur; return mythicEvent.type; },
       feel: function () { return { pull: +pullAmt().toFixed(2), wind: +windGustPower.toFixed(2), groove: +grooveLv.toFixed(2), gstep: grooveStep, VW: VW, VH: VH, catchT: catchT, catches: catchesThisRun, fx: fxP.length, motes: fxP.filter(function (p) { return p.col[0] === 255 && p.col[1] === 236; }).length, effort: +effort.toFixed(2), lurchX: +lurchX.toFixed(2), punch: +camPunchX.toFixed(2), lastEff: +lastEff.toFixed(2), altitude: +altitude.toFixed(1), sound: customize.sound }; },
       drive: function (seconds, hz) {
         seconds = Math.max(0.5, Number(seconds) || 5);
@@ -10613,6 +10615,7 @@
 
   function updateMythicEvents(dt) {
     if (!FEATURES.mythicEvents || REDUCED || gameState !== "playing") return;
+    if (qaMythicHold != null && mythicEvent.type) { mythicEvent.t = qaMythicHold * mythicEvent.dur; return; }
     if (mythicEvent.type) {
       mythicEvent.t += dt;
       if (mythicEvent.type === "thunder") {
@@ -12549,7 +12552,9 @@
     var S = { w: VW, h: VH, zoom: zoom, ztx: ztx, zty: zty, altitude: altitude, scroll: altitude * GROUND_SCROLL, tSec: tSec, reduced: REDUCED,
       anchorX: ANCHOR_X, anchorY: ANCHOR_Y, horizonY: HORIZON, lip: v8LipCols, slope: leanSlope, openingT: openingT, realmId: realmId,
       fx: fxP, pullMark: pullMark, pullNext: pullNext, stoneX: fxBoulderX, stoneR: fxBrad, windGust: windGustPower, adj: PIXEL_ZOOM_ADJ, gameState: gameState, pull: pullA, bestM: (gameState === "title" || playMode === "run") ? 0 : Math.max(0, Math.round(runStartBest || 0)), oldBestPassed: oldBestPassed,
-      cairns: (gameState === "title" || playMode === "run" || playMode === "summit") ? [] : cairnList((0 - ztx) / zoom, (VW - ztx) / zoom) };
+      cairns: (gameState === "title" || playMode === "run" || playMode === "summit") ? [] : cairnList((0 - ztx) / zoom, (VW - ztx) / zoom),
+      mythic: (mythicEvent && mythicEvent.type) ? { type: mythicEvent.type, p: clamp01(mythicEvent.t / Math.max(0.01, mythicEvent.dur)), seed: mythicEvent.seed } : null,
+      mode: playMode, dailyTarget: (playMode === "daily" && gameState === "playing") ? Math.round(dailyProfile().target) : 0, score: scoreNow() };
     var g0 = v8Geometry();
     var light = V8.realms[realmId].light ? V8.realms[realmId].light(S) : null;
     var P = v8ActorParams(day, g0, ztx, zty, zoom, light);
