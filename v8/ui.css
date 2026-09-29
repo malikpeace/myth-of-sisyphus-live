@@ -1,1 +1,1132 @@
-/* V8 pixel UI - being built. See the worker brief. Overrides the inline styles in index.html. */
+/* ==========================================================================
+   V8 PIXEL UI  -  one grid for the world and the menus.
+   Loaded after the inline <style> of index.html and overrides it.
+
+   Grid: the game sets --px on :root = CSS px per game pixel (2 phones, 3-5 desktop,
+   +1 for "Chunky"). Every metric here is a whole number of game pixels:
+   calc(var(--u) * N). The font "SisyphusPx" (v8/ui/glyphs.txt -> v8/ui/build.py) has an
+   8-pixel em, so font-size var(--f1) = 1 font pixel per game pixel, --f2 = 2, ...
+   ui.js adds the layout numbers CSS cannot compute (menu width/offset snapped to the
+   grid, logo scale, realm thumbnails at integer scale) - everything degrades cleanly
+   without it.
+   Only the typography/smoothing reset and a few JS-inline overrides use !important.
+   ========================================================================== */
+
+/*<GEN:textures>*/
+:root {
+  --img-d25: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFUlEQVR42mPgYhP4zwAEMBoTEFQBAMIABH1T8IiVAAAAAElFTkSuQmCC);
+  --img-d50: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAGElEQVR42mPgYhP4zwAEMJoBmQOmCaoAACWfCPl7TssmAAAAAElFTkSuQmCC);
+  --img-d75: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAF0lEQVR42mPgYhP4j4wZQADGANMEVQAA1WsNdSsui1UAAAAASUVORK5CYII=);
+  --img-panel-ramp: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAcCAYAAABGdB6IAAAAMUlEQVR42mNQkTL4j4wZQADGANPIHNwqUGTxmkFVFSgq8ZqBaSBWQB8VWB1HpAzRAABLczkJjx+w3wAAAABJRU5ErkJggg==);
+  --img-dots-slate: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAD0lEQVR42mOwMvb4zwAEAAnpAbVH5Zj4AAAAAElFTkSuQmCC);
+  --img-rivet: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKLW/AAAAG0lEQVR42mNgAIL/Nxf8Z4AxdhTbgzFYAMYAACWLDiqEuBOcAAAAAElFTkSuQmCC);
+  --img-gem: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAALElEQVR42mNggIL/Nxf8Z0AGIIHvm3PAGEWAi00ATO8otodIwDhwARhAFgAA29kkksf28vgAAAAASUVORK5CYII=);
+}
+/*</GEN:textures>*/
+/*<GEN:font>*/
+@font-face { font-family: "SisyphusPx"; src: url(data:font/ttf;base64,AAEAAAALAIAAAwAwT1MvMnvDyAIAAAC8AAAAYGNtYXAAO98BAAABHAAAAMRnYXNwAAAAAQAAAeAAAAAIZ2x5ZuObyncAAAHoAAAkqGhlYWQptF3OAAAmkAAAADZoaGVhASIBHQAAJsgAAAAkaG10eDAQABAAACbsAAACMGxvY2EACYIYAAApHAAAAjRtYXhwAJkAMgAAK1AAAAAgbmFtZfJrZScAACtwAAACHHBvc3T/4wAQAAAtjAAAACAABABYAZAABQAAAFAAUAAAABAAUABQAAAAQAAQADAAAAIABQkAAAAAAACAAAADEAAgYAAAAAAAAAAAUFhVSQDAACDgEwCQ/+AAAACQACAAAAABAAAAAABQAHAAAAAgAAEAAAACAAAAAwAAABQAAwABAAAAFAAEALAAAAAoACAABAAIAH4AsAC3ANcgFCAZIB0gJiGUIhIloCWyJbYlvCXAJc8mBScT4BP//wAAACAAsAC3ANcgEyAYIBwgJiGQIhIloCWyJbYlvCXAJc8mBScT4AD////h/7D/qv+L4FDgTeBL4EPe2t5d2tDav9q82rfatNqm2nHZZCB4AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAf//AAAABAAAAAAAUABwAAMABwALAA8AADU1MxUHNTMVMzUzFQc1MxVQUBAwEFBQYBAQUFBQUFAQEBAAAAACAAAAAAAQAHAAAwAHAAA1NTMVBzUzFRAQECBQUCAQEAAAAAACAAAAUAAwAHAAAwAHAAA1NTMVMzUzFRAQEFAgICAgAAgAAAAAAFAAcAADAAcACwAPABMAFwAbAB8AADc1MxUzNTMVBzUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVEBAQEEBQQBAQEEBQQBAQEFAgICAgEBAQEBAQEBAQEBAgICAgIAAAAAAJAAAAAABQAHAAAwAHAAsADwATABcAGwAfACMAADc1MxUHNTMVBzUzFTM1MxUHNTMVBzUzFTM1MxUHNTMVBzUzFSAQIEBQEBAQIDAgEBAQUEAgEGAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADU1MxUzNTMVBzUzFQc1MxUHNTMVBzUzFRc1MxUgIBAgECAQIBAgECAgUCAgEBAQEBAQEBAQEBAQEBAQICAAAAsAAAAAAFAAcAADAAcACwAPABMAFwAbAB8AIwAnACsAADc1MxUVNTMVBzUzFTM1MxUHNTMVFTUzFTM1MxUHNTMVMzUzFQc1MxUzNTMVECAQQBAQECAQEBAQUBAgEDAgEBBgEBAQEBAQICAQEBAQEBAQEBAQECAgEBAQEBAQEAAAAQAAAFAAEABwAAMAADU1MxUQUCAgAAAAAwAAAAAAIABwAAMABwALAAA3NTMVBzUzFRU1MxUQECAQEGAQEFBQUBAQEAADAAAAAAAgAHAAAwAHAAsAADU1MxUVNTMVBzUzFRAQIBBgEBBQUFAQEBAAAAUAAAAwADAAYAADAAcACwAPABMAADU1MxUzNTMVBzUzFQc1MxUzNTMVEBAQIBAgEBAQUBAQEBAQEBAQEBAQEAADAAAAAABQAFAAAwAHAAsAADc1MxUHNTMVBzUzFSAQMFAwEDAgIBAQECAgIAAAAAACAAD/8AAgABAAAwAHAAAzNTMVBzUzFRAQIBAQEBAQEAAAAAABAAAAIAAwADAAAwAANTUzFTAgEBAAAAABAAAAAAAQABAAAwAAMTUzFRAQEAAAAAADAAAAAAAwAHAAAwAHAAsAADc1MxUHNTMVBzUzFSAQIBAgEFAgIDAwMCAgIAAAAAAEAAAAAABQAHAAAwAHAAsADwAANzUzFQc1MxUzNTMVBzUzFRAwQBAwEEAwYBAQUFBQUFAQEBAAAAQAEAAAAEAAcAADAAcACwAPAAA3NTMVBzUzFQc1MxUHNTMVIBAgIBAQIDBgEBAQEBBAQEAQEBAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADc1MxUHNTMVFzUzFQc1MxUHNTMVBzUzFQc1MxUQMEAQMBAwIDAQIBAQUGAQEBAQEBAgIBAQEBAQEBAQEBAQEAAAAAAHAAAAAABQAHAAAwAHAAsADwATABcAGwAANzUzFQc1MxUXNTMVBzUzFRU1MxUjNTMVFTUzFRAwQBAwEDAgEFAQMGAQEBAQEBAgIBAQECAgIBAQEBAQAAAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADc1MxUHNTMVBzUzFRc1MxUjNTMVBzUzFQc1MxUwECAgMBAQEEAQEFAgEGAQEBAQEBAQEBAgIBAQEBAQICAgAAYAAAAAAFAAcAADAAcACwAPABMAFwAANTUzFQc1MxUHNTMVFTUzFSM1MxUVNTMVUFAQEEAQUBAwYBAQEBAQEBAQMDAwEBAQEBAAAAAHAAAAAABQAHAAAwAHAAsADwATABcAGwAANzUzFQc1MxUHNTMVBzUzFQc1MxUzNTMVBzUzFSAgMBAgEBBAQBAwEEAwYBAQEBAQEBAQEBAQICAgICAQEBAABQAAAAAAUABwAAMABwALAA8AEwAANTUzFQc1MxUHNTMVBzUzFQc1MxVQEBAgECAQIBBgEBAQEBAQEBAQEBAwMDAAAAAHAAAAAABQAHAAAwAHAAsADwATABcAGwAANzUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVBzUzFRAwQBAwEEAwQBAwEEAwYBAQICAgICAQEBAgICAgIBAQEAAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADc1MxUHNTMVMzUzFQc1MxUHNTMVBzUzFQc1MxUQMEAQMBBAQBAQIBAwIGAQECAgICAgEBAQEBAQEBAQEBAQAAIAAAAAABAAUAADAAcAADU1MxUHNTMVEBAQQBAQQBAQAAAAAAMAAP/wACAAUAADAAcACwAANzUzFQc1MxUHNTMVEBAQECAQQBAQQBAQEBAQAAAAAAUAAAAAADAAUAADAAcACwAPABMAADc1MxUHNTMVBzUzFRU1MxUVNTMVIBAgECAQEBBAEBAQEBAQEBAQEBAQEBAAAAAAAgAAABAAQABAAAMABwAANTUzFQc1MxVAQEAwEBAgEBAAAAAABQAAAAAAMABQAAMABwALAA8AEwAANTUzFRU1MxUVNTMVBzUzFQc1MxUQEBAgECAQQBAQEBAQEBAQEBAQEBAQAAYAAAAAAEAAcAADAAcACwAPABMAFwAANzUzFQc1MxUXNTMVBzUzFQc1MxUHNTMVECAwECAQIBAgEBAQYBAQEBAQECAgEBAQEBAQIBAQAAAACAAAAAAAUABwAAMABwALAA8AEwAXABsAHwAANzUzFRU1MxUHNTMVBzUzFTM1MxUHNTMVBzUzFRU1MxUQMBAwMDAQEBAwIEAQQGAQEBAQEBAQEBAQEBAQEBAQEFBQEBAQAAAAAAYAAAAAAFAAcAADAAcACwAPABMAFwAANzUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVEDBAEDAQUFBQEDAQYBAQICAgICAQEBAwMDAwMAAHAAAAAABQAHAAAwAHAAsADwATABcAGwAANTUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVBzUzFUBAEDAQUEBAEDAQUEBgEBAgICAgIBAQECAgICAgEBAQAAAABQAAAAAAUABwAAMABwALAA8AEwAANzUzFRU1MxUHNTMVMzUzFQc1MxUQMBBQEDAQQDBgEBAQEBBAUFAQEBAQEAAAAAAEAAAAAABQAHAAAwAHAAsADwAANTUzFQc1MxUzNTMVBzUzFUBAEDAQUEBgEBBQUFBQUBAQEAAAAAUAAAAAAEAAcAADAAcACwAPABMAADU1MxUHNTMVBzUzFQc1MxUHNTMVQEAQEDAwEBBAYBAQICAgEBAQICAgEBAQAAAABAAAAAAAQABwAAMABwALAA8AADU1MxUHNTMVBzUzFQc1MxVAQBAQMDAQYBAQICAgEBAQMDAwAAAGAAAAAABQAHAAAwAHAAsADwATABcAADc1MxUVNTMVBzUzFQc1MxUzNTMVBzUzFRAwEDAwUBAwEEBAYBAQEBAQIBAQIFBQICAQEBAABQAAAAAAUABwAAMABwALAA8AEwAANTUzFTM1MxUHNTMVBzUzFTM1MxUQMBBQUFAQMBBAMDAwMBAQEDAwMDAwAAMAAAAAADAAcAADAAcACwAANTUzFQc1MxUHNTMVMCAQIDBgEBBQUFAQEBAAAwAAAAAAQABwAAMABwALAAA3NTMVIzUzFRU1MxUwEEAQIBBgYBAQEBAQAAAJAAAAAABQAHAAAwAHAAsADwATABcAGwAfACMAADc1MxUHNTMVBzUzFTM1MxUHNTMVFTUzFRU1MxUHNTMVMzUzFUAQIBBAEBAQMCAQEEAQMBBgEBAQEBAQMDAQEBAQEBAQEBAQEBAwMBAQAAACAAAAAABAAHAAAwAHAAA1NTMVBzUzFRAQQBBgYBAQEAAAAAAHAAAAAABQAHAAAwAHAAsADwATABcAGwAANTUzFTM1MxUHNTMVMzUzFQc1MxUHNTMVMzUzFRAwEFAgECAwEDAQMBBgEBAQEBAQEBAQICAgMFBQUFAAAAAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADU1MxUHNTMVFzUzFSM1MxUVNTMVBzUzFTM1MxUQECAgEDAQIFAQMBBQICAQEBAQQEAQEBAQECBAQCAgAAAAAAQAAAAAAFAAcAADAAcACwAPAAA3NTMVBzUzFTM1MxUHNTMVEDBAEDAQQDBgEBBQUFBQUBAQEAAABQAAAAAAUABwAAMABwALAA8AEwAANTUzFQc1MxUzNTMVBzUzFQc1MxVAQBAwEFBAQBBgEBAgICAgIBAQEDAwMAAAAAAHAAAAAABQAHAAAwAHAAsADwATABcAGwAANzUzFRU1MxUjNTMVBzUzFTM1MxUHNTMVMzUzFRAwEDAQMBAgEDAgEBBgEBBAQEAQEBBQUBAQEBAQEBAAAAAACAAAAAAAUABwAAMABwALAA8AEwAXABsAHwAANTUzFQc1MxUzNTMVBzUzFQc1MxUVNTMVBzUzFTM1MxVAQBAwEFBAIBAQQBAwEGAQECAgICAgEBAQEBAQEBAQEDAwEBAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADc1MxUVNTMVBzUzFRU1MxUVNTMVIzUzFRU1MxUQMBBQEDAQUBAwYBAQEBAQECAgEBAQICAgEBAQEBAAAgAAAAAAUABwAAMABwAANTUzFQc1MxVQMBBgEBBgYGAAAAAAAwAAAAAAUABwAAMABwALAAA1NTMVMzUzFQc1MxUQMBBAMBBgYGBgEBAQAAAFAAAAAABQAHAAAwAHAAsADwATAAA1NTMVMzUzFQc1MxUzNTMVBzUzFRAwEEAQEBAgEDBAQEBAICAgICAQEBAABwAAAAAAUABwAAMABwALAA8AEwAXABsAADU1MxUzNTMVIzUzFQc1MxUzNTMVBzUzFTM1MxUQMBAwEDAgECBQEDAQIFBQUFAgIBAQEBAQEBAQEBAACQAAAAAAUABwAAMABwALAA8AEwAXABsAHwAjAAA1NTMVMzUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVBzUzFTM1MxUQMBBAEBAQIBAgEBAQQBAwEFAgICAgEBAQEBAQEBAQEBAQECAgICAgAAAABQAAAAAAUABwAAMABwALAA8AEwAANTUzFTM1MxUHNTMVMzUzFQc1MxUQMBBAEBAQIBBQICAgIBAQEBAQQEBAAAcAAAAAAFAAcAADAAcACwAPABMAFwAbAAA1NTMVBzUzFQc1MxUHNTMVBzUzFQc1MxUHNTMVUBAQIBAgECAQIBAQUGAQEBAQEBAQEBAQEBAQEBAQEBAQEAADAAAAAAAgAHAAAwAHAAsAADU1MxUHNTMVBzUzFSAgEBAgYBAQUFBQEBAQAAMAAAAAADAAcAADAAcACwAANTUzFRU1MxUVNTMVEBAQUCAgMDAwICAgAAAAAwAAAAAAIABwAAMABwALAAA1NTMVBzUzFQc1MxUgEBAgIGAQEFBQUBAQEAADAAAAUAAwAHAAAwAHAAsAADc1MxUHNTMVMzUzFRAQIBAQEGAQEBAQEBAQAAEAAP/wAEAAAAADAAAVNTMVQBAQEAAAAAIAAABQACAAcAADAAcAADU1MxUVNTMVEBBgEBAQEBAABgAAAAAAQABQAAMABwALAA8AEwAXAAA3NTMVFTUzFQc1MxUHNTMVMzUzFQc1MxUQIBAwMEAQIBAwMEAQEBAQEBAQEBAQEBAQEBAQAAUAAAAAAEAAcAADAAcACwAPABMAADU1MxUHNTMVBzUzFTM1MxUHNTMVEBAwMBAgEEAwUCAgEBAQMDAwMDAQEBAAAAAAAwAAAAAAQABQAAMABwALAAA3NTMVBzUzFRU1MxUQMEAQMEAQEDAwMBAQEAAFAAAAAABAAHAAAwAHAAsADwATAAA3NTMVBzUzFQc1MxUzNTMVBzUzFTAQMDBAECAQMDBQICAQEBAwMDAwMBAQEAAAAAYAAAAAAEAAUAADAAcACwAPABMAFwAANzUzFQc1MxUzNTMVBzUzFQc1MxUVNTMVECAwECAQQEBAEDBAEBAQEBAQEBAQEBAQEBAQEAAEAAAAAAAwAHAAAwAHAAsADwAANzUzFQc1MxUHNTMVBzUzFRAgMBAQMDAQYBAQEBAQEBAQQEBAAAYAAP/gAEAAUAADAAcACwAPABMAFwAANzUzFQc1MxUzNTMVBzUzFQc1MxUHNTMVEDBAECAQMDAQEEAwQBAQMDAwMDAQEBAQEBAQEBAAAAAABAAAAAAAQABwAAMABwALAA8AADU1MxUHNTMVBzUzFTM1MxUQEDAwECAQUCAgEBAQQEBAQEAAAAACAAAAAAAQAHAAAwAHAAA1NTMVBzUzFRAQEGAQEGBQUAAAAAADAAD/4AAwAHAAAwAHAAsAADc1MxUHNTMVBzUzFSAQEBAwIGAQEHBgYBAQEAAAAAAHAAAAAABAAHAAAwAHAAsADwATABcAGwAANzUzFQc1MxUzNTMVBzUzFRU1MxUHNTMVMzUzFTAQQBAQEDAgEDAQIBBAEBAQQEAQEBAQEBAQEBAgIBAQAAAAAgAAAAAAIABwAAMABwAANTUzFRU1MxUQEBBgYBAQEAAEAAAAAABQAFAAAwAHAAsADwAANTUzFQc1MxUzNTMVMzUzFUBAEBAQEBBAEBBAQEBAQEBAAAAAAAMAAAAAAEAAUAADAAcACwAANTUzFQc1MxUzNTMVMDAQIBBAEBBAQEBAQAAABAAAAAAAQABQAAMABwALAA8AADc1MxUHNTMVMzUzFQc1MxUQIDAQIBAwIEAQEDAwMDAwEBAQAAAFAAD/4ABAAFAAAwAHAAsADwATAAA1NTMVBzUzFTM1MxUHNTMVBzUzFTAwECAQQDAwEEAQEDAwMDAwEBAQICAgAAAAAAUAAP/gAEAAUAADAAcACwAPABMAADc1MxUHNTMVMzUzFQc1MxUHNTMVEDBAECAQMDAQEEAQEDAwMDAwEBAQICAgAAAABAAAAAAAQABQAAMABwALAA8AADU1MxUzNTMVBzUzFQc1MxUQECBAICAQQBAQEBAQEBAwMDAAAAAFAAAAAABAAFAAAwAHAAsADwATAAA3NTMVBzUzFRU1MxUVNTMVBzUzFRAwQBAgEEAwQBAQEBAQEBAQEBAQEBAQAAAAAAQAAAAAADAAYAADAAcACwAPAAA1NTMVBzUzFQc1MxUVNTMVEBAwMBAgUBAQEBAQMDAwEBAQAAAAAwAAAAAAQABQAAMABwALAAA1NTMVMzUzFQc1MxUQIBAwMBBAQEBAEBAQAAAFAAAAAABQAFAAAwAHAAsADwATAAA1NTMVMzUzFQc1MxUzNTMVBzUzFRAwEEAQEBAgECAwMDAwEBAQEBAQEBAABQAAAAAAUABQAAMABwALAA8AEwAANTUzFTM1MxUjNTMVBzUzFTM1MxUQMBAwECAQEBAQQEBAQCAgEBAQEBAAAAkAAAAAAFAAUAADAAcACwAPABMAFwAbAB8AIwAANTUzFTM1MxUHNTMVMzUzFQc1MxUHNTMVMzUzFQc1MxUzNTMVEDAQQBAQECAQIBAQEEAQMBBAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAAAAAUAAP/gAEAAUAADAAcACwAPABMAADU1MxUzNTMVBzUzFQc1MxUHNTMVECAQMDAQEEAwEEBAQEAQEBAQEBAQEBAAAAAABQAAAAAAQABQAAMABwALAA8AEwAANTUzFQc1MxUHNTMVBzUzFQc1MxVAEBAwIDAQEEBAEBAQEBAQEBAQEBAQEBAAAAAFAAAAAAAwAHAAAwAHAAsADwATAAA3NTMVBzUzFQc1MxUVNTMVBzUzFRAgIBAgEBAQIGAQECAgIBAQECAgIBAQEAAAAAEAAP/wABAAcAADAAAVNTMVEBCAgAAAAAUAAAAAADAAcAADAAcACwAPABMAADU1MxUHNTMVFTUzFQc1MxUHNTMVIBAQECAQICBgEBAgICAQEBAgICAQEBAAAAAABQAAABAAUABAAAMABwALAA8AEwAANzUzFQc1MxUzNTMVMzUzFQc1MxUQECAQEBAQECAQMBAQEBAQEBAQEBAQEAAAAAAEAAAAQAAwAHAAAwAHAAsADwAANzUzFQc1MxUzNTMVBzUzFRAQIBAQECAQYBAQEBAQEBAQEBAAAAEAAAAgABAAMAADAAA1NTMVECAQEAAAAAkAAAAAAFAAUAADAAcACwAPABMAFwAbAB8AIwAANTUzFTM1MxUHNTMVMzUzFQc1MxUHNTMVMzUzFQc1MxUzNTMVEDAQQBAQECAQIBAQEEAQMBBAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAAAAAEAAAAgAEAAMAADAAA1NTMVQCAQEAAAAAEAAAAgAGAAMAADAAA1NTMVYCAQEAAAAAIAAABQACAAcAADAAcAADc1MxUHNTMVEBAgEGAQEBAQEAAAAAEAAABQABAAcAADAAA1NTMVEFAgIAAAAAQAAABQAEAAcAADAAcACwAPAAA3NTMVMzUzFQc1MxUzNTMVEBAQEEAQEBBgEBAQEBAQEBAQAAAAAgAAAFAAMABwAAMABwAANTUzFTM1MxUQEBBQICAgIAADAAAAAABQABAAAwAHAAsAADE1MxUzNTMVMzUzFRAQEBAQEBAQEBAQAAAAAAUAAAAAAGAAUAADAAcACwAPABMAADc1MxUHNTMVBzUzFQc1MxUVNTMVIBAgECBgUBAQQBAQEBAQEBAQEBAQEBAQAAAABQAAAAAAUABwAAMABwALAA8AEwAANzUzFQc1MxUHNTMVMzUzFQc1MxUgECAwQBAwEDAQYBAQEBAQEBAQEBBAUFAAAAAFAAAAAABgAFAAAwAHAAsADwATAAA3NTMVFTUzFQc1MxUHNTMVBzUzFTAQEFBgIBAgEEAQEBAQEBAQEBAQEBAQEAAAAAUAAAAAAFAAcAADAAcACwAPABMAADc1MxUjNTMVMzUzFQc1MxUHNTMVIBAwEDAQQDAgECBQUBAQEBAQEBAQEBAAAAAACQAAAAAAcABQAAMABwALAA8AEwAXABsAHwAjAAA3NTMVMzUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVBzUzFTM1MxUQEDAQYBBQEHBwcBBQEGAQMBBAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAAAAQAAACAAUAAwAAMAADU1MxVQIBAQAAAAAQAAABAAUABgAAMAADU1MxVQEFBQAAAABAAAABAAcABQAAMABwALAA8AADc1MxUHNTMVBzUzFQc1MxUwECAwQFBgcEAQEBAQEBAQEBAQEAAHAAAAAABAAHAAAwAHAAsADwATABcAGwAANTUzFQc1MxUHNTMVBzUzFQc1MxUHNTMVBzUzFRAQICAwMEBAMDAgIBBgEBAQEBAQEBAQEBAQEBAQEBAQEBAABAAAABAAcABQAAMABwALAA8AADU1MxUHNTMVBzUzFQc1MxVwYFBAMCAQQBAQEBAQEBAQEBAQAAAHAAAAAABAAHAAAwAHAAsADwATABcAGwAANzUzFQc1MxUHNTMVBzUzFQc1MxUHNTMVBzUzFTAQICAwMEBAMDAgIBAQYBAQEBAQEBAQEBAQEBAQEBAQEBAQAAAAAAMAAAAQAFAAYAADAAcACwAANzUzFQc1MxUHNTMVEDBAUEAwUBAQMDAwEBAQAAAAAAkAAAAAAHAAcAADAAcACwAPABMAFwAbAB8AIwAANzUzFQc1MxUHNTMVBzUzFQc1MxUHNTMVMzUzFQc1MxUzNTMVMBAgMFBwYFBAMEAgECBQEDAQYBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAAAAAAIAAAAAABwAGAAAwAHAAsADwATABcAGwAfAAA3NTMVBzUzFQc1MxUzNTMVBzUzFTM1MxUHNTMVBzUzFWAQICBwEDAgYCAQIEAwIBBQEBAQEBAQEBAQEBAQEBAQEBAQEBAQAAAAAgAAAAAAUABwAAMABwAAMTUzFTM1MxUgECBwcHBwAAAHAAAAAABAAHAAAwAHAAsADwATABcAGwAANTUzFQc1MxUHNTMVBzUzFQc1MxUHNTMVBzUzFRAQICAwMEBAMDAgIBBgEBAQEBAQEBAQEBAQEBAQEBAQEBAACwAAAAAAcABwAAMABwALAA8AEwAXABsAHwAjACcAKwAANTUzFTM1MxUHNTMVMzUzFQc1MxUHNTMVBzUzFQc1MxUzNTMVBzUzFTM1MxUgMCBwMBAwYFBAMEBQYDAQMHAgMCBgEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAAIAAAAAABwAHAAAwAHAAsADwATABcAGwAfAAA3NTMVBzUzFQc1MxUzNTMVBzUzFQc1MxUzNTMVBzUzFTAQIDBAEDAQMBBAEFAQcHBgEBAQEBAQEBAQECAwMBAgICAgEBAQAAAACgAAAAAAcABwAAMABwALAA8AEwAXABsAHwAjACcAADc1MxUzNTMVBzUzFTM1MxUHNTMVBzUzFTM1MxUHNTMVMzUzFQc1MxUgMBAQYBAwIDAwcBBQEGAQMBBAMGAQEBAQEBAQEBAQEBAgMDAQEBAQEBAQEBAQAAAAAwAAABAAcABgAAMABwALAAA1NTMVBzUzFQc1MxVwcHBwcFAQECAQECAQEAAJAAAAAABwAHAAAwAHAAsADwATABcAGwAfACMAADc1MxUHNTMVBzUzFRc1MxUjNTMVBzUzFQc1MxUzNTMVBzUzFSBQUBAwMDAQUBAQUHAQMBBQUGAQEBAQEBAQEBAwMBAQEBAQEDAwEBAQEBAAAAAACAAAAAAAcABwAAMABwALAA8AEwAXABsAHwAANzUzFSM1MxUzNTMVBzUzFQc1MxUHNTMVMzUzFQc1MxUwEDAQMBBAMCAQQBBQEHBwQDAwEBAQEBAQEBAQEBAgICAgEBAQAAAAAAkAAAAQAJAAYAADAAcACwAPABMAFwAbAB8AIwAANzUzFTM1MxUHNTMVBzUzFQc1MxUzNTMVIzUzFQc1MxUzNTMVEDAQMEAQMFBwEHAQUBBAMBAwUBAQEBAQEBAQEBAQMDAwMBAQEBAQEBAAAAkAAAAAAIAAcAADAAcACwAPABMAFwAbAB8AIwAANzUzFQc1MxUzNTMVBzUzFTM1MxUzNTMVBzUzFTM1MxUHNTMVMBAgICAQcEAQEBAQYCAgEEAQYBAQEBAQEBAwMDAwMDAwEBAQEBAQEBAAAAoAAAAAAIAAcAADAAcACwAPABMAFwAbAB8AIwAnAAA3NTMVBzUzFRc1MxUzNTMVBzUzFQc1MxUzNTMVMzUzFQc1MxUHNTMVMBAgIBAQEBAgEHBAEBAQEGAgEBBgEBAQEBAQEBAQEBAQEBAwMBAQEBAQEBAQEBAA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) format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+/*</GEN:font>*/
+
+/* ------------------------------------------------------------------ tokens */
+:root {
+  --px: 2;
+  --mw: 198;             /* menu column width, game px (ui.js: largest 12k+6 that fits) */
+  --win: 162;            /* dialog window width, game px */
+  --logo-k: 3;           /* logo scale (font px per game px) */
+  --logo-top-k: 1;
+}
+@media (min-width: 700px) and (min-height: 520px) { :root { --px: 3; --mw: 318; --win: 174; --logo-k: 4; --logo-top-k: 2; } }
+@media (min-width: 700px) and (min-height: 945px) { :root { --px: 4; } }
+@media (min-width: 700px) and (min-height: 1215px) { :root { --px: 5; } }
+:root {
+  --u: calc(var(--px) * 1px);
+  --u2: calc(var(--u) * 2); --u3: calc(var(--u) * 3); --u4: calc(var(--u) * 4);
+  --u5: calc(var(--u) * 5); --u6: calc(var(--u) * 6); --u8: calc(var(--u) * 8);
+  --u10: calc(var(--u) * 10); --u12: calc(var(--u) * 12);
+  --n1: calc(var(--u) * -1); --n2: calc(var(--u) * -2);
+  --f1: calc(var(--px) * 8px);  --lh1: calc(var(--px) * 11px); --lh1p: calc(var(--px) * 13px);
+  --f2: calc(var(--px) * 16px); --lh2: calc(var(--px) * 22px);
+  --f3: calc(var(--px) * 24px); --lh3: calc(var(--px) * 33px);
+  --f4: calc(var(--px) * 32px); --lh4: calc(var(--px) * 44px);
+  --tap: max(44px, calc(var(--px) * 15px));   /* always a whole number of game px */
+  --gap: var(--u6);
+  --mwpx: calc(var(--u) * var(--mw));
+  --winpx: calc(var(--u) * var(--win));
+
+  /* palette (matches the realms) */
+  --ink: #0a0610;  --ink2: #14101c; --plum: #241a30; --plum2: #30233f;
+  --slate: #3a3348; --slate2: #5a5068;
+  --cream: #f4ecd8; --cream2: #cfc4b0; --mute: #9a90a6;
+  --gold: #f7b36c; --gold2: #b8733f; --gold3: #ffd9a0;
+  --rose: #e0788a; --rose2: #9e4a5e; --moon: #a9b8dc; --moon2: #6c789c;
+
+  /* frame colours (overridden per component / state) */
+  --fr-out: var(--ink); --fr-edge: var(--slate2); --fr-in: var(--ink); --fr-lift: var(--ink);
+
+  /* 1-game-px ink outline for text that sits on the world */
+  --outline: var(--u) 0 0 var(--ink), var(--n1) 0 0 var(--ink), 0 var(--u) 0 var(--ink), 0 var(--n1) 0 var(--ink),
+             var(--u) var(--u) 0 var(--ink), var(--n1) var(--u) 0 var(--ink), var(--u) var(--n1) 0 var(--ink), var(--n1) var(--n1) 0 var(--ink);
+  --outline-drop: var(--outline), 0 var(--u2) 0 var(--ink), var(--u) var(--u2) 0 var(--ink), var(--n1) var(--u2) 0 var(--ink);
+  --tex4: var(--u4) var(--u4);
+}
+
+/* ------------------------------------------------------------------ typography + smoothing reset */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html body, html body *, html body *::before, html body *::after {
+  font-family: "SisyphusPx", ui-monospace, Menlo, Consolas, monospace !important;
+  font-size: var(--f1) !important;
+  line-height: var(--lh1) !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  letter-spacing: 0 !important;
+  word-spacing: 0 !important;
+  text-indent: 0 !important;
+  text-shadow: none !important;
+  font-synthesis: none !important;
+  font-kerning: none !important;
+  font-variant-ligatures: none !important;
+  font-variant-numeric: normal !important;
+  -webkit-font-smoothing: none !important;
+  -moz-osx-font-smoothing: unset !important;
+  font-smooth: never !important;
+  text-rendering: optimizeSpeed !important;
+  border-radius: 0 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-tap-highlight-color: transparent;
+  image-rendering: pixelated;
+}
+html body ::selection { background: var(--gold); color: var(--ink); }
+html body [data-px-nudge] { text-indent: 1px !important; }      /* ui.js: half-pixel shift for centred labels */
+html body [hidden] { display: none !important; }
+
+/* frame recipes: stepped-corner border drawn with hard box-shadows (outline / edge / inner line) */
+html body *, html body *::before, html body *::after {
+  --frame:
+    inset 0 0 0 var(--u) var(--fr-in),
+    0 var(--n1) 0 0 var(--fr-edge), 0 var(--u) 0 0 var(--fr-edge), var(--n1) 0 0 0 var(--fr-edge), var(--u) 0 0 0 var(--fr-edge),
+    var(--n1) var(--n1) 0 0 var(--fr-out), var(--u) var(--n1) 0 0 var(--fr-out), var(--n1) var(--u) 0 0 var(--fr-out), var(--u) var(--u) 0 0 var(--fr-out),
+    0 var(--n2) 0 0 var(--fr-out), 0 var(--u2) 0 0 var(--fr-out), var(--n2) 0 0 0 var(--fr-out), var(--u2) 0 0 0 var(--fr-out);
+  --lift: 0 var(--u3) 0 0 var(--fr-lift);
+  /* the same frame split into stacked window segments (top / middle / bottom) */
+  --frame-top:
+    inset var(--u) 0 0 0 var(--fr-in), inset var(--n1) 0 0 0 var(--fr-in), inset 0 var(--u) 0 0 var(--fr-in),
+    0 var(--n1) 0 0 var(--fr-edge), var(--n1) 0 0 0 var(--fr-edge), var(--u) 0 0 0 var(--fr-edge),
+    var(--n1) var(--n1) 0 0 var(--fr-out), var(--u) var(--n1) 0 0 var(--fr-out),
+    0 var(--n2) 0 0 var(--fr-out), var(--n2) 0 0 0 var(--fr-out), var(--u2) 0 0 0 var(--fr-out);
+  --frame-mid:
+    inset var(--u) 0 0 0 var(--fr-in), inset var(--n1) 0 0 0 var(--fr-in),
+    var(--n1) 0 0 0 var(--fr-edge), var(--u) 0 0 0 var(--fr-edge),
+    var(--n2) 0 0 0 var(--fr-out), var(--u2) 0 0 0 var(--fr-out);
+  --frame-bot:
+    inset var(--u) 0 0 0 var(--fr-in), inset var(--n1) 0 0 0 var(--fr-in), inset 0 var(--n1) 0 0 var(--fr-in),
+    0 var(--u) 0 0 var(--fr-edge), var(--n1) 0 0 0 var(--fr-edge), var(--u) 0 0 0 var(--fr-edge),
+    var(--n1) var(--u) 0 0 var(--fr-out), var(--u) var(--u) 0 0 var(--fr-out),
+    0 var(--u2) 0 0 var(--fr-out), var(--n2) 0 0 0 var(--fr-out), var(--u2) 0 0 0 var(--fr-out);
+}
+
+/* no smooth colour fades on controls: pixel UIs change state on the frame */
+html body button, html body summary, html body input, html body .realm-choice, html body .mode-card,
+html body .choice, html body .achievement-item { transition: none; }
+
+/* ------------------------------------------------------------------ shared pieces */
+/* window: cream edge, plum-to-ink dithered fill, gold rivets inside the corners */
+html body :is(#gameover .gameover-panel, #againpanel .again-panel, #postcard .postcard-panel) {
+  --fr-edge: var(--cream2);
+  position: relative;
+  width: var(--winpx);
+  max-width: calc(100vw - var(--u12));
+  border: 0;
+  padding: var(--u8) var(--u6) var(--u6);
+  color: var(--cream);
+  background:
+    var(--img-rivet) var(--u2) var(--u2) / var(--u3) var(--u3) no-repeat,
+    var(--img-rivet) calc(100% - var(--u2)) var(--u2) / var(--u3) var(--u3) no-repeat,
+    var(--img-rivet) var(--u2) calc(100% - var(--u2)) / var(--u3) var(--u3) no-repeat,
+    var(--img-rivet) calc(100% - var(--u2)) calc(100% - var(--u2)) / var(--u3) var(--u3) no-repeat,
+    var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x,
+    var(--ink2);
+  box-shadow: var(--frame);
+  text-align: center;
+}
+/* dithered scrims instead of alpha blur */
+html body #pausescreen { background: var(--img-d50) 0 0 / var(--tex4); }
+html body #againpanel { background: var(--img-d25) 0 0 / var(--tex4); }
+html body #gameover { background: var(--img-d75) 0 0 / var(--tex4); }
+html body #postcard { background: var(--img-d75) 0 0 / var(--tex4); }
+html body :is(#gameover, #againpanel, #postcard) {
+  padding: var(--u6) var(--u6) max(var(--u6), env(safe-area-inset-bottom));
+  align-items: flex-start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+html body :is(#gameover .gameover-panel, #againpanel .again-panel, #postcard .postcard-panel) { margin: auto; flex: 0 0 auto; }
+
+/* buttons: the base "key" (secondary = cream on plum); primaries override the colours */
+html body :is(#pausescreen .p-actions button, #gameover button, #againpanel button, #postcard button,
+  #startscreen .start-selected, #startscreen .enter-btn, #realmcontinue, #startscreen .share-btn,
+  #startscreen .email-join-row button, #startscreen .timed-choice, #startscreen .choice) {
+  --fr-edge: var(--slate2); --fr-in: var(--plum2); --btn-bg: var(--plum); --btn-fg: var(--cream);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--u3);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  margin: 0 0 var(--u3);
+  padding: 0 var(--u5);
+  border: 0;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--frame), var(--lift);
+  outline: none;
+}
+/* primary: gold on ink */
+html body :is(#pauseresume, #gameoverrestart, #againpush, #postpng, #startscreen .start-selected,
+  #startscreen .enter-btn, #startscreen .email-join-row button) {
+  --fr-edge: var(--gold); --fr-in: var(--gold2); --btn-bg: var(--ink2); --btn-fg: var(--gold);
+}
+/* the inline sheet has :hover rules that stick after a tap on phones: keep our colours */
+html body :is(#pausescreen .p-actions button, #gameover button, #againpanel button, #postcard button,
+  #startscreen .start-selected, #startscreen .enter-btn, #realmcontinue, #startscreen .share-btn,
+  #startscreen .email-join-row button, #startscreen .timed-choice, #startscreen .choice):is(:hover, :focus) {
+  border-color: transparent;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+}
+html body :is(#pausescreen .p-actions button, #gameover button, #againpanel button, #postcard button,
+  #startscreen .start-selected, #startscreen .enter-btn, #realmcontinue, #startscreen .share-btn,
+  #startscreen .email-join-row button, #startscreen .timed-choice, #startscreen .choice,
+  #startscreen .mode-card, .realm-choice, #mpause):active {
+  transform: translateY(var(--u));
+  box-shadow: var(--frame);
+}
+html body :is(#pausescreen .p-actions button, #gameover button, #againpanel button, #postcard button,
+  #startscreen .start-selected, #startscreen .enter-btn, #realmcontinue, #startscreen .share-btn,
+  #startscreen .email-join-row button, #startscreen .timed-choice, #startscreen .choice):disabled {
+  --fr-edge: var(--slate); --fr-in: var(--ink2); --btn-bg: var(--ink2); --btn-fg: var(--mute);
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--frame);
+}
+@media (hover: hover) and (pointer: fine) {
+  html body :is(#pausescreen .p-actions button, #gameover button, #againpanel button, #postcard button,
+    #realmcontinue, #startscreen .share-btn, #startscreen .timed-choice, #startscreen .choice):not(:disabled):hover {
+    --fr-edge: var(--cream); --btn-bg: var(--plum2); --btn-fg: var(--cream);
+  }
+  html body :is(#pauseresume, #gameoverrestart, #againpush, #postpng, #startscreen .start-selected,
+    #startscreen .enter-btn, #startscreen .email-join-row button):not(:disabled):hover {
+    --fr-edge: var(--gold3); --btn-bg: var(--plum); --btn-fg: var(--gold3);
+  }
+}
+/* keyboard focus: a 2-pixel cream ring just outside the ink outline - always visible */
+html body *:focus-visible {
+  outline: var(--u2) solid var(--cream) !important;
+  outline-offset: var(--u2) !important;
+}
+/* once the menu is open the collapsed ENTER key leaves the tab order (after its fade) */
+html body #startscreen.menu-entered .enter-btn { visibility: hidden; transition: opacity 0.34s ease, max-height 0.5s cubic-bezier(0.4,0,0.2,1), min-height 0.5s ease, margin 0.5s ease, padding 0.5s ease, transform 0.4s ease, visibility 0s linear 0.5s; }
+
+/* icons (glyphs from the private-use area of SisyphusPx) */
+html body :is(#pauseresume, #pausecarve, #pauserestart, #pausemenu, #gameoverrestart, #gameovershare,
+  #gameovermenu, #againpush, #againcarve, #againleave, #postcopylink, #postcopytext, #postpng,
+  #postclose, #sharebtn, #realmcontinue)::before {
+  display: inline-block;
+  color: inherit;
+}
+html body #pauseresume::before, html body #realmcontinue::before { content: "\E001"; }
+html body :is(#pausecarve, #gameovershare, #againcarve)::before { content: "\E003"; }
+html body :is(#pauserestart, #gameoverrestart, #againpush)::before { content: "\E004"; }
+html body :is(#pausemenu, #gameovermenu, #againleave)::before { content: "\E005"; }
+html body #postcopylink::before, html body #sharebtn::before { content: "\E008"; }
+html body #postcopytext::before { content: "\E006"; }
+html body #postpng::before { content: "\E007"; }
+html body #postclose::before { content: "\E002"; }
+
+/* the blinking selection caret */
+@keyframes px-blink { 0%, 55% { visibility: visible; } 56%, 100% { visibility: hidden; } }
+
+/* ------------------------------------------------------------------ title screen + menu column */
+html body #startscreen {
+  /* ui.js snaps the column to the game grid: left padding + column + right padding = width */
+  padding-left: var(--mx, max(12px, env(safe-area-inset-left)));
+  padding-right: var(--mxr, max(12px, env(safe-area-inset-right)));
+  color: var(--cream);
+  scrollbar-width: none;
+}
+html body #startscreen::-webkit-scrollbar { display: none; }
+html body #startscreen > *,
+html body #startscreen .entry-lockup,
+html body #startscreen :is(.s-copy, .mode-label, .mode-grid, .legacy-line, .stats-grid, .daily-line,
+  .progress-panel, .customizer, .start-selected, .menu-more, .realm-picker, .other-modes, .timed-picker) {
+  width: var(--mwpx);
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+html body #startscreen .entry-lockup { flex: 0 0 auto; }
+/* ui.js rounds the inline sheet's vh-based top padding to whole pixels */
+html[data-px-ready] body #startscreen:not(.menu-entered) { padding-top: var(--ss-pt); }
+html[data-px-ready] body #startscreen.menu-entered { padding-top: var(--ss-pt-menu); }
+html body #startscreen:not(.menu-entered) .entry-lockup { transform: translateY(var(--splash-y, clamp(150px, 32vh, 360px))); }
+
+/* the logo: "MYTH OF" overline + SISYPHUS in banded gold with a one-pixel extrusion */
+html body #startscreen .s-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin: 0 0 var(--u10);
+  color: var(--cream);
+  opacity: 1;
+  overflow: visible;
+  overflow-wrap: normal;
+  text-align: center;
+  --fp: calc(var(--u) * var(--logo-k));
+}
+html body #startscreen:not(.menu-entered) .s-title { margin-bottom: var(--u12); }
+html body #startscreen .s-title .pxl-top {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 4 * var(--logo-top-k));
+  margin-bottom: calc(var(--u) * 3);
+  color: var(--gold);
+  font-size: calc(var(--f1) * var(--logo-top-k)) !important;
+  line-height: calc(var(--lh1) * var(--logo-top-k)) !important;
+  letter-spacing: calc(var(--u) * var(--logo-top-k)) !important;
+  text-shadow: var(--outline) !important;
+}
+html body #startscreen .s-title .pxl-top::before,
+html body #startscreen .s-title .pxl-top::after {
+  content: "";
+  width: calc(var(--u) * 10 * var(--logo-top-k));
+  height: var(--u);
+  background: var(--gold);
+  box-shadow: 0 var(--n1) 0 var(--ink), 0 var(--u) 0 var(--ink), var(--n1) 0 0 var(--ink), var(--u) 0 0 var(--ink);
+}
+html body #startscreen .s-title .pxl-top::after { margin-left: calc(var(--u) * -1 * var(--logo-top-k)); }
+html body #startscreen .s-title .pxl-main {
+  position: relative;
+  display: block;
+  margin-right: calc(var(--fp) * -1);      /* cancel the trailing letter-space so it centres */
+  padding-bottom: var(--fp);
+  font-size: calc(var(--f1) * var(--logo-k)) !important;
+  line-height: calc(var(--lh1) * var(--logo-k)) !important;
+  letter-spacing: var(--fp) !important;
+  white-space: nowrap;
+  color: var(--gold);
+  filter:
+    drop-shadow(0 var(--fp) 0 var(--gold2))
+    drop-shadow(var(--u) 0 0 var(--ink)) drop-shadow(var(--n1) 0 0 var(--ink))
+    drop-shadow(0 var(--u) 0 var(--ink)) drop-shadow(0 var(--n1) 0 var(--ink))
+    drop-shadow(0 var(--u2) 0 var(--ink));
+}
+
+/* banded letters: cream top rows, light-gold middle, gold base (row boundaries on the font's pixel grid) */
+html body #startscreen .s-title .pxl-band {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  white-space: nowrap;
+  pointer-events: none;
+}
+html body #startscreen .s-title .pxl-b1 { color: var(--gold3); -webkit-clip-path: inset(0 0 calc(100% - var(--fp) * 7) 0); clip-path: inset(0 0 calc(100% - var(--fp) * 7) 0); }
+html body #startscreen .s-title .pxl-b2 { color: var(--cream); -webkit-clip-path: inset(0 0 calc(100% - var(--fp) * 5) 0); clip-path: inset(0 0 calc(100% - var(--fp) * 5) 0); }
+
+html body #startscreen button.enter-btn {
+  min-width: calc(var(--u) * 64);
+  padding: 0 var(--u8);
+  font-size: var(--f1) !important;
+}
+html body #startscreen .enter-btn::before,
+html body #startscreen .start-selected::before {
+  content: "\25B6";
+  animation: px-blink 1.1s steps(1, end) infinite;
+}
+html body #startscreen .s-copy {
+  margin: 0 0 var(--u8);
+  padding: var(--u5) var(--u6);
+  color: var(--cream);
+  text-align: left;
+  line-height: var(--lh1p) !important;
+  background: var(--img-d75) 0 0 / var(--tex4);
+}
+html body #startscreen button.start-selected {
+  display: flex;
+  white-space: normal;          /* long realm names wrap on Chunky phones instead of overflowing */
+  text-align: center;
+  width: var(--mwpx);
+  min-height: var(--tap);
+  margin: 0 0 var(--u8);
+  box-shadow: var(--frame), var(--lift);
+}
+html body #startscreen button.start-selected.challenge-ready {
+  --fr-edge: var(--rose); --fr-in: var(--rose2); --btn-fg: var(--gold3);
+}
+
+/* section headings sit on the world: gold with an ink outline + a ruled line */
+html body #startscreen :is(.realm-heading, .mode-label) {
+  display: flex;
+  align-items: center;
+  gap: var(--u4);
+  margin: 0 0 var(--u6);
+  color: var(--gold);
+  text-transform: uppercase;
+  text-align: left;
+  text-shadow: var(--outline) !important;
+}
+html body #startscreen :is(.realm-heading, .mode-label)::after {
+  content: "";
+  flex: 1;
+  height: var(--u);
+  background: var(--gold2);
+  box-shadow: 0 var(--n1) 0 var(--ink), 0 var(--u) 0 var(--ink);
+}
+
+/* realm cards */
+html body #startscreen .realm-picker { margin: 0 0 var(--u8); }
+html body .realm-choices { gap: var(--gap); }
+html body .realm-choice {
+  --fr-edge: var(--slate2); --fr-in: var(--ink);
+  height: calc(var(--u) * 48);
+  padding: var(--u) var(--u);
+  border: 0;
+  color: var(--cream);
+  background-color: var(--plum);
+  box-shadow: var(--frame);
+  gap: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+/* until ui.js has painted the pixel thumbnail, show the plain card (no flash of the old painted plates) */
+html[data-px-ready] body .realm-choice:not([data-px-bg]) { background-image: none !important; }
+/* the realm paints its own card: keep the painting clear and caption it with small stepped ink plates */
+html body .realm-choice::before { content: none; }
+html body .realm-choice[aria-pressed="true"] {
+  --fr-edge: var(--gold); --fr-in: var(--gold2);
+  border: 0;
+  padding: var(--u) var(--u);
+}
+html body .realm-choice strong {
+  padding: var(--u) var(--u4) 0 var(--u4);
+  color: var(--gold);
+  background: var(--ink);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+html body .realm-choice[aria-pressed="true"] strong::before {
+  content: "\25B6";
+  margin-right: var(--u3);
+  animation: px-blink 1.1s steps(1, end) infinite;
+}
+html body .realm-choice span {
+  padding: 0 var(--u4) var(--u);
+  color: var(--cream2);
+  background: var(--ink);
+}
+html body .realm-choice[aria-pressed="true"] :is(strong, span) { background: var(--ink2); }
+html body .realm-dusk::after {
+  top: var(--u4);
+  right: var(--u5);
+  padding: 0 var(--u2);
+  border: 0;
+  color: var(--ink);
+  background: var(--gold);
+  box-shadow: 0 var(--n1) 0 var(--ink), 0 var(--u) 0 var(--ink), var(--n1) 0 0 var(--ink), var(--u) 0 0 var(--ink);
+  text-transform: uppercase;
+}
+@media (hover: hover) and (pointer: fine) {
+  html body .realm-choice:not([aria-pressed="true"]):hover { --fr-edge: var(--cream); }
+}
+
+html body #startscreen button#realmcontinue {
+  display: flex;
+  white-space: normal;
+  text-align: center;
+  width: 100%;
+  margin: var(--u8) 0 var(--u3);
+}
+
+/* disclosure bars: "other modes" + "records, achievements & settings" */
+html body #startscreen .other-modes,
+html body #startscreen .menu-more {
+  margin: 0 0 var(--u8);
+  border: 0;
+  color: var(--cream);
+}
+html body #startscreen .other-modes > summary,
+html body #startscreen .menu-more > summary {
+  --fr-edge: var(--slate2); --fr-in: var(--plum2);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--u4);
+  min-height: var(--tap);
+  margin: 0 0 var(--u3);
+  padding: 0 var(--u6);
+  border: 0;
+  list-style: none;
+  color: var(--cream);
+  background: var(--plum);
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--frame), var(--lift);
+}
+html body #startscreen :is(.other-modes, .menu-more) > summary::-webkit-details-marker { display: none; }
+html body #startscreen :is(.other-modes, .menu-more) > summary::before { content: "\25B6"; color: var(--gold); }
+html body #startscreen :is(.other-modes, .menu-more)[open] > summary::before { content: "\25BC"; }
+html body #startscreen .menu-more > summary::after, html body #startscreen .menu-more[open] > summary::after { content: none; }
+html body #startscreen :is(.other-modes, .menu-more)[open] > summary {
+  --fr-edge: var(--gold2);
+  margin-bottom: var(--u8);
+  background: var(--plum);
+}
+@media (hover: hover) and (pointer: fine) {
+  html body #startscreen :is(.other-modes, .menu-more) > summary:hover { --fr-edge: var(--cream); background: var(--plum2); }
+}
+html body #startscreen :is(.other-modes, .menu-more) > summary:active { transform: translateY(var(--u)); box-shadow: var(--frame); }
+
+/* mode cards */
+html body #startscreen .mode-grid { gap: var(--u8) var(--gap); margin: 0; }
+html body #startscreen .mode-card {
+  --fr-edge: var(--slate2); --fr-in: var(--ink);
+  position: relative;
+  display: flex;                 /* buttons centre their content vertically: top-align the cards instead */
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  min-height: calc(var(--u) * 44);
+  padding: var(--u5) var(--u6) var(--u6);
+  border: 0;
+  color: var(--cream);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+  text-align: left;
+}
+html body #startscreen .mode-card strong {
+  display: flex;
+  align-items: center;
+  gap: var(--u3);
+  margin: 0;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+html body #startscreen .mode-card span {
+  margin-top: var(--u4);
+  color: var(--cream2);
+  text-transform: lowercase;
+}
+html body #startscreen .mode-card .tag {
+  position: absolute;
+  top: calc(var(--u) * -5);               /* a tab sitting on the frame, clear of the title row */
+  right: var(--u5);
+  line-height: calc(var(--u) * 9) !important;
+  margin: 0;
+  padding: 0 var(--u2);
+  border: 0;
+  color: var(--ink);
+  background: var(--gold);
+  box-shadow: 0 var(--n1) 0 var(--ink), 0 var(--u) 0 var(--ink), var(--n1) 0 0 var(--ink), var(--u) 0 0 var(--ink);
+  text-transform: uppercase;
+  vertical-align: baseline;
+}
+html body #startscreen .mode-card.preferred {
+  --fr-edge: var(--gold); --fr-in: var(--gold2);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+}
+html body #startscreen .mode-card.preferred strong::before {
+  content: "\25B6";
+  animation: px-blink 1.1s steps(1, end) infinite;
+}
+html body #startscreen .mode-card:hover { border-color: transparent; background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2); }
+html body #startscreen .mode-card.preferred span,
+html body #startscreen .mode-card:hover span,
+html body #startscreen .mode-card:focus-visible span { color: var(--cream); }
+@media (hover: hover) and (pointer: fine) {
+  html body #startscreen .mode-card:not(.preferred):hover { --fr-edge: var(--cream); }
+}
+
+
+/* timed run length */
+html body #startscreen .timed-picker {
+  --fr-edge: var(--slate2);
+  gap: var(--u4);
+  margin: var(--u8) 0 var(--u3);
+  padding: var(--u4) var(--u6) var(--u2);
+  border: 0;
+  color: var(--cream);
+  background: var(--ink2);
+  box-shadow: var(--frame);
+}
+html body #startscreen .timed-picker strong { margin: 0 var(--u2) var(--u2) 0; color: var(--gold); text-transform: uppercase; }
+html[data-px-w="xs"] body #startscreen .timed-picker strong { flex-basis: 100%; margin-bottom: 0; }
+html body #startscreen button.timed-choice { min-width: calc(var(--u) * 20); text-transform: lowercase; }
+
+/* choices (settings) + active state */
+html body #startscreen button.choice { padding: 0 var(--u4); }
+html body :is(#startscreen .choice.active, #startscreen .timed-choice.active, #postcard .format-choice.active) {
+  --fr-edge: var(--gold); --fr-in: var(--gold2); --btn-bg: var(--ink2); --btn-fg: var(--gold);
+  transform: translateY(var(--u));
+  box-shadow: var(--frame);
+}
+html body #startscreen .choice.locked { --btn-fg: var(--mute); --btn-bg: var(--ink2); opacity: 1; cursor: not-allowed; }
+html body #startscreen .choice.locked::before { content: "\E00C"; }
+html body #startscreen .choice[data-custom="sound"][data-value="on"]::before { content: "\E009"; }
+html body #startscreen .choice[data-custom="sound"][data-value="off"]::before { content: "\E00A"; }
+
+/* records / stats / achievements / settings */
+html body #startscreen .legacy-line {
+  --fr-edge: var(--slate);
+  min-height: 0;
+  margin: 0 0 var(--u6);
+  padding: var(--u3) var(--u6);
+  border: 0;
+  color: var(--moon);
+  background: var(--ink2);
+  box-shadow: var(--frame);
+  text-align: center;
+  text-transform: lowercase;
+}
+html body #startscreen .legacy-line:empty { display: none; }
+html body #startscreen .legacy-line.returning { color: var(--cream); --fr-edge: var(--slate2); }
+html body #startscreen .stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+  margin: var(--u8) 0 var(--u8);
+}
+html[data-px-cols="1"] body #startscreen .stats-grid { grid-template-columns: minmax(0, 1fr); }   /* lifetime metres can run to 7 digits */
+html body #startscreen .stat-cell {
+  --fr-edge: var(--slate2);
+  min-height: 0;
+  padding: var(--u4) var(--u5) var(--u5);
+  border: 0;
+  color: var(--cream2);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+}
+html body #startscreen .stat-cell strong {
+  margin: 0 0 var(--u2);
+  color: var(--gold);
+  font-size: var(--f2) !important;
+  line-height: var(--lh2) !important;
+  white-space: nowrap;
+}
+html body #startscreen .stat-cell span { color: var(--cream2); }
+html body #startscreen .progress-panel { margin: 0 0 var(--u8); gap: var(--gap); }
+html body #startscreen .sigil-box {
+  --fr-edge: var(--slate2);
+  padding: var(--u5) var(--u6) var(--u6);
+  border: 0;
+  color: var(--cream2);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+  text-transform: none;
+}
+html body #startscreen .ach-head { align-items: center; margin: 0 0 var(--u6); }
+html body #startscreen .ach-head .ach-title { color: var(--gold); text-transform: uppercase; }
+html body #startscreen .ach-head { gap: var(--u4); }
+html body #startscreen .ach-head .ach-count { color: var(--moon); white-space: nowrap; }
+html body #startscreen .achievement-list {
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--u) * 84), 1fr));
+  gap: var(--u4) var(--gap);
+}
+html body #startscreen .achievement-item {
+  --fr-edge: var(--slate);
+  gap: var(--u3);
+  min-height: calc(var(--u) * 15);
+  padding: 0 var(--u4);
+  border: 0;
+  background: var(--ink);
+  box-shadow: var(--frame);
+  opacity: 1;
+}
+html body #startscreen .achievement-item.locked { opacity: 1; }
+html body #startscreen .achievement-item.unlocked { --fr-edge: var(--gold2); background: var(--plum); }
+html body #startscreen .ach-mark {
+  width: auto;
+  height: auto;
+  flex: none;
+  background: none;
+  box-shadow: none;
+  color: var(--slate2);
+}
+html body #startscreen .ach-mark::before { content: "\E00C"; }
+html body #startscreen .achievement-item.unlocked .ach-mark { color: var(--gold); background: none; box-shadow: none; }
+html body #startscreen .achievement-item.unlocked .ach-mark::before { content: "\E00B"; }
+html body #startscreen .achievement-name { color: var(--mute); text-transform: uppercase; }
+html body #startscreen .achievement-item.unlocked .achievement-name { color: var(--cream); }
+
+html body #startscreen .customizer {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: var(--gap);
+  margin: 0;
+}
+html[data-px-cols="3"] body #startscreen .customizer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-px-cols="3"] body #startscreen .customizer-panel { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+html body #startscreen .customizer-panel {
+  --fr-edge: var(--slate2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--u2) var(--u6);
+  min-height: 0;
+  padding: var(--u5) var(--u6) var(--u3);
+  border: 0;
+  color: var(--cream);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+}
+html body #startscreen .customizer-panel > strong {
+  display: block;
+  margin: 0 0 var(--u2);
+  color: var(--gold);
+  opacity: 1;
+  text-transform: uppercase;
+}
+html body #startscreen .choice-row { gap: var(--u4); }
+html body #startscreen button.share-btn { width: auto; min-width: calc(var(--u) * 50); }
+
+html body #startscreen .email-join {
+  --fr-edge: var(--slate2);
+  width: var(--mwpx);
+  margin: var(--u10) 0 max(var(--u10), env(safe-area-inset-bottom));
+  padding: var(--u6) var(--u6) var(--u5);
+  border: 0;
+  color: var(--cream);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+  text-align: left;
+}
+html body #startscreen .email-join-title { color: var(--gold); text-transform: uppercase; }
+html body #startscreen .email-join-sub { margin-top: var(--u2); color: var(--cream2); }
+html body #startscreen .email-join-row { gap: var(--u6); margin-top: var(--u6); align-items: flex-start; }
+html body #startscreen .email-join-row input {
+  --fr-edge: var(--slate2); --fr-in: var(--ink);
+  min-height: var(--tap);
+  padding: 0 var(--u5);
+  border: 0;
+  color: var(--cream);
+  background: var(--ink);
+  caret-color: var(--gold);
+  box-shadow: var(--frame), inset var(--u) var(--u2) 0 0 var(--ink2);
+  outline: none;
+}
+html body #startscreen .email-join-row input:focus { --fr-edge: var(--gold); }
+html body #startscreen .email-join-row input::placeholder { color: var(--mute); opacity: 1; }
+html body #startscreen .email-join-row button { padding: 0 var(--u6); }
+html body #startscreen .email-join-msg { min-height: var(--lh1); margin-top: var(--u4); color: var(--moon); }
+html body #startscreen .email-join-msg.err { color: var(--rose); }
+
+/* the daily mountain card */
+html body #startscreen .daily-line {
+  --fr-edge: var(--gold2);
+  margin: 0 0 var(--u8);
+  padding: var(--u6);
+  border: 0;
+  color: var(--cream2);
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+  box-shadow: var(--frame);
+  text-transform: none;
+}
+html body #startscreen .daily-line.show { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--u6); align-items: start; }
+html[data-px-cols="3"] body #startscreen .daily-line.show { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+html body #startscreen .daily-line.show .daily-main { grid-column: 1 / -1; }
+html body #startscreen .daily-kicker { margin: 0 0 var(--u2); color: var(--moon); text-transform: uppercase; }
+html body #startscreen .daily-name { color: var(--gold); font-size: var(--f2) !important; line-height: var(--lh2) !important; text-transform: uppercase; }
+html body #startscreen .daily-prophecy { margin-top: var(--u2); color: var(--cream2); }
+html body #startscreen .daily-action { margin-top: var(--u4); color: var(--gold3); text-transform: none; }
+html body #startscreen .daily-stat { padding: 0 0 0 var(--u5); border: 0; box-shadow: inset var(--u) 0 0 0 var(--slate); }
+html:not([data-px-cols="3"]) body #startscreen .daily-stat { padding: var(--u4) 0 0; box-shadow: inset 0 var(--u) 0 0 var(--slate); }
+html body #startscreen .daily-stat span { color: var(--mute); text-transform: uppercase; }
+html body #startscreen .daily-stat strong { margin-top: var(--u2); color: var(--cream); }
+html body #startscreen :is(.daily-calendar, .daily-diff) {
+  gap: var(--u4);
+  margin: 0;
+  padding-top: var(--u5);
+  border: 0;
+  box-shadow: inset 0 var(--u) 0 0 var(--slate);
+}
+html body #startscreen :is(.daily-calendar-label, .daily-diff-label) { margin: 0; color: var(--mute); text-transform: uppercase; }
+html body #startscreen .daily-day {
+  width: var(--u8);
+  height: var(--u5);
+  border: 0;
+  background: var(--ink);
+  box-shadow: 0 0 0 var(--u) var(--slate);
+}
+html body #startscreen .daily-day.done { background: var(--gold); box-shadow: 0 0 0 var(--u) var(--gold2); }
+html body #startscreen .daily-day.today { box-shadow: 0 0 0 var(--u) var(--cream); }
+html body #startscreen .daily-diff-track {
+  height: var(--u5);
+  border: 0;
+  background: var(--ink);
+  box-shadow: 0 0 0 var(--u) var(--slate2);
+}
+html body #startscreen .daily-diff-fill {
+  background-image: var(--img-d25) !important;
+  background-size: var(--tex4) !important;
+  transition: none;
+}
+html body #startscreen .daily-diff-word { color: var(--cream); text-transform: uppercase; }
+
+/* ------------------------------------------------------------------ in-game HUD */
+html body #titlewrap { padding-top: calc(env(safe-area-inset-top) + var(--u8)); padding-bottom: 0; }
+html body #title {
+  color: var(--cream2) !important;
+  opacity: 1;
+  letter-spacing: var(--u) !important;
+  padding-left: var(--u);
+  text-shadow: var(--outline-drop) !important;
+}
+html body #titlewrap[style*="opacity: 0.82"] { opacity: 1 !important; }
+html[data-px-title="tight"] body #title { letter-spacing: 0 !important; padding-left: 0; }
+html[data-px-title="hide"] body #titlewrap { visibility: hidden; }
+html body #dist {
+  top: calc(env(safe-area-inset-top) + var(--u8));
+  right: calc(env(safe-area-inset-right) + var(--u8));
+  min-width: 0;
+  color: var(--cream) !important;
+  text-shadow: var(--outline-drop) !important;
+  text-align: right;
+}
+html body #dist[style*="opacity: 0.75"] { opacity: 1 !important; }
+html body #dist .dist-best { margin-top: var(--u2); color: var(--gold) !important; text-transform: none; text-shadow: var(--outline-drop) !important; }
+html body #chasebest {
+  right: calc(env(safe-area-inset-right) + var(--u8));
+  color: var(--moon) !important;
+  opacity: 1 !important;
+  text-transform: none;
+  text-shadow: var(--outline-drop) !important;
+}
+html body #mpause {
+  --fr-edge: var(--cream2); --fr-in: var(--plum2);
+  top: calc(env(safe-area-inset-top) + var(--u6));
+  left: calc(env(safe-area-inset-left) + var(--u6));
+  width: var(--tap);
+  height: var(--tap);
+  gap: var(--u2);
+  border: 0;
+  background: var(--plum);
+  box-shadow: var(--frame), var(--lift);
+}
+html body #mpause span { width: var(--u2); height: var(--u8); background: var(--cream); box-shadow: none; }
+html body #mpause:active { background: var(--plum2); }
+html body #modehud {
+  left: calc(env(safe-area-inset-left) + var(--u8));
+  top: calc(env(safe-area-inset-top) + var(--u8));
+  width: calc(var(--u) * 64);
+  color: var(--cream);
+  transition: opacity 0.18s steps(3, end);
+}
+@media (max-width: 680px) {
+  html body #modehud { top: calc(env(safe-area-inset-top) + var(--u8) + var(--tap) + var(--u6)); left: calc(env(safe-area-inset-left) + var(--u6)); }
+}
+html body #modehud .hud-label { color: var(--cream); text-shadow: var(--outline-drop) !important; }
+html body #modehud .hud-track {
+  height: var(--u5);
+  margin-top: var(--u4);
+  background: var(--plum);
+  box-shadow: 0 0 0 var(--u) var(--ink);
+  overflow: hidden;
+}
+html body #modehud .hud-fill { box-shadow: inset 0 var(--u) 0 0 rgba(255, 244, 220, 0.45), inset 0 var(--n1) 0 0 rgba(10, 6, 16, 0.35); transition: none; }
+html body #modehud .hud-ticks {
+  inset: 0;
+  opacity: 1;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(var(--u) * 7), rgba(10, 6, 16, 0.6) calc(var(--u) * 7) var(--u8));
+}
+html body #modehud .hud-sub { margin-top: var(--u4); color: var(--moon); text-shadow: var(--outline-drop) !important; }
+html body #modehud.dark { color: var(--cream); }
+html body #modehud.dark .hud-track { background: var(--plum); }
+html body #modehud.dark .hud-sub { color: var(--moon); }
+
+/* the "alternate keys" hint: a speech bubble with a pixel tail */
+html body #controlhint {
+  --fr-edge: var(--cream2);
+  max-width: min(calc(var(--u) * 110), 86vw);
+  padding: var(--u3) var(--u6) var(--u4);
+  border: 0;
+  color: var(--cream);
+  background: var(--ink2);
+  box-shadow: var(--frame);
+  transition: opacity 0.18s steps(3, end);
+}
+html body #controlhint::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--u) * -4);
+  width: var(--u2);
+  height: var(--u2);
+  margin-left: var(--n1);
+  background: var(--ink2);
+  box-shadow: 0 var(--u) 0 var(--ink2), var(--u) 0 0 var(--cream2), var(--n1) 0 0 var(--cream2),
+              var(--u) var(--u) 0 var(--cream2), var(--n1) var(--u) 0 var(--cream2), 0 var(--u2) 0 var(--cream2),
+              var(--u2) 0 0 var(--ink), var(--n2) 0 0 var(--ink), 0 var(--u3) 0 var(--ink);
+}
+html body #controlhint .main { color: var(--gold); text-transform: uppercase; }
+html body #controlhint .minor { margin-top: var(--u); color: var(--cream2); }
+
+/* banner + toast plates */
+html body :is(#modebanner, #sharetoast) {
+  --fr-edge: var(--gold2);
+  padding: var(--u2) var(--u6) var(--u3);
+  border: 0;
+  background: var(--ink2);
+  box-shadow: var(--frame);
+  white-space: nowrap;
+}
+html body #modebanner { bottom: calc(env(safe-area-inset-bottom) + var(--u12) * 2); color: var(--gold); text-transform: uppercase; transition: opacity 0.35s steps(4, end); }
+html body #modebanner:empty { visibility: hidden; }
+html body #sharetoast { --fr-edge: var(--cream2); bottom: calc(env(safe-area-inset-bottom) + var(--u12)); color: var(--cream); transition: opacity 0.22s steps(3, end); }
+html body #sharetoast:empty { visibility: hidden; }
+
+/* ------------------------------------------------------------------ pause: one window built from its rows */
+html body #pausescreen { gap: 0; padding: var(--u8) var(--u6); justify-content: flex-start; color: var(--cream); scrollbar-width: none; }
+html body #pausescreen > :not(#px-none) {
+  --fr-edge: var(--cream2);
+  width: var(--winpx);
+  max-width: calc(100vw - var(--u12));
+  margin: 0;
+  background: var(--ink2);
+  box-shadow: var(--frame-mid);
+  flex: 0 0 auto;
+}
+html body #pausescreen > :first-child:not(#px-none) {
+  margin-top: auto;
+  box-shadow: var(--frame-top);
+  background:
+    var(--img-rivet) var(--u2) var(--u2) / var(--u3) var(--u3) no-repeat,
+    var(--img-rivet) calc(100% - var(--u2)) var(--u2) / var(--u3) var(--u3) no-repeat,
+    var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink2);
+}
+html body #pausescreen > :last-child:not(#px-none) {
+  margin-bottom: auto;
+  box-shadow: var(--frame-bot);
+  background:
+    var(--img-rivet) var(--u2) calc(100% - var(--u2)) / var(--u3) var(--u3) no-repeat,
+    var(--img-rivet) calc(100% - var(--u2)) calc(100% - var(--u2)) / var(--u3) var(--u3) no-repeat,
+    var(--ink2);
+}
+html body #pausescreen .p-title {
+  padding: var(--u8) var(--u6) var(--u2);
+  color: var(--cream);
+  opacity: 1;
+  text-align: center;
+  font-size: var(--f2) !important;
+  line-height: var(--lh2) !important;
+  letter-spacing: var(--u2) !important;
+  text-transform: uppercase;
+  text-shadow: 0 var(--u2) 0 var(--gold2) !important;
+}
+html body #pausescreen .p-sub { padding: var(--u2) var(--u6) var(--u6); color: var(--mute); opacity: 1; text-align: center; text-transform: lowercase; }
+html body #pausescreen .result-facts { margin: 0; }
+html body #pausescreen .p-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--u3) var(--gap);
+  padding: var(--u6) var(--u6) var(--u6);
+}
+html body #pausescreen .p-actions button { width: 100%; text-transform: uppercase; }
+
+/* run record table (pause / game over / again) */
+html body .result-facts {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0 0 var(--u8);
+  padding: var(--u2) var(--u6) var(--u3);
+  border: 0;
+  color: var(--mute);
+  background: var(--ink);
+  text-align: left;
+  text-transform: lowercase;
+}
+html body :is(#gameover, #againpanel) .result-facts { --fr-edge: var(--slate); box-shadow: var(--frame); }
+html body .result-facts div {
+  align-items: baseline;
+  gap: var(--u6);
+  padding: var(--u2) 0 var(--u2);
+  border: 0;
+  background: var(--img-dots-slate) 0 100% / var(--u2) var(--u) repeat-x;
+}
+html body .result-facts div:last-child { background: none; padding-bottom: var(--u); }
+html body .result-facts span { flex: none; white-space: nowrap; }
+html body .result-facts strong { flex: 1 1 0; min-width: 0; color: var(--cream); text-align: right; white-space: normal; overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------------ game over + again */
+html body #gameover .go-title,
+html body #againpanel .again-title {
+  margin: 0 0 var(--u4);
+  color: var(--cream);
+  font-size: var(--f2) !important;
+  line-height: var(--lh2) !important;
+  letter-spacing: var(--u2) !important;
+  text-transform: uppercase;
+  text-shadow: 0 var(--u2) 0 var(--gold2) !important;
+}
+html body #againpanel .again-title { font-size: var(--f3) !important; line-height: var(--lh3) !important; letter-spacing: var(--u3) !important; text-shadow: 0 var(--u3) 0 var(--gold2) !important; }
+html body #gameover .go-score {
+  margin: 0 0 var(--u4);
+  color: var(--gold);
+  font-size: var(--f3) !important;
+  line-height: var(--lh3) !important;
+  text-shadow: 0 var(--u3) 0 var(--gold2) !important;
+}
+html body #gameover .go-sub,
+html body #againpanel .again-sub {
+  min-height: 0;
+  margin: 0 0 var(--u6);
+  color: var(--cream2);
+  text-transform: lowercase;
+}
+html body :is(#gameover .go-actions, #againpanel .again-actions) { gap: var(--u3) var(--gap); }
+html body :is(#gameover .go-actions, #againpanel .again-actions) button { width: 100%; padding: 0 var(--u2); }
+html body :is(#gameover .go-actions, #againpanel .again-actions) button::before { display: none; }
+
+/* ------------------------------------------------------------------ share postcard */
+html body #postcard .postcard-panel { padding-top: var(--u6); }
+html body #postcard .postcard-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--u4);
+  margin: 0 0 var(--u6);
+  color: var(--gold);
+  letter-spacing: var(--u) !important;
+  text-transform: uppercase;
+}
+html body #postcard .postcard-title::before,
+html body #postcard .postcard-title::after {
+  content: "";
+  width: var(--u5);
+  height: var(--u5);
+  background: var(--img-gem) 0 0 / var(--u5) var(--u5) no-repeat;
+}
+html body #postcard .postcard-card {
+  --fr-edge: var(--gold2); --fr-in: var(--ink);
+  min-height: 0;
+  margin: 0 0 var(--u8);
+  padding: var(--u6);
+  border: 0;
+  text-align: left;
+  background: var(--img-panel-ramp) 0 0 / var(--u4) calc(var(--u) * 28) repeat-x, var(--ink);
+  box-shadow: var(--frame);
+}
+html body #postcard .postcard-headline { margin: 0 0 var(--u3); color: var(--gold); text-transform: uppercase; }
+html body #postcard .postcard-score {
+  margin: 0 0 var(--u4);
+  color: var(--cream);
+  font-size: var(--f4) !important;
+  line-height: var(--lh4) !important;
+  text-shadow: 0 var(--u4) 0 var(--gold2), 0 calc(var(--u) * 5) 0 var(--ink) !important;
+}
+html body #postcard :is(.postcard-meta, .postcard-quote, .postcard-link) { color: var(--moon); text-transform: lowercase; }
+html body #postcard .postcard-quote { margin-top: var(--u3); color: var(--cream2); }
+html body #postcard .postcard-facts { gap: var(--u4) var(--gap); margin-top: var(--u6); }
+html body #postcard .postcard-fact { padding-top: var(--u3); border: 0; background: var(--img-dots-slate) 0 0 / var(--u2) var(--u) repeat-x; }
+html body #postcard .postcard-fact span { color: var(--mute); text-transform: uppercase; }
+html body #postcard .postcard-fact strong { margin-top: var(--u); color: var(--cream); text-transform: lowercase; }
+html body #postcard .postcard-link {
+  margin-top: var(--u6);
+  color: var(--gold3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+html body #postcard .postcard-link:empty { display: none; }
+html body #postcard .postcard-format { gap: var(--gap); margin: 0 0 var(--u3); }
+html body #postcard .format-choice { width: 100%; min-height: var(--tap); }
+html body #postcard .postcard-actions { gap: var(--u3) var(--gap); }
+html body #postcard .postcard-actions button { width: 100%; gap: var(--u2); padding: 0 var(--u2); white-space: normal; text-align: left; }
+
+/* short viewports (landscape phones): dialogs go two-column so they fit the height */
+html[data-px-h="short"] body :is(#gameover .gameover-panel, #againpanel .again-panel, #postcard .postcard-panel) {
+  display: grid;
+  width: min(var(--mwpx), calc(var(--u) * 318));
+  column-gap: var(--u10);
+  align-items: start;
+  padding-top: var(--u6);
+}
+html[data-px-h="short"] body #gameover .gameover-panel {
+  grid-template-columns: calc(var(--u) * var(--d2a, 144)) calc(var(--u) * var(--d2b, 152));
+  grid-template-areas: "t f" "s f" "b f" "a f" ". f";
+}
+html[data-px-h="short"] body #gameover .go-title { grid-area: t; }
+html[data-px-h="short"] body #gameover .go-score { grid-area: s; }
+html[data-px-h="short"] body #gameover .go-sub { grid-area: b; }
+html[data-px-h="short"] body #gameover .go-actions { grid-area: a; }
+html[data-px-h="short"] body #gameover .result-facts { grid-area: f; margin: 0; }
+html[data-px-h="short"] body #againpanel .again-panel {
+  grid-template-columns: calc(var(--u) * var(--d2a, 144)) calc(var(--u) * var(--d2b, 152));
+  grid-template-areas: "t f" "b f" "a f" ". f";
+}
+html[data-px-h="short"] body #againpanel .again-title { grid-area: t; }
+html[data-px-h="short"] body #againpanel .again-sub { grid-area: b; }
+html[data-px-h="short"] body #againpanel .again-actions { grid-area: a; }
+html[data-px-h="short"] body #againpanel .result-facts { grid-area: f; margin: 0; }
+html[data-px-h="short"] body #postcard .postcard-panel {
+  grid-template-columns: calc(var(--u) * var(--p2a, 164)) calc(var(--u) * var(--p2b, 132));
+  grid-template-areas: "t t" "c f" "c a" "c .";
+}
+html[data-px-h="short"] body #postcard .postcard-title { grid-area: t; }
+html[data-px-h="short"] body #postcard .postcard-card { grid-area: c; margin: 0; }
+html[data-px-h="short"] body #postcard .postcard-format { grid-area: f; }
+html[data-px-h="short"] body #postcard .postcard-actions { grid-area: a; grid-template-columns: minmax(0, 1fr); }
+html[data-px-h="short"] body #postcard .postcard-actions button { white-space: nowrap; }
+html[data-px-h="short"] body #postcard .postcard-score { font-size: var(--f3) !important; line-height: var(--lh3) !important; text-shadow: 0 var(--u3) 0 var(--gold2), 0 var(--u4) 0 var(--ink) !important; }
+html[data-px-h="short"] body #pausescreen > :not(#px-none) { width: min(var(--winpx), calc(var(--u) * 222)); }
+
+/* ------------------------------------------------------------------ pixel tooltip (ui.js) */
+#px-tip {
+  --fr-edge: var(--gold2);
+  position: fixed;
+  z-index: 9990;
+  max-width: calc(var(--u) * 120);
+  padding: var(--u2) var(--u5) var(--u3);
+  color: var(--cream);
+  background: var(--ink2);
+  box-shadow: var(--frame);
+  pointer-events: none;
+  white-space: normal;
+  visibility: hidden;
+}
+#px-tip.show { visibility: visible; }
+
+/* ------------------------------------------------------------------ layout by game-px width */
+/* one-column screens (Chunky phones): smaller numerals, stacked actions */
+html[data-px-cols="1"] body #startscreen .stat-cell { padding-left: var(--u3); padding-right: var(--u3); }
+html[data-px-cols="1"] body #startscreen .stat-cell strong { font-size: var(--f1) !important; line-height: var(--lh1) !important; }
+html[data-px-cols="1"] body #startscreen .customizer-panel { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+html[data-px-cols="1"] body #postcard .postcard-actions { grid-template-columns: minmax(0, 1fr); }
+html[data-px-cols="1"] body #postcard .postcard-actions button { white-space: nowrap; }
+html[data-px-cols="1"] body #gameover .go-score { font-size: var(--f2) !important; line-height: var(--lh2) !important; text-shadow: 0 var(--u2) 0 var(--gold2) !important; }
+html[data-px-cols="1"] body :is(#gameover .go-actions, #againpanel .again-actions, #pausescreen .p-actions, #postcard .postcard-format) { grid-template-columns: minmax(0, 1fr); }
+html[data-px-cols="1"] body :is(#gameover .go-title, #againpanel .again-title, #pausescreen .p-title) {
+  font-size: var(--f2) !important; line-height: var(--lh2) !important; letter-spacing: 0 !important; text-shadow: 0 var(--u2) 0 var(--gold2) !important;
+}
+html[data-px-cols="1"] body #postcard .postcard-score { font-size: var(--f2) !important; line-height: var(--lh2) !important; text-shadow: 0 var(--u2) 0 var(--gold2), 0 var(--u3) 0 var(--ink) !important; }
+html[data-px-cols="1"] body .result-facts { padding-left: var(--u4); padding-right: var(--u4); }
+html[data-px-cols="1"] body .result-facts div { gap: var(--u4); }
+html[data-px-cols="1"] body #startscreen :is(.mode-grid, .realm-choices) { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+html[data-px-cols="2"] body #startscreen :is(.mode-grid, .realm-choices) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-px-cols="3"] body #startscreen :is(.mode-grid, .realm-choices) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html body #startscreen .realm-dusk { grid-column: 1 / -1; }
+
+/* ------------------------------------------------------------------ reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html body *, html body *::before, html body *::after { animation: none !important; }
+  html body #startscreen, html body #startscreen * { transition-duration: 0s !important; transition-delay: 0s !important; }
+}
