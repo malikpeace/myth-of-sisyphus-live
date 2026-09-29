@@ -1871,7 +1871,7 @@
   #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
   @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
-<link rel="stylesheet" href="v8/ui.css?v=v8-09290119">
+<link rel="stylesheet" href="v8/ui.css?v=v8-09290125">
 </head>
 <body>
   <div id="stage">
@@ -2064,36 +2064,36 @@
     </details>
   </div>
 
-<script src="v8/px.js?v=v8-09290119"></script>
-<script src="v8/rock.js?v=v8-09290119"></script>
-<script src="v8/hero.js?v=v8-09290119"></script>
-<script src="v8/actor.js?v=v8-09290119"></script>
-<script src="v8/scenery.js?v=v8-09290119"></script>
-<script src="v8/core.js?v=v8-09290119"></script>
-<script src="v8/overlays.js?v=v8-09290119"></script>
-<script src="v8/realms/hills.js?v=v8-09290119"></script>
-<script src="v8/realms/_bridge.js?v=v8-09290119"></script>
-<script src="v8/realms/waterfalls.js?v=v8-09290119"></script>
-<script src="v8/realms/moon-rome.js?v=v8-09290119"></script>
-<script src="v8/realms/sunset-rome.js?v=v8-09290119"></script>
-<script src="v8/realms/snow.js?v=v8-09290119"></script>
-<script src="v8/realms/blossom.js?v=v8-09290119"></script>
-<script src="v8/realms/dusk.js?v=v8-09290119"></script>
-<script src="v8/realms/galaxy.js?v=v8-09290119"></script>
-<script src="v8/realms/canyon.js?v=v8-09290119"></script>
-<script src="v8/realms/storm.js?v=v8-09290119"></script>
-<script src="v8/realms/volcanic.js?v=v8-09290119"></script>
-<script src="v8/realms/aurora.js?v=v8-09290119"></script>
-<script src="v8/realms/bones.js?v=v8-09290119"></script>
-<script src="v8/realms/obsidian.js?v=v8-09290119"></script>
-<script src="v8/realms/void.js?v=v8-09290119"></script>
-<script src="v8/endless-journey.js?v=v8-09290119"></script>
-<script src="v8/endless-scenery.js?v=v8-09290119"></script>
-<script src="v8/realm-architecture.js?v=v8-09290119"></script>
-<script src="v8/realm-catalog.js?v=v8-09290119"></script>
-<script src="v8/realm-dusk.js?v=v8-09290119"></script>
-<script src="v8/realm-scenes.js?v=v8-09290119"></script>
-<script src="v8/ui.js?v=v8-09290119"></script>
+<script src="v8/px.js?v=v8-09290125"></script>
+<script src="v8/rock.js?v=v8-09290125"></script>
+<script src="v8/hero.js?v=v8-09290125"></script>
+<script src="v8/actor.js?v=v8-09290125"></script>
+<script src="v8/scenery.js?v=v8-09290125"></script>
+<script src="v8/core.js?v=v8-09290125"></script>
+<script src="v8/overlays.js?v=v8-09290125"></script>
+<script src="v8/realms/hills.js?v=v8-09290125"></script>
+<script src="v8/realms/_bridge.js?v=v8-09290125"></script>
+<script src="v8/realms/waterfalls.js?v=v8-09290125"></script>
+<script src="v8/realms/moon-rome.js?v=v8-09290125"></script>
+<script src="v8/realms/sunset-rome.js?v=v8-09290125"></script>
+<script src="v8/realms/snow.js?v=v8-09290125"></script>
+<script src="v8/realms/blossom.js?v=v8-09290125"></script>
+<script src="v8/realms/dusk.js?v=v8-09290125"></script>
+<script src="v8/realms/galaxy.js?v=v8-09290125"></script>
+<script src="v8/realms/canyon.js?v=v8-09290125"></script>
+<script src="v8/realms/storm.js?v=v8-09290125"></script>
+<script src="v8/realms/volcanic.js?v=v8-09290125"></script>
+<script src="v8/realms/aurora.js?v=v8-09290125"></script>
+<script src="v8/realms/bones.js?v=v8-09290125"></script>
+<script src="v8/realms/obsidian.js?v=v8-09290125"></script>
+<script src="v8/realms/void.js?v=v8-09290125"></script>
+<script src="v8/endless-journey.js?v=v8-09290125"></script>
+<script src="v8/endless-scenery.js?v=v8-09290125"></script>
+<script src="v8/realm-architecture.js?v=v8-09290125"></script>
+<script src="v8/realm-catalog.js?v=v8-09290125"></script>
+<script src="v8/realm-dusk.js?v=v8-09290125"></script>
+<script src="v8/realm-scenes.js?v=v8-09290125"></script>
+<script src="v8/ui.js?v=v8-09290125"></script>
 <script>
 (function () {
   "use strict";
@@ -12628,6 +12628,7 @@
     { from: 11950, to: 13450, id: "obsidian" }, { from: 13450, to: 15000, id: "blossom" }, { from: 15000, to: 1e9, id: "void" }
     // ids without a registered scene (yet) fall back to the legacy painted zone - see v8/ZONES.md
   ];
+  var V8_ZONE_NAMES = { hills: "the hills", waterfalls: "the falls", snow: "above the clouds", galaxy: "the night sky", canyon: "the canyon", "sunset-rome": "the greek shore", storm: "storm pass", "moon-rome": "the ruins", volcanic: "the ash fields", aurora: "the aurora", bones: "the bone fields", obsidian: "obsidian", blossom: "elysium", void: "the void" };
   var V8_CROSS_SECONDS = 1.5, v8Want, v8Cross = null, v8MistA = 0, v8MistPat = [];
   function v8LegacyWant() {
     if (!V8_REALMS || selectedRealm || gameState === "title") return null;
@@ -12646,7 +12647,10 @@
       var t = (tSec - v8Cross.t0) / V8_CROSS_SECONDS;
       if (t >= 1) { v8Want = v8Cross.to; v8Cross = null; }
       else if (t < 0.5) return { id: v8Cross.from, mist: t / 0.5 };
-      else return { id: v8Cross.to, mist: 1 - (t - 0.5) / 0.5 };
+      else {
+        if (!v8Cross.said && v8Cross.to && gameState === "playing") { v8Cross.said = true; showModeBanner(V8_ZONE_NAMES[v8Cross.to] || v8Cross.to, 2.6); }   // name the place you have just walked into
+        return { id: v8Cross.to, mist: 1 - (t - 0.5) / 0.5 };
+      }
     }
     return { id: v8Want, mist: 0 };
   }
