@@ -36,7 +36,7 @@
     var hw = Math.ceil(rx) + 2, hh = Math.ceil(ry) + 2, W = hw * 2 + 1, H = hh * 2 + 1;
     var sp = new PX.Sprite(W, H); sp.ox = -hw; sp.oy = -hh;
     var mask = new Uint8Array(W * H), tone = new Float32Array(W * H), lit = new Float32Array(W * H), acc = new Uint8Array(W * H);
-    var seed = st.seed, N = 6, big = rx > 24, freq = big ? st.facets * 0.62 : st.facets;
+    var seed = st.seed, N = 6, big = rx > 24, freq = big ? st.facets * 0.44 : st.facets;
     var y, x, i;
     for (y = -hh; y <= hh; y++) for (x = -hw; x <= hw; x++) {
       var dx = (x + 0.5) / rx, dy = (y + 0.5) / ry, rr = dx * dx + dy * dy;
@@ -46,27 +46,33 @@
       if (st.lump && rr > 0.55) {                                                   // a boulder is never a perfect circle: flats and lumps that turn with it
         var rl = Math.sqrt(rr), ux = px / (rl || 1), uy = py / (rl || 1);
         var g0 = PX.vnoise(ux * 1.35 + 5.1 + seed, uy * 1.35 + 7.3, 0.5);
-        if (rl > 1 - st.lump * g0 * 2.2) continue;
+        if (rl > 1 - st.lump * (big ? 1.75 : 1) * g0 * 2.2) continue;
+        if (big && rl > 0.90 && PX.vnoise(ux * 4.4 + seed * 2.3, uy * 4.4 + 3.1, 1.7) > 0.79) continue;      // a chipped notch here and there
       }
-      var w = PX.worley(px * freq + seed * 3.7, py * freq + seed * 1.9, pz * freq + seed * 5.3);
+      var wp = big ? (PX.vnoise(px * 1.6 + seed, py * 1.6 + 7.1, pz * 1.6 + 3.3) - 0.5) * 0.85 : 0;             // big stones: bend the fracture lines
+      var w = PX.worley(px * freq + seed * 3.7 + wp, py * freq + seed * 1.9 + wp * 0.7, pz * freq + seed * 5.3 - wp * 0.6);
       var d1 = w.d1, d2 = w.d2, id = w.id;
-      var tx = (PX.h3(id, seed, 1) - 0.5) * st.tilt, ty = (PX.h3(id, seed, 2) - 0.5) * st.tilt, tz = (PX.h3(id, seed, 3) - 0.5) * st.tilt;
+      var tl = big ? st.tilt * 1.32 : st.tilt, tx = (PX.h3(id, seed, 1) - 0.5) * tl, ty = (PX.h3(id, seed, 2) - 0.5) * tl, tz = (PX.h3(id, seed, 3) - 0.5) * tl;
       var mx = px + tx, my = py + ty, mz = pz + tz, ml = Math.hypot(mx, my, mz); mx /= ml; my /= ml; mz /= ml;
       var vx = mx * cs - my * sn, vy = mx * sn + my * cs, vz = mz;                  // facet normal back in view space
       var diff = vx * L[0] + vy * L[1] + vz * L[2]; if (diff < 0) diff = 0;
       var sph = nx * L[0] + ny * L[1] + nz * L[2]; if (sph < 0) sph = 0;
       var t = 0.10 + 0.44 * diff + 0.40 * sph;
       t *= 0.90 + 0.20 * PX.h3(id, seed, 9);
-      var crack = st.crack, edge = (d2 - d1) < crack * (big ? 1.7 : 1.25);
+      var crack = st.crack, edge = (d2 - d1) < crack * (big ? 1.05 : 1.25);
       if (!edge && st.fine && !big) {
         var w2 = PX.worley(px * freq * 2.6 + seed * 9.1, py * freq * 2.6 + seed * 4.4, pz * freq * 2.6 + seed * 2.2);
         if ((w2.d2 - w2.d1) < crack && PX.h3(w2.id, seed, 4) > 0.52) edge = true;
       }
-      if (edge && PX.h3(id, seed, 21) > (big ? 0.66 : 0.42)) t *= 0.55;         // only some plane edges are dark; the rest show as a change of tone
+      if (edge && PX.h3(id, seed, 21) > (big ? 0.50 : 0.42)) t *= big ? 0.66 : 0.55;   // only some plane edges are dark; the rest show as a change of tone
       if (big) {
-        if (Math.abs(PX.vnoise(px * 2.1 + seed, py * 2.1, pz * 2.1) - 0.5) < 0.014) t *= 0.55;   // a few long wandering cracks
-        t += (PX.vnoise(px * 3.1 + seed * 2, py * 3.1, pz * 3.1) - 0.5) * 0.24;                  // weathering stains
+        var cr1 = Math.abs(PX.vnoise(px * 2.1 + seed, py * 2.1, pz * 2.1) - 0.5), cr2 = Math.abs(PX.vnoise(px * 3.4 + seed * 3, py * 3.4 + 5, pz * 3.4 + 2) - 0.5);
+        if (cr1 < 0.017) t *= 0.50; else if (cr2 < 0.012) t *= 0.62;                           // long wandering cracks (two families, so they branch and cross)
+        t += (PX.vnoise(px * 3.1 + seed * 2, py * 3.1, pz * 3.1) - 0.5) * 0.20;                  // weathering stains
+        t += Math.sin((px * 0.55 + py * 0.35 + pz * 0.75) * 9.0 + wp * 7.0) * 0.045;            // faint strata banding that rolls with the stone
         if (PX.vnoise(px * 6 + seed, py * 6, pz * 6) > 0.86) t *= 0.78;                          // pits
+        var sp0 = PX.ihash(Math.floor(px * 34 + 50), Math.floor(py * 34 + 50), Math.floor(pz * 34 + 50));
+        if (sp0 > 0.987) t += 0.16; else if (sp0 < 0.010) t *= 0.72;                             // mica flecks and pinpricks
       }
       t += (PX.vnoise(px * 5.5 + seed, py * 5.5, pz * 5.5) - 0.5) * 0.10;
       if (t > 0.93) t = 0.93;
