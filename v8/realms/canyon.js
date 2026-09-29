@@ -1,13 +1,15 @@
 // The Canyon River - V8 zone scene (2500-3200 m). Late afternoon in a deep red-ochre sandstone gorge, built entirely in code on the
-// shared indexed framebuffer: a banded sky with a low gold sun, mauve-lit cloud streaks, four receding ranks of strata mesas / buttes /
-// hoodoos / one natural arch that step from lavender haze to burnt red (aerial perspective is a palette mix, not a blend), a silver
-// river far below with palette-cycled ripples and a glitter path under the sun. The ground is a cut through the gorge wall: baked
-// crust plates, cross-bedded sandstone, red mudstone, limestone with nodules, the Redwall cliffs, shale, conglomerate, and dark
-// schist with pink veins and amber glow far below; fossils, geodes, caves and a buried petroglyph stone are sealed in the layers.
+// shared indexed framebuffer: a banded sky with a low gold sun that sinks and warms as the gorge is climbed out of (the nearer ranks sink
+// faster: vertical parallax), puffy clouds lit gold from below, four receding ranks of strata mesas / buttes / hoodoos with a natural arch
+// and two thin waterfalls that step from lavender haze to burnt red (aerial perspective is a palette mix, not a blend), a silver river far
+// below with palette-cycled ripples and a glitter path under the sun, gold dust, and the odd tumbleweed. The ground is a cut through the
+// gorge wall: baked crust plates, cross-bedded sandstone, red mudstone, limestone, the Redwall cliffs, shale with copper-green lenses,
+// conglomerate, and dark folded schist with pegmatite dikes and a rose glow far below; fossils, calcite and rose-quartz geodes, caves,
+// a carved stone and an old stone are sealed in the layers.
 (function (root) {
   "use strict";
   var PX = root.PX, Sc = root.Sc, V8 = root.V8, hex = PX.hex, clamp = PX.clamp, clamp01 = PX.clamp01, B4 = PX.BAYER4;
-  var R = { rock: { mat: "warm", style: "granite" }, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.8, f: 4 } };
+  var R = { rock: { mat: "warm", style: "granite" }, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.72, f: 3 } };
   var I = {}, ST = {}, CL = [], built = "", SKY0 = null, CLD0 = null, skyF = -1;
   // ---------------------------------------------------------------------------------------------------------------
   // shared helpers (this block is duplicated in canyon.js / volcanic.js / obsidian.js so every zone file stands alone)
@@ -60,7 +62,7 @@
   }
   // a shaded stone: lumpy outline, lit from the upper-left, dark rim on the shaded side. ramp = palette base of a >=6 tone ramp.
   // Rasterised once per (size, ramp, shape) and cached: each call is a cheap blit.
-  var STC = {};
+  var STC = {}, STN = 0;
   function stoneSprite(rx, ry, ramp, seed, top) {
     var ph = PX.h1((seed & 7) * 7 + 3) * TAU, W = 2 * Math.ceil(rx) + 3, Hh = 2 * Math.ceil(ry) + 3, d = new Uint8Array(W * Hh), ox = Math.ceil(rx) + 1, oy = Math.ceil(ry) + 1;
     for (var y = -Math.ceil(ry) - 1; y <= Math.ceil(ry) + 1; y++) for (var x = -Math.ceil(rx) - 1; x <= Math.ceil(rx) + 1; x++) {
@@ -76,7 +78,7 @@
   }
   function stone(fb, cx, cy, rx, ry, ramp, seed, hi) {
     var top = hi == null ? 4 : hi, r2 = Math.round(rx * 2), q2 = Math.round(ry * 2), key = (((r2 << 8) | q2) * 256 + ramp) * 64 + (seed & 7) * 8 + top;
-    var sp = STC[key]; if (!sp) sp = STC[key] = stoneSprite(r2 / 2, q2 / 2, ramp, seed, top);
+    var sp = STC[key]; if (!sp) { if (++STN > 700) { STC = {}; STN = 1; } sp = STC[key] = stoneSprite(r2 / 2, q2 / 2, ramp, seed, top); }
     var w = fb.w, h = fb.h, d = fb.d, x0 = cx - sp.ox, y0 = cy - sp.oy, sw = sp.w, sd = sp.d, x, y;
     if (x0 >= w || y0 >= h || x0 + sw <= 0 || y0 + sp.h <= 0) return;
     for (y = 0; y < sp.h; y++) { var ty = y0 + y; if (ty < 0 || ty >= h) continue; for (x = 0; x < sw; x++) { var v = sd[y * sw + x]; if (!v) continue; var tx = x0 + x; if (tx < 0 || tx >= w) continue; d[ty * w + tx] = ramp + v - 1; } }
@@ -142,7 +144,7 @@
     R.watcherIdx = I.red + 1;                                           // the watcher: a dark red-brown cloak on the sand
     R.footprint = { col: I.orng + 3, hi: I.orng + 7 };                  // pressed sand with a lit rim
     R.markerIdx = { c0: I.red + 1, c1: I.orng + 3, c2: I.orng + 6, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };   // cairns in the local sandstone
-    R.pal = pal; RM = null;
+    R.pal = pal; RMAP = null;
     built = "";
     build(S);
   };
@@ -226,14 +228,28 @@
       for (y = y0; y < Math.min(Hh - fadeR, y0 + len); y++) { var o2 = y * L + x; if (d[o2] > P + 1 && d[o2] < P + n) d[o2]--; }
     }
     if (o.arch) carveArch(st, feats, o, L, Hh, P, n);
+    if (o.fall) carveFall(st, feats, o, L, Hh, top, fadeR);
     if (o.fade) for (y = 0; y < fadeR; y++) {                            // a mist bank at the base: dithered haze over rock AND gaps
       var ry = Hh - 1 - y, amt = 1 - y / fadeR;
       for (x = 0; x < L; x++) if ((B4[ry & 3][x & 3] + 0.5) < amt) d[ry * L + x] = o.fade;
     }
     st.top = top; return st;
   }
+  function carveFall(st, feats, o, L, Hh, top, fadeR) {                 // a thin waterfall leaves a notch in the caprock and cascades down the face (index cycles with the palette)
+    var best = null, bd = 1e9, i, tx = o.fallAt * L; for (i = 0; i < feats.length; i++) { var dx = Math.abs(feats[i].cx - tx); if (feats[i].hw > 12 && dx < bd) { bd = dx; best = feats[i]; } }
+    if (!best) return;
+    var d = st.d, x0 = ((Math.round(best.cx - best.hw * 0.3) % L) + L) % L, y0 = top[x0] + 1, y1 = Hh - fadeR - 2, y, k;
+    for (y = y0; y < y1; y++) {
+      var wob = Math.round(Math.sin(y * 0.21) * 0.6), c = I.rgl + 3 - ((y >> 1) & 3);
+      d[y * L + ((x0 + wob + L) % L)] = c; if (y > y0 + 2 && (y & 3) !== 0) d[y * L + ((x0 + wob + 1) % L)] = I.rgl + ((c - I.rgl + 2) & 3);
+    }
+    for (k = 0; k < 14; k++) {                                          // spray at the foot
+      var sx = x0 + Math.round((PX.h2(k, 7) - 0.5) * 8), sy = y1 - Math.round(PX.h2(k, 9) * 4), px = ((sx % L) + L) % L;
+      if (B4[sy & 3][px & 3] + 0.5 < 0.7) d[sy * L + px] = I.haze + 1;
+    }
+  }
   function carveArch(st, feats, o, L, Hh, P, n) {                        // one natural arch through the broadest mesa
-    var best = null, i; for (i = 0; i < feats.length; i++) if (feats[i].hw > 26 && (!best || feats[i].hh > best.hh)) best = feats[i];
+    var best = null, bd = 1e9, i, tx = (o.archAt == null ? 0.7 : o.archAt) * L; for (i = 0; i < feats.length; i++) { var dxa = Math.abs(feats[i].cx - tx); if (feats[i].hw > 22 && feats[i].hh > 40 && dxa < bd) { bd = dxa; best = feats[i]; } }
     if (!best) return;
     var d = st.d, cx = Math.round(best.cx + best.hw * 0.25), aw = Math.round(7 * o.ws + 2), ah = Math.round(best.hh * 0.30 + 4), y0 = 7, x, y;
     for (x = -aw - 1; x <= aw + 1; x++) for (y = 0; y <= ah + 2; y++) {
@@ -341,9 +357,9 @@
     function A(v) { return Math.max(1, Math.round(v * a)); }
     ST.a = a;
     ST.f0 = mesaStrip({ L: 1300, H: Math.round(hy * 0.34), seed: 4, ramp: I.f0, n: 4, ws: 1.5 * a, gap: 26 * a, hMin: 0.30, hMax: 0.78, pSpire: 0.0, pButte: 0.22, fade: I.haze + 1, fadeRows: A(9) });
-    ST.f1 = mesaStrip({ L: 1200, H: Math.round(hy * 0.52), seed: 9, ramp: I.f1, n: 5, ws: 1.25 * a, gap: 34 * a, hMin: 0.28, hMax: 0.92, pSpire: 0.07, pButte: 0.30, fade: I.haze, fadeRows: A(9), arch: true });
+    ST.f1 = mesaStrip({ L: 1200, H: Math.round(hy * 0.52), seed: 9, ramp: I.f1, n: 5, ws: 1.25 * a, gap: 34 * a, hMin: 0.28, hMax: 0.92, pSpire: 0.07, pButte: 0.30, fade: I.haze, fadeRows: A(9), arch: true, archAt: 0.36, fall: 1, fallAt: 0.2 });
     ST.river = riverStrip({ L: 1024, H: Math.max(S.h - hy, 60) + A(20), seed: 6, yr: A(11), a: a });
-    ST.f2 = mesaStrip({ L: 1050, H: Math.round(hy * 0.30), seed: 15, ramp: I.f2, n: 6, ws: a, gap: 60 * a, hMin: 0.22, hMax: 0.80, pSpire: 0.12, pButte: 0.34, fade: I.valley + 1, fadeRows: A(5) });
+    ST.f2 = mesaStrip({ L: 1050, H: Math.round(hy * 0.30), seed: 15, ramp: I.f2, n: 6, ws: a, gap: 60 * a, hMin: 0.22, hMax: 0.80, pSpire: 0.12, pButte: 0.34, fade: I.valley + 1, fadeRows: A(5), fall: 1, fallAt: 0.83 });
     ST.f3 = mesaStrip({ L: 900, H: Math.round(hy * 0.22), seed: 21, ramp: I.f3, n: 7, ws: 0.9 * a, gap: 100 * a, hMin: 0.2, hMax: 0.8, pSpire: 0.16, pButte: 0.3, fade: I.f3 + 1, fadeRows: A(4) });
     CL = [];
     // [width (of screen), height (of width), y (of horizon), speed]
@@ -354,7 +370,6 @@
     }
     for (i = 0; i < 4; i++) CL.push({ sp: wisp(700 + i * 13, Math.round(clamp(S.w * (0.28 + 0.2 * PX.h1(i * 3 + 1)), 60, 260)), 3 + (i & 1)), x: PX.h1(i * 11 + 5) * 1400, y: 0.06 + 0.46 * PX.h1(i * 17 + 3), v: 0.3 + 0.5 * PX.h1(i * 5 + 2) });
   }
-  var RM = null;
 
   // the low sun on the left; it sinks and warms as the gorge is climbed out of (altitude 2500 -> 3200 m)
   function sunPos(S) {
@@ -373,15 +388,6 @@
     var q = Math.floor(t * 3.2) % 4, g = [[247, 220, 174], [255, 236, 201], [255, 248, 228], [255, 236, 201]];
     pal.setRamp("rgl", [g[q], g[(q + 1) % 4], g[(q + 2) % 4], g[(q + 3) % 4]]);
   };
-
-  function hazeBand(fb, y0, amp, y1, idx, drift) {                       // rolling mist bank: solid below a wavy crest with a two-row dithered fringe
-    var w = fb.w, d = fb.d, x, y, MODW = hazeBand.m || (hazeBand.m = new Float32Array(4096));
-    for (x = 0; x < w; x++) { var xa = x + drift; MODW[x] = Math.round(amp * (Math.sin(xa * 0.021) * 0.55 + Math.sin(xa * 0.057 + 1.1) * 0.3 + Math.sin(xa * 0.131 + 2.3) * 0.15)); }
-    for (y = Math.max(0, y0 - amp - 2); y < Math.min(fb.h, y1); y++) {
-      var row = y * w, br = B4[y & 3];
-      for (x = 0; x < w; x++) { var e = y - (y0 + MODW[x]); if (e >= 0 || (e === -1 && br[x & 3] < 0) || (e === -2 && br[x & 3] < -0.3)) d[row + x] = idx; }
-    }
-  }
 
   R.backdrop = function (fb, S, pal) {
     build(S);
@@ -605,17 +611,19 @@
       fb.set(cx + x, cy + y, c);
     }
   }
-  function dike(fb, x0, y0, len, ang, thick, seed) {                     // a pegmatite dike: a tapering pink vein with a pale core and a lit upper edge
-    var x = x0, y = y0, k, q, P = I.pink;
+  function dike(fb, x0, y0, len, ang, thick, seed) {                     // a pegmatite dike: a swelling and pinching pink vein with ragged edges, a pale core, a lit upper edge, small offshoots
+    var x = x0, y = y0, k, q, P = I.pink, nx = PX.h1(seed) * 100;
     for (k = 0; k < len; k++) {
-      ang += (PX.h2(seed, k + 720) - 0.5) * 0.11; x += Math.cos(ang); y += Math.sin(ang);
-      var tp = Math.pow(Math.sin(Math.PI * (k + 1) / (len + 1)), 0.55), th = Math.max(0.6, thick * tp), hh = Math.floor(th), ix = Math.round(x), iy = Math.round(y);
-      for (q = -hh - 1; q <= hh + 1; q++) {
+      ang += (PX.h2(seed, k + 720) - 0.5) * 0.16; x += Math.cos(ang); y += Math.sin(ang);
+      var tp = Math.pow(Math.sin(Math.PI * (k + 1) / (len + 1)), 0.5), sw = 0.6 + 0.8 * vn2(k * 0.11 + nx, seed * 0.3, 5), th = Math.max(0.6, thick * tp * sw), hh = Math.floor(th), ix = Math.round(x), iy = Math.round(y);
+      var jl = PX.h2(seed * 3 + k, 71) < 0.3 ? 1 : 0, jr = PX.h2(seed * 5 + k, 73) < 0.3 ? 1 : 0;
+      for (q = -hh - 1 - jl; q <= hh + 1 + jr; q++) {
         var a2 = Math.abs(q), tone = a2 > hh ? 0 : (a2 === hh ? 1 : (a2 <= hh * 0.4 ? 3 : 2));
         if (q < 0 && a2 === hh && hh > 0) tone = 3;
         if (a2 <= hh * 0.3 && th > 2 && (k % 7) < 4) tone = 4;
         fb.set(ix, iy + q, P + tone);
       }
+      if (k > 12 && k % 23 === 0 && PX.h2(seed, k + 90) > 0.4) { var bx = ix, by = iy, bd = PX.h2(seed, k + 91) < 0.5 ? -1 : 1; for (var s = 1; s < 7; s++) { bx += bd; by += (s & 1) ? 0 : -bd; fb.set(bx, by, s < 5 ? P + 2 : P + 1); fb.set(bx, by - 1, P + 3); } }
     }
   }
   function oldStone(fb, cx, cy, r, seed) {                              // a stone lost long ago, sealed deep with a warm halo and a crack
@@ -703,7 +711,7 @@
       if (inS) {
         var zdu = 380 + PX.h2(c, 214) * 380, zy = lipAt(zx) + zdu * ds, zl = Math.round((44 + 90 * PX.h2(c, 216)) * Math.max(0.7, ds * 1.5)), ang = [-1.15, -0.95, -0.15, 0.3][Math.floor(PX.h2(c, 217) * 4) & 3] + (PX.h2(c, 219) - 0.5) * 0.2;
         if (zx < -160 || zx > w + 160 || zy < -160 || zy > h + 30) continue;
-        dike(fb, zx, zy, zl, ang, 2 + Math.floor(PX.h2(c, 218) * 3), c);
+        dike(fb, zx, zy, zl, ang, 3 + Math.floor(PX.h2(c, 218) * 3), c);
       } else {
         var ldu = 208 + PX.h2(c, 215) * 12, llen = Math.round((24 + 36 * PX.h2(c, 216)) * Math.max(0.7, ds * 1.5)), lth = 1 + Math.round(PX.h2(c, 218) * 1.2);
         if (zx < -80 || zx > w + 80) continue;

@@ -28,7 +28,8 @@
     return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
   }
   function fbm2(x, y, s) { return vn2(x, y, s) * 0.55 + vn2(x * 2.07 + 11.3, y * 2.07 + 4.1, s + 1) * 0.30 + vn2(x * 4.3 + 3.7, y * 4.3 + 17.9, s + 2) * 0.15; }
-  function zoneF(al) { return al < 8000 ? 0.45 : clamp01((al - 8950) / 1500); }
+  function zoneM(al) { return al < 8000 ? al : Math.max(0, al - 8950); }
+  function zoneF(al) { return clamp01(zoneM(al) / 1500); }
   function act(t, f) {                                                       // how bright the lights are right now (0.55 .. 1.25): a slow tide with the odd surge
     var s = Math.sin(t * 0.21 + f * 3.1), u = Math.max(0, Math.sin(t * 0.067 + 1.3 + f * 2.0));
     return 0.98 + 0.18 * s + 0.24 * u * u * u;
@@ -36,7 +37,6 @@
 
   // ---------------------------------------------------------------- palette
   var BASE = {};
-  function tint(c, k) { return [c[0] + (90 - c[0]) * 0 + 0, c[1], c[2]]; }
   R.init = function (pal, S) {
     var t0 = performance.now();
     BASE.sky = keyRamp([[0, [2, 4, 14]], [0.35, [5, 12, 30]], [0.62, [8, 26, 50]], [0.85, [14, 52, 72]], [1, [24, 88, 92]]], SKY_N).map(function (c) { return c.map(Math.round); });
@@ -69,7 +69,7 @@
     R.birdIdx = I.near + 1; R.watcherIdx = I.an + 2;
     R.footprint = { col: I.an + 1, hi: I.an + 4 };
     R.pal = pal; SKYA = -1; LITS = null;
-    ST.key = ""; ST.skyKey = "";
+    // (the baked caches hold palette INDICES only and the ramps are allocated in a fixed order, so they stay valid across re-inits with the same size)
     buildScene(S);
     R.initMs = performance.now() - t0;
   };
@@ -110,7 +110,7 @@
     var L = st.w, Hh = st.h, d = st.d, x, y, o, v;
     for (y = 1; y < Hh - 1; y++) for (x = 0; x < L; x++) {
       o = y * L + x; v = d[o]; if (v !== b + 2) continue;
-      var l = d[y * L + (x + L - 1) % L], r = d[y * L + (x + 1) % L], u = d[o - L], dn = d[o + L];
+      var l = d[x === 0 ? o + L - 1 : o - 1], r = d[x === L - 1 ? o - L + 1 : o + 1], u = d[o - L], dn = d[o + L];
       if (l === r && l === u && l === dn && l !== 0 && l !== v) d[o] = l;
     }
     for (y = Math.round(Hh * 0.5); y < Hh; y++) { var p = Math.pow((y - Hh * 0.5) / (Hh * 0.5), 1.2) * 0.7; for (x = 0; x < L; x++) { o = y * L + x; v = d[o]; if (v >= b && v < b + 3 && BP[((y & 3) << 2) | (x & 3)] < p) d[o] = v + 1; } }
@@ -223,14 +223,14 @@
   }
   // ---------------------------------------------------------------- the frozen lake: the sky and the far peaks, mirrored, dimmed, rippled
   function drawLake(fb, S, hy, t) {
-    var w = fb.w, h = fb.h, d = fb.d, a = S.adj || 1, y0 = hy + Math.round(2 * a), y1 = Math.min(h, y0 + Math.round(46 * a)), x, y, tt = S.reduced ? 0 : t;
+    var w = fb.w, h = fb.h, d = fb.d, a = S.adj || 1, y0 = hy + Math.round(2 * a), y1 = Math.min(h, y0 + Math.round(78 * a)), x, y, tt = S.reduced ? 0 : t;
     for (y = y0; y < y1; y++) {
-      var k = y - y0, ys = y0 - 1 - Math.round(k * 0.92), row = y * w; if (ys < 0) break;
+      var k = y - y0, ys = y0 - 1 - Math.round(k * 1.2), row = y * w; if (ys < 0) break;
       for (x = 0; x < w; x++) {
         var rip = Math.round(Math.sin(y * 0.9 + x * 0.045 + tt * 0.5) * (0.6 + k * 0.04)) + ((k & 1) ? 1 : 0) * (PX.h2(x >> 3, y) > 0.7 ? 1 : 0), sx = clamp(x + rip, 0, w - 1), v = d[ys * w + sx];
         var b = BP[((y & 3) << 2) | (x & 3)], dm = k < 4 ? 0.0 : k < 12 ? 0.5 : k < 24 ? 1.0 : 1.6;
         var o = DIM1[v]; if (dm > 0.9 || b < dm) v = o; if (dm > 1.3 && b < dm - 1.0) v = DIM2[v];
-        if (k > 26 && b < (k - 26) / 20) v = I.lk + 1 + ((y + x) & 1);
+        if (k > 30 && b < (k - 30) / 40) v = I.lk + 1 + ((y + x) & 1);
         d[row + x] = v;
       }
     }
@@ -239,39 +239,72 @@
 
   // ---------------------------------------------------------------- the ground: a baked, world-locked cross-section (column-major slab)
   var LITS = null, VO = { d1: 0, d2: 0, id: 0, cx: 0, cy: 0 };
+  var LAT = null;
+  function ensureLAT() { if (!LAT) { LAT = new Float32Array(65536); var lr = PX.rng(31337); for (var q0 = 0; q0 < 65536; q0++) LAT[q0] = lr(); } }
+  function vnP(x, y, P) {                                                  // value noise from a 256x256 lattice, periodic in x with period P (cells)
+    var ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    var x0 = ((ix % P) + P) % P, x1 = (x0 + 1) % P, a = LAT[((iy & 255) << 8) | x0], b = LAT[((iy & 255) << 8) | x1], c = LAT[(((iy + 1) & 255) << 8) | x0], d = LAT[(((iy + 1) & 255) << 8) | x1];
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+  }
+  function pnoise(qx, dd, L) {                                              // smooth noise that tiles seamlessly along the slab (period L); features ~60 px wide, ~40 px tall
+    return vnP(qx * 24 / L, dd * 0.024, 24) * 0.55 + vnP(qx * 48 / L + 7.3, dd * 0.048 + 3.1, 48) * 0.30 + vnP(qx * 96 / L + 1.9, dd * 0.096 + 8.7, 96) * 0.15;
+  }
+  function poolGrid(L, D) {                                                // the glow-pool noise sampled every 4 px (it tiles along x): the slab bake then just interpolates it
+    var nx = L >> 2, ny = (D >> 2) + 3, g = new Float32Array(nx * ny), gx, gy;
+    for (gy = 0; gy < ny; gy++) for (gx = 0; gx < nx; gx++) g[gy * nx + gx] = pnoise(gx * 4, gy * 4, L);
+    return { g: g, nx: nx, ny: ny };
+  }
   function litMaps() {                                                    // rock tone -> the same tone in a tinted twin ramp (light spilling from glow / lantern)
     LITS = { green: new Uint8Array(256), warm: new Uint8Array(256), ice: new Uint8Array(256) };
     for (var v = 0; v < 256; v++) { LITS.green[v] = v; LITS.warm[v] = v; LITS.ice[v] = v; }
     for (var q = 0; q < 7; q++) { LITS.green[I.ar + q] = I.arl + q; LITS.warm[I.ar + q] = I.wl + Math.min(4, q); LITS.ice[I.ar + q] = I.ai + Math.min(5, q); }
   }
-  function voro(x, y, cs, nx, seed) {                                      // jittered-grid Voronoi, periodic in x (nx cells): nearest / second-nearest distance, id, centre
-    var ix = Math.floor(x / cs), iy = Math.floor(y / cs), d1 = 1e9, d2 = 1e9, id = 0, cx = 0, cy = 0, i, j;
-    for (j = -1; j <= 1; j++) for (i = -1; i <= 1; i++) {
-      var gx = ix + i, gy = iy + j, wx = ((gx % nx) + nx) % nx, px = (gx + PX.ihash(wx, gy, seed)) * cs, py = (gy + PX.ihash(wx, gy, seed + 77)) * cs, dx = px - x, dy = py - y, dd = dx * dx + dy * dy;
-      if (dd < d1) { d2 = d1; d1 = dd; id = wx * 73 + gy * 19; cx = px; cy = py; } else if (dd < d2) d2 = dd;
+  var VJ = {};                                                             // jitter tables for the Voronoi grids: [nx * ny] points per (grid size, seed)
+  function voroTable(cs, nx, seed, ny) {
+    var key = cs + "|" + nx + "|" + seed + "|" + ny, t = VJ[key];
+    if (!t) { t = VJ[key] = { jx: new Float32Array(nx * ny), jy: new Float32Array(nx * ny), ny: ny }; for (var gy = 0; gy < ny; gy++) for (var gx = 0; gx < nx; gx++) { t.jx[gy * nx + gx] = PX.ihash(gx, gy, seed); t.jy[gy * nx + gx] = PX.ihash(gx, gy, seed + 77); } }
+    return t;
+  }
+  function voro(x, y, cs, nx, tab) {                                       // jittered-grid Voronoi, periodic in x (nx cells): nearest / second-nearest distance, id, centre
+    var ix = Math.floor(x / cs), iy = Math.floor(y / cs), d1 = 1e9, d2 = 1e9, id = 0, cx = 0, cy = 0, i, j, ny = tab.ny;
+    for (j = -1; j <= 1; j++) {
+      var gy = iy + j, gyc = gy < 0 ? 0 : gy >= ny ? ny - 1 : gy;
+      for (i = -1; i <= 1; i++) {
+        var gx = ix + i, wx = ((gx % nx) + nx) % nx, o = gyc * nx + wx, px = (gx + tab.jx[o]) * cs, py = (gy + tab.jy[o]) * cs, dx = px - x, dy = py - y, dd = dx * dx + dy * dy;
+        if (dd < d1) { d2 = d1; d1 = dd; id = wx * 73 + gyc * 19; cx = px; cy = py; } else if (dd < d2) d2 = dd;
+      }
     }
     VO.d1 = Math.sqrt(d1); VO.d2 = Math.sqrt(d2); VO.id = id; VO.cx = cx; VO.cy = cy;
   }
   function buildSlab(S) {
     var a = S.adj || 1, L = 1536, D = clamp(S.h + 130, 330, 700), d = new Uint8Array(L * D), rnd = PX.rng(20260930), beds = [], cum, nb, qx, dd, k, i;
-    if (!LITS) litMaps();
+    if (!LITS) litMaps(); ensureLAT();
     function A(v) { return Math.max(1, Math.round(v * a)); }
+    var NF = Math.max(2, Math.round(L / A(340))), WF = L / NF;
     var crustBase = A(6); cum = crustBase; nb = 0;
     while (cum < D + 70 && nb < 70) {
       var th = A(12 + Math.floor(rnd() * 24));
       beds.push({ t: th, tone: rnd(), n1: 2 + Math.floor(rnd() * 5), n2: 8 + Math.floor(rnd() * 10), p1: rnd() * TAU, p2: rnd() * TAU, a1: A(1 + rnd() * 3.2), a2: 0.5 + rnd() * 1.5, jh: A(9 + rnd() * 6), jo: rnd() });
       cum += th; nb++;
     }
+    var PG = poolGrid(L, D), PGg = PG.g, PGn = PG.nx;
     var ed = new Int16Array(nb + 2), AR = I.ar, deepD = A(70), crustE = new Int16Array(L), cs = L / Math.round(L / A(17)), nvx = Math.round(L / cs), cs2 = L / Math.round(L / A(29)), nvx2 = Math.round(L / cs2), cw = L / Math.round(L / A(13)), ncw = Math.round(L / cw);
-    var FLT = [], fr2 = PX.rng(556), fi;
+    var PL = TAU / L, aF1 = A(15), aF2 = A(7), a40 = A(40), a160 = A(160), a70 = A(70), a200 = A(200), a26 = A(26), a230 = A(230), HL = L * 0.5, S45 = new Float32Array(D + 400), fu0c = new Float32Array(4), FSl = new Float32Array(4), FOf = new Float32Array(4), ck = -1, cfr = -1, cKind = 0, cToneAdd = 0, vid = -1, vch = 0, vcs = 0, vsn = 0;
+    for (i = 0; i < S45.length; i++) S45[i] = 26 * Math.sin((i - 200) * 0.045);
+    var FLT = [], fr2 = PX.rng(556), fi, tab1 = voroTable(cs, nvx, 501, Math.ceil((D * 1.2 + 80) / cs) + 3), tab2 = voroTable(cs2, nvx2, 503, Math.ceil((D * 1.2 + 80) / cs2) + 3);
     for (i = 0; i < 4; i++) FLT.push({ x: Math.floor(fr2() * L), s: (fr2() < 0.5 ? -1 : 1) * (0.35 + 0.5 * fr2()), o: (fr2() < 0.5 ? -1 : 1) * A(4 + fr2() * 9) });     // faults: slanted planes that shift the strata on one side
+    for (i = 0; i < 4; i++) { FSl[i] = FLT[i].s; FOf[i] = FLT[i].o; }
+    var FJ = new Float32Array(D + 400); for (i = 0; i < FJ.length; i++) FJ[i] = A(2.4) * Math.sin(i * 0.037 + 1.3) + A(1.5) * Math.sin(i * 0.11 + 4.1) + A(0.9) * Math.sin(i * 0.29 + 0.4);    // faults meander a little: no ruled lines
     for (qx = 0; qx < L; qx++) {
       var col = qx * D, snow = crustBase + Math.round(A(3) * (0.5 + 0.5 * Math.sin(qx * TAU * 7 / L + 1.0)) * (0.6 + 0.8 * PX.h2(qx >> 3, 3))) + ((PX.h2(qx >> 1, 77) > 0.62) ? 1 : 0) + ((PX.h2(Math.floor(qx / 3), 78) > 0.86) ? 1 : 0), e0 = snow;
       crustE[qx] = e0; ed[0] = e0 + A(3);
       for (k = 0; k < nb; k++) { var bd = beds[k]; ed[k + 1] = ed[k] + Math.max(4, bd.t + Math.round(bd.a1 * Math.sin(qx * TAU * bd.n1 / L + bd.p1) + bd.a2 * Math.sin(qx * TAU * bd.n2 / L + bd.p2))); }
-      k = 0;
+      k = 0; ck = -1; cfr = -1;
+      var pxi = qx >> 2, pxi1 = pxi + 1 >= PGn ? 0 : pxi + 1, ptx = (qx & 3) * 0.25;
+      var sf1 = aF1 * Math.sin(qx * PL + 0.7), sf2 = aF2 * Math.sin(qx * PL * 3 + 2.2), sfu = 70 * Math.sin(qx * PL * 3);
+      for (fi = 0; fi < 4; fi++) { var fw = qx - FLT[fi].x; fu0c[fi] = ((fw + L * 1.5) % L) - HL; }
       for (dd = 0; dd < D; dd++) {
-        var bay = BP[((dd & 3) << 2) | (qx & 3)] - 0.5, idx, gl = dd > deepD ? sm((dd - deepD) / A(230)) : 0;
+        var bay = BP[((dd & 3) << 2) | (qx & 3)] - 0.5, idx, gl = dd > deepD ? sm((dd - deepD) / a230) : 0;
         if (dd < e0) {                                                       // snow dust: a white rim, a green glow line in broken runs, then dithered fall-off into the rock
           var tc = dd / e0;
           if (dd === 0) idx = I.an + 5;
@@ -279,15 +312,20 @@
           else if (dd === 2) idx = PX.h2(qx >> 2, 91) > 0.28 ? I.gg1 + 2 : I.an + 3;
           else idx = I.an + clamp(Math.floor(4.4 - 2.9 * tc + bay * 1.2 + (PX.h2(qx, dd + 40) > 0.95 ? 1 : 0)), 0, 4);
         } else {
-          var fld = A(15) * Math.sin(qx * TAU / L + 0.7) * clamp01((dd - A(40)) / A(160)) + A(7) * Math.sin(qx * TAU * 3 / L + 2.2) * clamp01((dd - A(70)) / A(200)), foff = 0, onF = 0, fhit = 0;
-          if (dd > A(26)) for (fi = 0; fi < FLT.length; fi++) { var fu0 = qx - FLT[fi].x - FLT[fi].s * dd; fu0 = ((fu0 + L * 1.5) % L) - L * 0.5; if (fu0 > 0) foff += FLT[fi].o; if (fu0 > -0.6 && fu0 < 0.6) { onF = 1; fhit = fi; } else if (fu0 >= 0.6 && fu0 < 1.6 && !onF) onF = 2; }
+          var fld = sf1 * clamp01((dd - a40) / a160) + sf2 * clamp01((dd - a70) / a200), foff = 0, onF = 0, fhit = 0;
+          if (dd > a26) for (fi = 0; fi < 4; fi++) { var fu0 = fu0c[fi] - FSl[fi] * dd + FJ[dd + fi * 37]; if (fu0 < -HL) fu0 += L; else if (fu0 >= HL) fu0 -= L; if (fu0 > 0) foff += FOf[fi]; if (fu0 > -0.6 && fu0 < 0.6) { onF = 1; fhit = fi; } else if (fu0 >= 0.6 && fu0 < 1.6 && !onF) onF = 2; }
           var dp = dd - fld - foff;
           while (k > 0 && dp < ed[k]) k--; while (k < nb - 1 && dp >= ed[k + 1]) k++;
-          var bd2 = beds[k], ib = Math.max(0, dp - ed[k]), bh = ed[k + 1] - ed[k], fu = (qx + 0.4 * dp + 70 * Math.sin(qx * TAU * 3 / L) + 26 * Math.sin(dp * 0.045)) / A(340), fR = Math.floor(fu), ff = fu - fR;
+          var bd2 = beds[k], ib = Math.max(0, dp - ed[k]), bh = ed[k + 1] - ed[k], fu = (qx + 0.4 * dp + sfu + S45[(dp + 200.5) | 0]) / WF, fR = Math.floor(fu), ff = fu - fR;
           if (ff > 0.74 && BP[((dd & 3) << 2) | (qx & 3)] < (ff - 0.74) / 0.26) fR++;
-          var fk = PX.h2(k * 5 + 1, fR * 7 + 3), kindV = fk < 0.34 ? 0 : fk < 0.62 ? 1 : fk < 0.84 ? 2 : 3;
-          if (k < 1 && kindV === 0) kindV = 1;
-          var tone = 4.6 - dd * 0.0055 + (bd2.tone - 0.5) * 1.2 + (PX.h2(k * 7 + 3, fR * 13 + 1) - 0.5) * 0.5;
+          fR = ((fR % NF) + NF) % NF;
+          if (k !== ck || fR !== cfr) {                                                                            // per (bed, facies) constants, recomputed only when they change
+            ck = k; cfr = fR;
+            var fk = PX.h2(k * 5 + 1, fR * 7 + 3);
+            cKind = fk < 0.34 ? 0 : fk < 0.62 ? 1 : fk < 0.84 ? 2 : 3; if (k < 1 && cKind === 0) cKind = 1;
+            cToneAdd = (bd2.tone - 0.5) * 1.2 + (PX.h2(k * 7 + 3, fR * 13 + 1) - 0.5) * 0.5;
+          }
+          var kindV = cKind, tone = 4.6 - dd * 0.0055 + cToneAdd;
           if (ib === 0) { idx = AR + clamp(Math.floor(tone + 1.4 + bay * 0.5), 2, 6); if (gl > 0 && PX.h2(qx >> 1, k + 300) < gl * 0.8) idx = I.gg1 + clamp(Math.floor(0.8 + gl * 3.2), 0, 4); }
           else if (ib === bh - 1) idx = AR + clamp(Math.floor(tone - 2.2), 0, 2);
           else if (kindV === 0) {                                             // jointed basalt columns
@@ -299,8 +337,9 @@
             else idx = AR + clamp(Math.floor(ct + bay * 0.85 - (ib / bh) * 0.7 - (fx > cw * 0.7 ? 0.5 : 0)), 0, 5);
           } else if (kindV === 1) {                                           // frost-shattered rock: angular cells, dark cracks, some filled with ice
             var big = (k % 3) === 0, ccs = big ? cs2 : cs, sxq = qx + 0.5 * dp, syq = dp * 1.15;                       // plates lean with the bedding; every third bed has bigger ones
-            voro(sxq, syq, ccs, big ? nvx2 : nvx, big ? 503 : 501);
-            var edge = VO.d2 - VO.d1 < 1.15, ch = PX.h2(VO.id, 3), lit = -((sxq - VO.cx) * 0.7 + (syq - VO.cy) * 0.7) / (ccs * 0.6), pang = PX.h2(VO.id, 4) * TAU, spl = ((sxq - VO.cx) * Math.cos(pang) + (syq - VO.cy) * Math.sin(pang)) / ccs;
+            voro(sxq, syq, ccs, big ? nvx2 : nvx, big ? tab2 : tab1);
+            if (VO.id !== vid) { vid = VO.id; vch = PX.h2(vid, 3); var pang = PX.h2(vid, 4) * TAU; vcs = Math.cos(pang); vsn = Math.sin(pang); }          // per-plate constants
+            var edge = VO.d2 - VO.d1 < 1.15, ch = vch, lit = -((sxq - VO.cx) * 0.7 + (syq - VO.cy) * 0.7) / (ccs * 0.6), spl = ((sxq - VO.cx) * vcs + (syq - VO.cy) * vsn) / ccs;
             if (edge) idx = ch > 0.90 ? I.ai + (lit > -0.2 ? 3 : 2) : AR + clamp(Math.floor(tone - 2.4), 0, 2);
             else if (Math.abs(spl) < 0.045) idx = AR + clamp(Math.floor(tone - 1.9), 0, 2);                        // a hairline split inside the plate
             else idx = AR + clamp(Math.floor(tone + (ch - 0.5) * 1.5 + (spl > 0 ? 0.9 : -0.9) + lit * 0.5 + bay * 0.55), 0, 5);
@@ -310,11 +349,11 @@
             var fh = PX.h2(qx * 3 + k, dd + 200); if (fh > 0.992) idx = I.ai + 5; else if (fh > 0.982) idx = I.ai + 3;
           } else idx = AR + clamp(Math.floor(tone - 0.9 + bay * 0.85 - (ib / bh) * 0.5), 0, 4);   // massive dark bed
           if (gl > 0.05) {                                                    // glow pooling in the deep: the rock turns green-lit in dithered patches, with a few hot cores
-            var pv = fbm2(qx * 0.016, dd * 0.024, 41) * gl;
+            var pyi = (dd >> 2) * PGn, pty = (dd & 3) * 0.25, pa = PGg[pyi + pxi], pb = PGg[pyi + pxi1], pc = PGg[pyi + PGn + pxi], pd = PGg[pyi + PGn + pxi1], pv = (pa + (pb - pa) * ptx + (pc - pa) * pty + (pa - pb - pc + pd) * ptx * pty) * gl;
             if (pv > 0.24 && BP[((dd & 3) << 2) | (qx & 3)] < clamp01((pv - 0.24) * 5)) idx = LITS.green[idx];
             if (pv > 0.40) { var lvg = Math.floor((pv - 0.40) * 9 + bay * 1.2); if (lvg >= 0) idx = I.gg1 + Math.min(3, lvg); }
           }
-          if (onF === 1) idx = (gl > 0.12 && PX.h2(dd >> 1, fhit + 1900) < gl * 1.6) ? I.gg1 + 3 : AR;                       // the fault plane: a dark seam, glowing in the deep
+          if (onF === 1) idx = (gl > 0.12 && PX.h2(dd >> 3, fhit + 1900) < gl * 1.25) ? I.gg1 + 3 : AR;                       // the fault plane: a dark seam, glowing in the deep
           else if (onF === 2 && idx >= AR && idx < AR + 7) idx = AR + Math.min(6, idx - AR + 2);                               // its lit lip
         }
         d[col + dd] = idx;
@@ -610,6 +649,15 @@
     }
   }
 
+  // frost glints on the snow crust: a few grains catch the light and go out again
+  function crustGlints(fb, S, qoff) {
+    if (S.reduced) return;
+    var w = fb.w, d = fb.d, lip = S.lip, tick = Math.floor(S.tSec * 2.4), x;
+    for (x = 3; x < w - 3; x += 5) {
+      var g = PX.h2(x + qoff, tick), y = lip[x] + 1 + ((PX.h2(x + qoff, 77) * 4) | 0); if (g > 0.10 || y < 0 || y >= fb.h) continue;
+      d[y * w + x] = I.an + 5;
+    }
+  }
   var SCR = { acc: 0, sc: null, hx: 0 };
   function qoffset(S) {
     var hx = S.ztx + S.anchorX * S.zoom;
@@ -620,7 +668,7 @@
   // ---------------------------------------------------------------- backdrop
   R.backdrop = function (fb, S, pal) {
     buildScene(S);
-    var w = fb.w, h = fb.h, hy = S.horizonY + Math.round((1 - S.openingT) * S.h * 0.12), al = S.altitude, t = S.reduced ? 0 : S.tSec, a = S.adj || 1, f = zoneF(al), zone = f * 1500;
+    var w = fb.w, h = fb.h, hy = S.horizonY + Math.round((1 - S.openingT) * S.h * 0.12), al = S.altitude, t = S.reduced ? 0 : S.tSec, a = S.adj || 1, f = zoneF(al), zone = Math.min(zoneM(al), 3000);
     function A(v) { return Math.max(1, Math.round(v * a)); }
     bakeSky(S, hy);
     fb.d.set(ST.sky);
@@ -639,7 +687,9 @@
     var qoff = qoffset(S), heroX = Math.round(S.ztx + S.anchorX * S.zoom);
     blitSlab(fb, S, qoff);
     groundStamps(fb, S, qoff, heroX);
+    crustGlints(fb, S, qoff);
   };
   R.front = function (fb, S, pal, res) { drawDust(fb, S); };
+  R.debugStamps = { stoneBlob: stoneBlob, rockShard: rockShard, crystalShards: crystalShards, lantern: lantern, tusk: tusk, wheel: wheel, antler: antler, bell: bell, iceleaf: iceleaf, grotto: grotto, greenCluster: greenCluster };   // (QA: lets a test page paint each prop on its own)
   V8.register("aurora", R);
 })(typeof window !== "undefined" ? window : this);

@@ -26,6 +26,19 @@
     var a = h(ix, iy, s), b = h(ix + 1, iy, s), c = h(ix, iy + 1, s), d = h(ix + 1, iy + 1, s);
     return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
   }
+  var LAT = null;
+  function ensureLAT() { if (!LAT) { LAT = new Float32Array(65536); var lr = PX.rng(31337); for (var q0 = 0; q0 < 65536; q0++) LAT[q0] = lr(); } }
+  function vnP(x, y, P) {
+    var ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    var x0 = ((ix % P) + P) % P, x1 = (x0 + 1) % P, a = LAT[((iy & 255) << 8) | x0], b = LAT[((iy & 255) << 8) | x1], c = LAT[(((iy + 1) & 255) << 8) | x0], d = LAT[(((iy + 1) & 255) << 8) | x1];
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+  }
+  function pnoise(qx, dd, L) { return vnP(qx * 24 / L, dd * 0.02, 24) * 0.55 + vnP(qx * 48 / L + 7.3, dd * 0.04 + 3.1, 48) * 0.30 + vnP(qx * 96 / L + 1.9, dd * 0.08 + 8.7, 96) * 0.15; }   // tiles seamlessly along the slab
+  function poolGrid(L, D) {                                                // the glow-pool noise sampled every 4 px (it tiles along x): the slab bake then just interpolates it
+    var nx = L >> 2, ny = (D >> 2) + 3, g = new Float32Array(nx * ny), gx, gy;
+    for (gy = 0; gy < ny; gy++) for (gx = 0; gx < nx; gx++) g[gy * nx + gx] = pnoise(gx * 4, gy * 4, L);
+    return { g: g, nx: nx, ny: ny };
+  }
   function fbm2(x, y, s) { return vn2(x, y, s) * 0.55 + vn2(x * 2.07 + 11.3, y * 2.07 + 4.1, s + 1) * 0.30 + vn2(x * 4.3 + 3.7, y * 4.3 + 17.9, s + 2) * 0.15; }
 
   // ---------------------------------------------------------------- palette
@@ -45,7 +58,7 @@
     R.birdIdx = I.vv + 2; R.watcherIdx = I.vv + 3;
     R.footprint = { col: I.vd + 4, hi: I.vv + 2 };
     R.pal = pal; LITS = null;
-    ST.key = ""; ST.skyKey = "";
+    // (the baked caches hold palette INDICES only and the ramps are allocated in a fixed order, so they stay valid across re-inits with the same size)
     buildScene(S);
     R.initMs = performance.now() - t0;
   };
@@ -143,16 +156,17 @@
   }
   function buildSlab(S) {
     var a = S.adj || 1, L = 1536, D = clamp(S.h + 130, 330, 700), d = new Uint8Array(L * D), rnd = PX.rng(20261001), beds = [], cum, nb, qx, dd, k, i;
-    if (!LITS) litMaps();
+    if (!LITS) litMaps(); ensureLAT();
     function A(v) { return Math.max(1, Math.round(v * a)); }
     var crust = A(5), thumb = isThumb(S); cum = crust; nb = 0;
     while (cum < D + 70 && nb < 70) { var th = A(9 + Math.floor(rnd() * 26)); beds.push({ t: th, tone: rnd(), kind: Math.floor(rnd() * 3), n1: 2 + Math.floor(rnd() * 5), n2: 8 + Math.floor(rnd() * 10), p1: rnd() * TAU, p2: rnd() * TAU, a1: A(1 + rnd() * 3), a2: 0.5 + rnd() * 1.5, bw: A(20 + rnd() * 40) }); cum += th; nb++; }
+    var PG = poolGrid(L, D), PGg = PG.g, PGn = PG.nx;
     var ed = new Int16Array(nb + 2), VD = I.vd, crustE = new Int16Array(L), deepD = A(110);
     for (qx = 0; qx < L; qx++) {
       var col = qx * D, e0 = crust + Math.round(1.4 * Math.sin(qx * TAU * 5 / L) + 1.8 * (PX.h2(qx >> 2, 5) - 0.5)) + ((PX.h2(qx >> 1, 77) > 0.7) ? 1 : 0);
       crustE[qx] = e0; ed[0] = e0;
       for (k = 0; k < nb; k++) { var bd = beds[k]; ed[k + 1] = ed[k] + Math.max(3, bd.t + Math.round(bd.a1 * Math.sin(qx * TAU * bd.n1 / L + bd.p1) + bd.a2 * Math.sin(qx * TAU * bd.n2 / L + bd.p2))); }
-      k = 0;
+      k = 0; var pxi = qx >> 2, pxi1 = pxi + 1 >= PGn ? 0 : pxi + 1, ptx = (qx & 3) * 0.25;
       for (dd = 0; dd < D; dd++) {
         var bay = BP[((dd & 3) << 2) | (qx & 3)] - 0.5, idx, fade = Math.max(0.05, 1 - dd / A(240)), gl = dd > deepD ? sm((dd - deepD) / A(260)) : 0;
         if (dd < e0) {
@@ -168,7 +182,7 @@
           else if (bd2.kind === 1) { idx = VD + clamp(Math.floor(tone + ((ib & 1) ? 0.4 : -0.5) + bay * 0.4), 0, 4); if (ib > 1 && ib % 5 === 0) idx = VD + clamp(Math.floor(tone - 1.5), 0, 2); }
           else { var jx = qx + k * 17, blk = Math.floor(jx / bd2.bw), fx = jx - blk * bd2.bw; idx = fx === 0 ? VD + clamp(Math.floor(tone - 2), 0, 1) : VD + clamp(Math.floor(tone - 0.2 + (PX.h2(blk, k + 60) - 0.5) * 1.0 + bay * 0.7 - (ib / bh) * 0.4), 0, 4); }
           var fh = PX.h2(qx * 3 + k, dd + 200); if (fh > 0.9955 && fade > 0.2) idx = I.vv + 2;
-          if (gl > 0.05) { var pv = fbm2(qx * 0.014, dd * 0.02, 41) * gl; if (pv > 0.22 && BP[((dd & 3) << 2) | (qx & 3)] < clamp01((pv - 0.22) * 5)) idx = LITS.blue[idx]; if (pv > 0.42) { var lvg = Math.floor((pv - 0.42) * 9 + bay * 1.2); if (lvg >= 0) idx = I.vv + Math.min(2, lvg); } }
+          if (gl > 0.05) { var pyi = (dd >> 2) * PGn, pty = (dd & 3) * 0.25, pa = PGg[pyi + pxi], pb = PGg[pyi + pxi1], pc = PGg[pyi + PGn + pxi], pd = PGg[pyi + PGn + pxi1], pv = (pa + (pb - pa) * ptx + (pc - pa) * pty + (pa - pb - pc + pd) * ptx * pty) * gl; if (pv > 0.22 && BP[((dd & 3) << 2) | (qx & 3)] < clamp01((pv - 0.22) * 5)) idx = LITS.blue[idx]; if (pv > 0.42) { var lvg = Math.floor((pv - 0.42) * 9 + bay * 1.2); if (lvg >= 0) idx = I.vv + Math.min(2, lvg); } }
         }
         d[col + dd] = idx;
       }
@@ -218,9 +232,10 @@
     var W = 2 * U + 1, Hh = 2 * V + 1, m = new Uint8Array(W * Hh), u, v, VV = I.vv, VD = I.vd;
     for (v = -V; v <= V; v++) for (u = -U; u <= U; u++) m[(v + V) * W + u + U] = inside(u, v);
     function at(uu, vv) { uu += U; vv += V; return uu >= 0 && vv >= 0 && uu < W && vv < Hh ? m[vv * W + uu] : 0; }
+    function solid(uu, vv) { var q = at(uu, vv); return q && q !== 3; }                       // a hollow (eye socket, lantern glass) counts as outside, so its rim is drawn too
     for (v = -V; v <= V; v++) for (u = -U; u <= U; u++) {
       var c = at(u, v); if (!c) continue;
-      var edge = !(at(u - 1, v) && at(u + 1, v) && at(u, v - 1) && at(u, v + 1)), lit = -(u * 0.7 + v * 0.7) / Math.max(U, V), col;
+      var edge = !(solid(u - 1, v) && solid(u + 1, v) && solid(u, v - 1) && solid(u, v + 1)), lit = -(u * 0.7 + v * 0.7) / Math.max(U, V), col;
       if (c === 4) col = I.wm + 2;
       else if (c === 3) col = VD;
       else if (edge) { if (PX.h2(cx + u + seed, cy + v) < 0.10) continue; col = lit > 0.15 ? VV + 4 : lit > -0.35 ? VV + 3 : VV + 2; }
@@ -233,13 +248,13 @@
     column: function (u, v) { if (v >= -19 && v <= -17) return Math.abs(u) <= 5 ? 1 : 0; if (v >= -16 && v <= 9) return Math.abs(u) <= 3 ? (((u === -1 || u === 1) && (v % 3) !== 0) ? 2 : 1) : 0; if (v >= 10 && v <= 13) return Math.abs(u) <= 5 ? 1 : 0; return 0; },
     broken: function (u, v) { if (v >= -8 + ((u + 8) % 3 === 0 ? 1 : 0) + (u > 0 ? 2 : 0) && v <= 9) return Math.abs(u) <= 3 ? (((u === -1 || u === 1) && (v % 3) !== 0) ? 2 : 1) : 0; if (v >= 10 && v <= 13) return Math.abs(u) <= 5 ? 1 : 0; return 0; },
     amphora: function (u, v) { var r = v < -9 ? 2 : v < -4 ? 2 + (v + 9) * 0.8 : v < 4 ? 6 : v < 11 ? 6 - (v - 4) * 0.43 : 3; if (v < -13 || v > 12) return 0; if (Math.abs(u) <= r) return (v === -9 || v === 2) && Math.abs(u) < r - 1 ? 2 : 1; if (v >= -12 && v <= -6 && Math.abs(u) >= 3 && Math.abs(u) <= 5 && (Math.abs(u) === 5 || v === -12 || v === -6)) return 1; return 0; },
-    skull: function (u, v) { var e = (u / 6) * (u / 6) + ((v + 1) / 5) * ((v + 1) / 5); if (e <= 1) { if ((u + 2.5) * (u + 2.5) + v * v <= 2.2 || (u - 2.5) * (u - 2.5) + v * v <= 2.2) return 3; if (u === 0 && v >= 2 && v <= 3) return 3; return 1; } if (Math.abs(u) <= 3 && v >= 4 && v <= 7) return (u & 1) && v > 4 ? 3 : 1; return 0; },
+    skull: function (u, v) { var e = (u / 6.4) * (u / 6.4) + ((v + 0.5) / 5.4) * ((v + 0.5) / 5.4); if (e <= 1) { if (((u + 2.8) / 2) * ((u + 2.8) / 2) + ((v - 0.6) / 1.8) * ((v - 0.6) / 1.8) <= 1 || ((u - 2.8) / 2) * ((u - 2.8) / 2) + ((v - 0.6) / 1.8) * ((v - 0.6) / 1.8) <= 1) return 3; if (Math.abs(u) <= 0.6 && v >= 3 && v <= 4) return 3; return 1; } if (Math.abs(u) <= 3.6 - (v - 4) * 0.25 && v >= 4 && v <= 7) return ((u & 1) === 0 && v > 5 && Math.abs(u) <= 3) ? 3 : 1; return 0; },
     lantern: function (u, v) { if (v === -13 || v === -12) return Math.abs(u) <= 1 && (Math.abs(u) === 1 || v === -13) ? 1 : 0; if (v === -11) return Math.abs(u) <= 4 ? 1 : 0; if (v >= -10 && v <= 3) { if (Math.abs(u) === 3) return 1; if (Math.abs(u) < 3) return (u === 0 && v >= -6 && v <= -3) ? 4 : (v === 3 ? 1 : 3); } if (v === 4) return Math.abs(u) <= 4 ? 1 : 0; return 0; },
     bell: function (u, v) { var half = v < -8 ? 2 + (v + 11) * 0.5 : v < -2 ? 3.6 + (v + 8) * 0.12 : 4.3 + (v + 2) * 1.2; if (v < -11 || v > 0) return v === 2 && u === 0 ? 1 : (v === 1 && u === 0 ? 1 : 0); return Math.abs(u) <= half ? 1 : 0; },
     crystal: function (u, v) { var tip = v < -14 ? (v + 19) / 5 : 1; if (v < -19 || v > 4) return 0; var hw = 3 * tip + 0.3; if (Math.abs(u - (v < -14 ? 1 : 0)) <= hw) return u === -1 && v > -14 ? 2 : 1; return 0; },
     tablet: function (u, v) { if (Math.abs(u) > 8 || Math.abs(v) > 5) return 0; return ((u * 5 + v * 3 + 100) % 13 === 0 && Math.abs(u) < 7 && Math.abs(v) < 4) ? 2 : 1; }
   };
-  var SHAPE_DIMS = { column: [6, 19, 13], broken: [6, 9, 13], amphora: [7, 13, 12], skull: [7, 6, 8], lantern: [5, 14, 4], bell: [8, 12, 3], crystal: [4, 19, 4], tablet: [9, 6, 6] };
+  var SHAPE_DIMS = { column: [6, 19, 13], broken: [6, 9, 13], amphora: [7, 13, 12], skull: [8, 7, 8], lantern: [5, 14, 4], bell: [8, 12, 3], crystal: [4, 19, 4], tablet: [9, 6, 6] };
   function oldStone(fb, cx, cy, r, seed) {                                  // the stone of another climber: an uneven circle faceted like his own, sunk in the dark
     var rnd = PX.rng(seed | 0), cs = Math.max(4, r * 1.05), ox = rnd() * 50, oy = rnd() * 50;
     ghost(fb, cx, cy, r + 3, r + 3, function (u, v) {
@@ -328,5 +343,6 @@
     blitSlab(fb, S, qoff);
     groundStamps(fb, S, qoff, heroX);
   };
+  R.debugStamps = { oldStone: oldStone, ghost: ghost, SHAPES: SHAPES, SHAPE_DIMS: SHAPE_DIMS };   // (QA: lets a test page paint each prop on its own)
   V8.register("void", R);
 })(typeof window !== "undefined" ? window : this);

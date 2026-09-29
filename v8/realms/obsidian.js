@@ -1,12 +1,13 @@
-// Obsidian - V8 zone scene (11950-13450 m). A deep blue night with two crescent moons over a plain of black glass that mirrors the whole
-// sky, three ranks of crystalline black shards (facets lit toward the moons, hard cyan-white rim light, glints that twinkle by palette
-// cycling) and their reflections. The ground is a cut through polished volcanic glass: a mirror-bright crust with long light streaks,
-// faceted planes, flow-banded glass with mahogany swirls and rainbow sheen, snowflake spherulites, conchoidal fractures, crystal pockets,
-// and a violet glow rising from far below; blades, skulls and an old stone are sealed in the glass.
+// Obsidian - V8 zone scene (11950-13450 m). A deep blue night with two crescent moons (they drift on slow arcs as the fields are crossed)
+// over a plain of black glass that mirrors the whole sky (brighter at grazing angles, dimmer with distance), a faceted glass mountain range,
+// three ranks of crystalline black shards (prisms, blades, flat-topped chunks; facets lit toward the moons, hard cyan-white rim light, glints
+// that twinkle by palette cycling) and their reflections. The ground is a cut through polished volcanic glass: a mirror-bright crust with
+// long light streaks, faceted planes, flow-banded glass with mahogany swirls and rainbow sheen, snowflake spherulites, shatter points,
+// crystal pockets, and a violet glow rising from far below; blades, skulls, rings and (rarely) an old stone are sealed in bubbles of glass.
 (function (root) {
   "use strict";
   var PX = root.PX, Sc = root.Sc, V8 = root.V8, hex = PX.hex, clamp = PX.clamp, clamp01 = PX.clamp01, B4 = PX.BAYER4;
-  var R = { rock: { mat: "obsidian", style: "granite" }, noBirds: true, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.74, f: 3 } };
+  var R = { rock: { mat: "obsidian", style: "granite" }, noBirds: true, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.7, f: 3 } };
   var I = {}, ST = {}, built = "", STAR0 = null, GL0 = null, MD = new Uint8Array(256), MD1 = new Uint8Array(256), MD2 = new Uint8Array(256);
   // ---------------------------------------------------------------------------------------------------------------
   // shared helpers (this block is duplicated in canyon.js / volcanic.js / obsidian.js so every zone file stands alone)
@@ -59,7 +60,7 @@
   }
   // a shaded stone: lumpy outline, lit from the upper-left, dark rim on the shaded side. ramp = palette base of a >=6 tone ramp.
   // Rasterised once per (size, ramp, shape) and cached: each call is a cheap blit.
-  var STC = {};
+  var STC = {}, STN = 0;
   function stoneSprite(rx, ry, ramp, seed, top) {
     var ph = PX.h1((seed & 7) * 7 + 3) * TAU, W = 2 * Math.ceil(rx) + 3, Hh = 2 * Math.ceil(ry) + 3, d = new Uint8Array(W * Hh), ox = Math.ceil(rx) + 1, oy = Math.ceil(ry) + 1;
     for (var y = -Math.ceil(ry) - 1; y <= Math.ceil(ry) + 1; y++) for (var x = -Math.ceil(rx) - 1; x <= Math.ceil(rx) + 1; x++) {
@@ -75,7 +76,7 @@
   }
   function stone(fb, cx, cy, rx, ry, ramp, seed, hi) {
     var top = hi == null ? 4 : hi, r2 = Math.round(rx * 2), q2 = Math.round(ry * 2), key = (((r2 << 8) | q2) * 256 + ramp) * 64 + (seed & 7) * 8 + top;
-    var sp = STC[key]; if (!sp) sp = STC[key] = stoneSprite(r2 / 2, q2 / 2, ramp, seed, top);
+    var sp = STC[key]; if (!sp) { if (++STN > 700) { STC = {}; STN = 1; } sp = STC[key] = stoneSprite(r2 / 2, q2 / 2, ramp, seed, top); }
     var w = fb.w, h = fb.h, d = fb.d, x0 = cx - sp.ox, y0 = cy - sp.oy, sw = sp.w, sd = sp.d, x, y;
     if (x0 >= w || y0 >= h || x0 + sw <= 0 || y0 + sp.h <= 0) return;
     for (y = 0; y < sp.h; y++) { var ty = y0 + y; if (ty < 0 || ty >= h) continue; for (x = 0; x < sw; x++) { var v = sd[y * sw + x]; if (!v) continue; var tx = x0 + x; if (tx < 0 || tx >= w) continue; d[ty * w + tx] = ramp + v - 1; } }
@@ -131,7 +132,7 @@
     R.birdIdx = I.sheen + 5; R.watcherIdx = I.sheen + 4;
     R.footprint = { col: I.obs + 3, hi: I.sheen + 4 };                  // a scuff in the glass with a bright lit rim
     R.markerIdx = { c0: I.obs + 2, c1: I.obs + 5, c2: I.sheen + 5, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };   // cairns of black glass with a cyan edge
-    R.pal = pal; RM = null;
+    R.pal = pal; RMAP = null;
     built = "";
     build(S);
   };
@@ -187,9 +188,9 @@
 
   // ---------- a range of broad glass mountains: sharp peaks split into slanting facets, lit toward the moons ----------
   function facetRange(o) {
-    var L = o.L, Hh = o.H, st = Sc.newStrip(L, Hh), d = st.d, rnd = PX.rng(o.seed), P = o.ramp, n = o.n, x, y, k, crest = new Float32Array(L), waves = [], lam = [L / 4, L / 9, L / 21];
-    for (k = 0; k < lam.length; k++) waves.push({ l: Math.round(lam[k]), a: Math.pow(0.5, k), ph: rnd() });
-    for (x = 0; x < L; x++) { var s = 0, ws = 0; for (k = 0; k < waves.length; k++) { var f = (x / waves[k].l + waves[k].ph) % 1; s += waves[k].a * Math.abs(f * 2 - 1); ws += waves[k].a; } crest[x] = o.base - o.amp * (s / ws - 0.3) * 1.4; }
+    var L = o.L, Hh = o.H, st = Sc.newStrip(L, Hh), d = st.d, rnd = PX.rng(o.seed), P = o.ramp, n = o.n, x, y, k, crest = new Float32Array(L), waves = [], cnt = [4, 9, 21];      // whole periods per strip: seamless tiling
+    for (k = 0; k < cnt.length; k++) waves.push({ c: cnt[k], a: Math.pow(0.5, k), ph: rnd() });
+    for (x = 0; x < L; x++) { var s = 0, ws = 0; for (k = 0; k < waves.length; k++) { var f = (x * waves[k].c / L + waves[k].ph) % 1; s += waves[k].a * Math.abs(f * 2 - 1); ws += waves[k].a; } crest[x] = o.base - o.amp * (s / ws - 0.3) * 1.4; }
     for (x = 0; x < L; x++) {
       var sl = (crest[(x + 2) % L] - crest[(x + L - 2) % L]) / 4, lit = sl < -0.02, ci = Math.round(crest[x]);
       for (y = Math.max(0, ci); y < Hh; y++) {
@@ -226,7 +227,6 @@
     ST.mid = shardStrip({ L: 1150, H: Math.round(hy * 0.66), seed: 7, ramp: I.mid, n: 6, rim: I.sheen + 4, base: Math.round(hy * 0.66) - 1, hMin: hy * 0.10, hMax: hy * 0.62, ws: 1.35 * a, spread: 80 * a, gap: 90 * a, glint: 0.5, blade: 0.2, chunk: 0.16, fade: I.mid, fadeRows: A(4) });
     ST.near = shardStrip({ L: 950, H: Math.round(hy * 0.5), seed: 13, ramp: I.near, n: 7, rim: I.sheen + 5, base: Math.round(hy * 0.5) - 1, hMin: hy * 0.10, hMax: hy * 0.46, ws: 2.0 * a, spread: 70 * a, gap: 150 * a, glint: 0.7, blade: 0.2, chunk: 0.2 });
   }
-  var RM = null;
 
   function moons(S) {                                                    // both moons drift on slow arcs while the glass fields are crossed (11950 -> 13450 m)
     var a = S.adj || 1, hy = S.horizonY, sh = Math.round((1 - S.openingT) * S.h * 0.04), r1 = Math.round(clamp(S.h / a * 0.05, 11, 20) * a), r2 = Math.max(4, Math.round(r1 * 0.55));
@@ -425,12 +425,15 @@
       fb.set(px, py, I.bone + 2); fb.set(px - 1, py, I.bone); fb.set(px + 1, py, I.bone); fb.set(px, py - 1, I.bone + 1); fb.set(px, py + 1, I.bone);
     }
   }
-  function conch(fb, cx, cy, r0, seed) {                                 // conchoidal fracture: concentric ripple arcs
-    var arcs = 4, a0 = PX.h1(seed) * TAU, span = 2.0 + PX.h1(seed + 5), k, a;
-    for (k = 0; k < arcs; k++) {
-      var r = r0 + k * 3.2;
-      for (a = a0; a < a0 + span - k * 0.18; a += 1 / (r * 1.3)) fb.set(cx + Math.round(Math.cos(a) * r), cy + Math.round(Math.sin(a) * r * 0.86), k === 0 ? I.sheen + 3 : (k & 1 ? I.obs + 6 : I.sheen + 1));
+  function conch(fb, cx, cy, r0, seed) {                                 // a shatter point in the glass: radial cracks of uneven length, a broken ripple ring between them
+    var n = 5 + Math.floor(PX.h1(seed + 3) * 3), a0 = PX.h1(seed) * TAU, i, s;
+    for (i = 0; i < n; i++) {
+      var ang = a0 + i * TAU / n + (PX.h1(seed + i * 5) - 0.5) * 0.5, len = Math.round(r0 * (1.2 + 2.2 * PX.h1(seed * 3 + i))), ca = Math.cos(ang), sa = Math.sin(ang);
+      for (s = 1; s <= len; s++) fb.set(cx + Math.round(ca * s), cy + Math.round(sa * s * 0.9), s < 3 ? I.sheen + 4 : (s < len * 0.6 ? I.sheen + 2 : I.obs + 6));
     }
+    var ring = r0 * 1.5, span = 1.3 + PX.h1(seed + 9) * 1.4, ra = a0 + 0.5, a;
+    for (a = ra; a < ra + span; a += 1 / (ring * 1.4)) fb.set(cx + Math.round(Math.cos(a) * ring), cy + Math.round(Math.sin(a) * ring * 0.9), I.obs + 6);
+    fb.set(cx, cy, I.sheen + 6);
   }
   function needle(fb, cx, cy, len, ang, seed) {                          // a sharp black sliver embedded in the glass: lit half, dark half, a cyan edge
     var ca = Math.cos(ang), sa = Math.sin(ang), t, s;
@@ -444,6 +447,21 @@
     fb.set(Math.round(cx + ca * len), Math.round(cy + sa * len), I.sheen + 6);
   }
 
+  function oldStone(fb, cx, cy, r) {                                    // a stone lost long ago, sealed in the glass: pale, cracked, ringed by a violet halo
+    var w = fb.w, h = fb.h, d = fb.d, x, y, R2 = r * 2.3;
+    for (y = -Math.ceil(R2); y <= Math.ceil(R2); y++) for (x = -Math.ceil(R2); x <= Math.ceil(R2); x++) {
+      var px = cx + x, py = cy + y; if (px < 0 || py < 0 || px >= w || py >= h) continue;
+      var q = 1 - (x * x + y * y) / (R2 * R2); if (q <= 0 || B4[py & 3][px & 3] + 0.5 > q * 1.1) continue;
+      var v = d[py * w + px]; if (v >= I.obs && v <= I.obs + 5) d[py * w + px] = I.dg + (q > 0.55 ? 2 : 1);
+    }
+    for (y = -r; y <= r; y++) for (x = -r; x <= r; x++) {
+      var d2 = x * x + y * y; if (d2 > r * r) continue;
+      var lit = (-(x * 0.7 + y * 0.7)) / r, tone = lit > 0.5 ? 3 : lit > 0.1 ? 2 : lit > -0.35 ? 1 : 0;
+      if (d2 > (r - 1) * (r - 1)) tone = lit > 0.3 ? 2 : 0;
+      if (Math.abs(x - Math.round(y * 0.45) - 1) < 1 && y > -r * 0.7 && y < r * 0.55) tone = -1;
+      fb.set(cx + x, cy + y, tone < 0 ? I.obs : I.bone + tone);
+    }
+  }
   function features(fb, S, ds, heroX, t) {
     var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip, a = S.adj || 1, c, r, kk;
     var wl = (0 - S.ztx) / zoom + sc, wr = (w - S.ztx) / zoom + sc, keep = clamp((S.zoom / a - 0.08) / 0.34, 0.3, 1);
@@ -491,6 +509,12 @@
       }
       for (yy = -gr; yy <= 1; yy++) for (xx = -Math.round(gr * 1.3); xx <= Math.round(gr * 1.3); xx++) { var e = (xx * xx) / (gr * gr * 1.7) + (yy * yy) / (gr * gr); if (e <= 1) fb.set(gx + xx, gy + yy, e > 0.72 ? ((xx + yy < 0) ? I.sheen + 2 : I.obs) : I.obs + 1); }
       crystals(fb, gx, gy, I.sheen + 1, c * 3 + r, { n: 4, len: Math.max(9, Math.round(gr * 3.2)), hw: Math.max(1.8, gr * 0.34), lean: 0.62, spread: Math.max(3, gr * 0.8) });
+    }
+    var oc = 230;                                                        // an old stone, rarely, deep in the glass
+    for (c = Math.floor(wl / oc) - 1; c <= Math.ceil(wr / oc) + 1; c++) {
+      if (PX.h2(c, 561) < 0.88) continue;
+      var ox = sx(c * oc + PX.h2(c, 562) * oc), oy = Math.round(lipAt(ox) + (260 + 120 * PX.h2(c, 563)) * ds); if (ox < -16 || ox > w + 16 || oy < -14 || oy > h + 14) continue;
+      oldStone(fb, ox, oy, Math.max(5, Math.round(9 * ds * 1.7)));
     }
     // relics sealed in bubbles of glass
     var rc = 190;
@@ -562,6 +586,12 @@
       for (y = Math.max(0, ly); y < Math.min(h, ly + Math.round(9 * a)); y++) {
         var k = q * (1 - (y - ly) / (9 * a)) * 1.4; if (B4[y & 3][x & 3] + 0.5 > k) continue;
         d[y * w + x] = LIT[d[y * w + x]]; if (k > 0.9) d[y * w + x] = LIT[d[y * w + x]];
+      }
+      var deep = Math.round(64 * a), y1 = Math.min(h, ly + Math.round(9 * a) + deep);         // and deeper, a faint refracted glow passes through the black glass
+      for (y = Math.max(0, ly + Math.round(9 * a)); y < y1; y++) {
+        var v0 = d[y * w + x]; if (v0 < I.obs || v0 > I.obs + 4) continue;
+        var k2 = q * (1 - (y - ly - 9 * a) / deep) * 0.75; if (B4[y & 3][x & 3] + 0.5 > k2) continue;
+        d[y * w + x] = LIT[v0];
       }
     }
   };

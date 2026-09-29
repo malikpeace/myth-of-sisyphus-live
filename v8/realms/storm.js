@@ -1,17 +1,20 @@
 // Storm Pass - V8 scene (4450-5950 m). A high mountain pass in the teeth of a storm, built entirely in code on the shared
-// indexed framebuffer: a banded, dithered sky under a perspective ceiling of heavy cloud rows (scalloped puffs, lit rims,
-// mammatus bellies), a distant thunderhead whose belly flickers with sheet lightning, curtains of rain hanging over cold
-// blue-grey ridges, gusting scud, driving angled rain in three depth layers that LIFTS/DARKENS the palette entries under
-// it (never RGB lines), and lightning: V8.emit("strike") + a palette flash + a forked bolt with a dithered afterglow.
-// The ground is wet dark slate (sheen, puddles that mirror the sky and flash white) over scree, shale beds with rusted
-// seams, a cobble conglomerate, columnar basalt and, far below, the storm's charge grounded in the rock: glowing
-// fulgurite roots and blue-white veins that pulse whenever lightning strikes.
+// indexed framebuffer: a banded, dithered sky under layered banks of heavy cauliflower cloud (hard-edged puffs with lit rims,
+// dark bellies, mammatus lobes), a distant thunderhead whose crown flickers with heat lightning and silent far bolts, curtains
+// of rain hanging over cold blue-grey relief-lit ridges (with runoff threads), the ruined Gate of the pass, gusting scud, and
+// driving angled rain in four depth layers that LIFTS/DARKENS the palette entries under it (never RGB lines). Lightning is a
+// clock: V8.emit("strike"), a palette flash (the actor is re-lit through R.light), a forked bolt with a dithered afterglow,
+// sheet lightning inside the cloud, the odd warm bolt. The ground is wet dark slate (sheen, puddles that mirror the sky and flash
+// white, rivulets, moss) over umber scree, shale beds with rusted and mossy seams, a cobble conglomerate, columnar basalt and,
+// far below, the storm's charge grounded in the rock: fulgurite roots, quartz veins, crystal clusters and hot basalt joints that
+// pulse whenever lightning strikes. Storm intensity, the warm leak at the horizon and the props follow a 1500 m cycle (any altitude works).
+// QA hooks: R.qaStrike({hold, x, seed, sheet, warm, at, clear}), R.qaFlick({x}).
 (function (root) {
   "use strict";
   var PX = root.PX, Sc = root.Sc, V8 = root.V8, hex = PX.hex, clamp = PX.clamp, clamp01 = PX.clamp01, B4 = PX.BAYER4, TAU = Math.PI * 2;
   var R = { rock: { mat: "granite", style: "granite" }, noThunder: true, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.8 } }, I = {}, BASE = {};
   var ST = { built: "", skyKey: "", palKey: "", lastT: -1e9, next: 0, fnext: 0, sStart: -99, sX: 0.5, sSeed: 1, sheet: false, warm: false, flash: 0, pulse: 0, hold: null, force: null,
-             bolt: null, boltKey: "", flick: null, G: {}, mSeed: -1, rows: [], scud: [], rain: null, WS: { t: -1, ss: 0, sc: 0 }, ridge: [] };
+             bolt: null, boltKey: "", flick: null, G: {}, mSeed: -1, banks: [], scud: [], rain: null, WS: { t: -1, ss: 0, cp: 0 } };
   var BP = new Float32Array(16);                                          // Bayer thresholds in (0,1): BP[((y & 3) << 2) | (x & 3)]
   (function () { for (var i = 0; i < 16; i++) BP[i] = B4[i >> 2][i & 3] + 0.5; })();
   var LIFT = new Uint8Array(256), DARK = new Uint8Array(256), LUM = new Float32Array(256), RUP = [], RDN = [];   // one step lighter / darker along a ramp; base luminance
@@ -64,7 +67,7 @@
     lumps.sort(function (a, b) { return (a.z || 0) - (b.z || 0) || a.cy - b.cy; });
     function tone(v, x, y) {
       var q = v + (BP[((y & 3) << 2) | (x & 3)] - 0.5) * 0.26;
-      return q < 0.16 ? T.lit : q < 0.5 ? T.body : q < 0.8 ? T.shade : T.deep;
+      return q < 0.2 ? T.lit : q < 0.54 ? T.body : q < 0.82 ? T.shade : T.deep;
     }
     for (i = 0; i < lumps.length; i++) {
       var lm = lumps[i], sh = Math.max(1, Math.round(lm.ry * 0.36)), top = lm.cy - lm.ry;
@@ -179,7 +182,7 @@
       for (i = 0; i < n; i++) { var lm = lumps[i], dx = (x + 0.5) - lm.cx; if (dx < -lm.r || dx > lm.r) continue; var ty = lm.cy - lm.ry * Math.sqrt(1 - (dx * dx) / (lm.r * lm.r)); if (ty < top[x]) top[x] = ty; }
       bot[x] = base - Math.round(1.2 + 1.3 * Math.sin(x * 0.12 + o.seed) + 0.9 * Math.sin(x * 0.31 + o.seed * 2));
     }
-    function tone(v, x, y) { var q = v + (BP[((y & 3) << 2) | (x & 3)] - 0.5) * 0.26; return q < 0.16 ? T.lit : q < 0.5 ? T.body : q < 0.8 ? T.shade : T.deep; }
+    function tone(v, x, y) { var q = v + (BP[((y & 3) << 2) | (x & 3)] - 0.5) * 0.26; return q < 0.2 ? T.lit : q < 0.54 ? T.body : q < 0.82 ? T.shade : T.deep; }
     if (!o.nobody) for (x = 0; x < w; x++) { if (top[x] > 1e8) continue; var y1 = bot[x]; for (y = Math.max(0, Math.ceil(top[x])); y <= y1 && y < h; y++) d[y * w + x] = tone((y - top[x]) / Math.max(1, y1 - top[x]) * 1.15, x, y); }
     puffPaint(d, w, h, lumps, T, false, o.nolimit ? null : bot);
     if (o.hang > 2) {                                                     // mammatus lobes hanging from the belly, lit from below on their lower-left
@@ -258,7 +261,6 @@
       }
     }
   }
-  R._lab = { bank: bank, tower: tower, cloudRow: cloudRow, I: I };
 
   function blitSprite(fb, st, x0, y0) {                                   // non-wrapping strip blit
     var w = fb.w, h = fb.h, d = fb.d, sd = st.d, sw = st.w, sh = st.h;
@@ -335,6 +337,20 @@
       i = y * L + x; if (!d[i] || d[i - L]) continue;
       d[i] = LI[i] > 0.3 ? B + 4 : B + 3;
     }
+    if (o.runoff) {                                                       // rain runoff: thin pale threads sheeting down the cliffs, dashed where the water breaks over ledges
+      var rr = PX.rng(o.seed * 5 + 17), q, kk;
+      for (q = 0; q < o.runoff; q++) {
+        var rx = Math.floor(rr() * L), ry = 0; while (ry < Hh && !d[ry * L + rx]) ry++;
+        if (ry >= Hh - 12) continue;
+        var len = Math.floor(10 + rr() * Hh * 0.55), yy0 = ry + 4 + Math.floor(rr() * 6);
+        for (kk = 0; kk < len; kk++) {
+          var yy = yy0 + kk; if (yy >= Hh - 2) break; var oi = yy * L + rx, v = d[oi];
+          if (!v || v < B || v > B + 3) continue;
+          if ((kk + q) % 7 < 5) d[oi] = Math.min(B + 4, v + 2 - ((yy + rx) & 1 ? 1 : 0));
+          if (kk > 3 && (kk % 11) === 0) rx += rr() < 0.5 ? -1 : 1;
+        }
+      }
+    }
     if (o.mist != null) for (y = 0; y < o.fadeRows; y++) {
       var ry = Hh - 1 - y, amt = 1 - y / o.fadeRows;
       for (x = 0; x < L; x++) if (d[ry * L + x] && BP[((ry & 3) << 2) | (x & 3)] < amt * 0.9) d[ry * L + x] = o.mist;
@@ -343,7 +359,6 @@
     for (x = 0; x < L; x++) { y = 0; while (y < Hh && !d[y * L + x]) y++; st.top[x] = y; }
     return st;
   }
-  R._lab = R._lab || {}; R._lab.crags = crags;
 
   // ---------- init: palette, lookup tables, cached strips ----------
   R.init = function (pal, S) {
@@ -368,26 +383,20 @@
         RUP[L2][rq.base + j] = rq.base + up; RDN[L2][rq.base + j] = rq.base + dn;
       }
     }
-    R.markerIdx = { c0: I.rock + 2, c1: I.rock + 5, c2: I.wet + 1, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };
+    R.markerIdx = { c0: I.rock + 4, c1: I.wet, c2: I.wet + 2, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };            // cairns: pale wet stones that read against the dark ridges and rock
     R.birdIdx = I.far + 1;                                                  // pale slate birds fleeing the storm, against the dark cloud deck
     R.watcherIdx = I.rock + 6;                                              // the watcher: a wet-grey cloak that reads on the dark rock
     R.footprint = { col: I.rock + 1, hi: I.rock + 6 };                      // dark damp marks with a wet lit rim
     ST.built = ""; ST.skyKey = ""; ST.palKey = ""; ST.bolt = null; ST.boltKey = ""; ST.rain = null; ST.WS.t = -1;
+    ST.next = 0; ST.fnext = 0; ST.sStart = -99;                             // a fresh visit: the first strike comes a few seconds in, not on the first frame
     R.pal = pal;
     buildScene(S);
   };
 
-  function bankTones(d, glowUnder) {                                        // d: 0 (far, pale, lit from beneath) .. 1 (overhead, black)
-    var C = I.cloud, r = Math.round;
-    return { rim: C + 7 - r(d * 2), lit: C + 6 - r(d * 3), body: C + 5 - r(d * 3), shade: C + 4 - r(d * 3.2), deep: C + 3 - r(d * 3), under: glowUnder != null ? glowUnder : C + 5 - r(d * 2) };
+  function bankTones(d, glowUnder) {                                        // d: 0 (far, pale, lit from beneath) .. 1 (overhead, black); the heavy banks keep a wide rim/body spread so their discs read as volumes
+    var C = I.cloud, r = Math.round, hv = Math.max(0, d - 0.6) / 0.4;
+    return { rim: C + 7 - r(d * 1.6), lit: C + 6 - r(d * 2.4), body: C + 5 - r(d * 3.0) - (hv > 0.5 ? 0 : 0), shade: C + 4 - r(d * 3.2), deep: C + 3 - r(d * 3), under: glowUnder != null ? glowUnder : C + 5 - r(d * 2) };
   }
-
-  function topOf(st) {                                                     // first opaque row of every column (skyline)
-    var L = st.w, Hh = st.h, top = new Int16Array(L), x, y;
-    for (x = 0; x < L; x++) { y = 0; while (y < Hh && !st.d[y * L + x]) y++; top[x] = y; }
-    return top;
-  }
-  function mtnPal(base) { return { rockDeep: base, rockS: base + 1, rockM: base + 2, rockL: base + 3, snowS: base + 3, snowL: base + 3, snowH: base + 4, snowD: base + 3 }; }
 
   function buildScene(S) {
     var key = S.w + "x" + S.h + "@" + (S.adj || 1) + "|" + S.horizonY;
@@ -399,7 +408,7 @@
     var hzc = clamp(hz, 110, 200), W = Math.max(w, 300);
     var spec = [                                                            // layer, count, width (of screen), height (of horizon), belly y (of horizon), darkness, cauli depth, min bump, speed, parallax
       [0, 2, 1.10, 0.15, 0.91, 0.00, 1, 6, 2.4, 0.02], [1, 2, 0.85, 0.21, 0.77, 0.28, 1, 7, 4.0, 0.04], [2, 2, 0.95, 0.29, 0.61, 0.55, 2, 7, 7.0, 0.07],
-      [3, 2, 1.05, 0.40, 0.43, 0.80, 1, 11, 10, 0.10], [4, 3, 1.25, 0.56, 0.25, 0.92, 1, 14, 14, 0.14]];
+      [3, 2, 1.05, 0.40, 0.43, 0.68, 1, 11, 10, 0.10], [4, 3, 1.25, 0.56, 0.25, 0.80, 1, 14, 14, 0.14]];
     for (k = 0; k < spec.length; k++) {
       var sp = spec[k];
       for (i = 0; i < sp[1]; i++) {
@@ -410,8 +419,8 @@
     }
     var Hm = clamp(Math.round(hz * 0.42), 50, 128);
     ST.far = crags({ L: 1280, H: Math.round(Hm * 0.78), seed: 61, peaks: 22, hMin: 0.28, hMax: 0.98, kMin: 0.62, kMax: 1.25, spur: 0.10, base: I.far, contrast: 0.72, mist: I.far + 1, fadeRows: A(20) });
-    ST.mid = crags({ L: 1152, H: Hm, seed: 73, peaks: 16, hMin: 0.26, hMax: 0.98, kMin: 0.6, kMax: 1.3, spur: 0.075, base: I.mid, contrast: 0.95, mist: I.mid + 1, fadeRows: A(16) });
-    ST.near = crags({ L: 1024, H: Math.round(Hm * 0.72), seed: 89, peaks: 9, hMin: 0.3, hMax: 0.95, kMin: 0.6, kMax: 1.2, spur: 0.06, base: I.near, contrast: 1.1, mist: I.near + 1, fadeRows: A(12) });
+    ST.mid = crags({ L: 1152, H: Hm, seed: 73, peaks: 16, hMin: 0.26, hMax: 0.98, kMin: 0.6, kMax: 1.3, spur: 0.075, base: I.mid, contrast: 0.95, mist: I.mid + 1, fadeRows: A(16), runoff: 9 });
+    ST.near = crags({ L: 1024, H: Math.round(Hm * 0.72), seed: 89, peaks: 9, hMin: 0.3, hMax: 0.95, kMin: 0.6, kMax: 1.2, spur: 0.06, base: I.near, contrast: 1.1, mist: I.near + 1, fadeRows: A(12), runoff: 6 });
     var Wt = clamp(Math.round(w * 0.5), 130, 300), Ht = clamp(Math.round(hzc * 0.72), 70, 160), C = I.cloud;
     ST.tower = tower(Wt, Ht, 907, { rim: I.glow + 1, lit: C + 7, body: C + 6, shade: C + 4, deep: C + 3, under: I.glow });
     ST.scud = [];
@@ -513,7 +522,7 @@
       else if (t >= ST.next) { startStrike(S, t, Iv); ST.next = t + lerp(10, 3.8, Iv) + 4.6 * h1((t * 977) | 0); }
     } else ST.next = 0;
     if (live && t >= ST.fnext) {                                           // heat lightning: flickers deep in the cloud, no bolt, no thunder
-      if (ST.fnext > 0) ST.flick = { t0: t, x: 0.1 + 0.8 * h1((t * 331) | 0), y: 0.3 + 0.5 * h1((t * 173) | 0), r: 0.18 + 0.2 * h1((t * 89) | 0) };
+      if (ST.fnext > 0) ST.flick = { t0: t, x: 0.1 + 0.8 * h1((t * 331) | 0), y: 0.3 + 0.5 * h1((t * 173) | 0), r: 0.18 + 0.2 * h1((t * 89) | 0), bolt: h1((t * 57) | 0) < 0.55, seed: (t * 1000) | 0 };
       ST.fnext = t + lerp(6.5, 1.8, Iv) + 3 * h1((t * 421) | 0);
     }
     var a = t - ST.sStart;
@@ -623,7 +632,7 @@
     for (i = 0; i < p.length; i += 3) {
       x = p[i]; y = p[i + 1]; if (y < 0 || y >= h) continue;
       var k2 = p[i + 2];
-      if (k2 === 0) { if (x >= 0 && x < w) d[y * w + x] = I.bolt + 1; continue; }
+      if (k2 === 0) { if (x >= 0 && x < w) d[y * w + x] = ((x + y) & 3) === 0 ? I.bolt + 1 : I.bolt + 2; continue; }
       for (var cx2 = 0; cx2 < 1 + fat + (k2 === 2 ? 1 : 0); cx2++) { var pxx = x + cx2 - (fat >> 1); if (pxx >= 0 && pxx < w) d[y * w + pxx] = I.bolt + 2; }
     }
     // impact: a burst of dithered light and a few sparks where the channel meets the rock
@@ -659,7 +668,6 @@
     G.slant = 0.26 + 0.56 * G.wind;
     W.ss += G.slant * dt; W.cp += (0.55 + 1.0 * G.wind) * dt;
   }
-  ST.WS.cp = 0;
   // rain streak pixel: raises the pixel to a pale tone of its own ramp (dark backdrops) or darkens it (bright ones); layer 0 far .. 2 near
   function rainPx(d, o, layer) {
     var v = d[o];
@@ -694,15 +702,23 @@
     }
   }
 
-  // ---------- backdrop ----------
-  function mod(a, n) { return ((a % n) + n) % n; }
-  function fadeStrip(st, idx, rows) {                                      // the lowest rows of a strip dissolve into the mist colour
-    var L = st.w, Hh = st.h, y, x;
-    for (y = 0; y < rows; y++) {
-      var ry = Hh - 1 - y, amt = 1 - y / rows;
-      for (x = 0; x < L; x++) if (st.d[ry * L + x] && (B4[ry & 3][x & 3] + 0.5) < amt) st.d[ry * L + x] = idx;
+  // a distant fork of lightning over the far ridge: thin, brief, silent; it shows on the bright beats of a flicker
+  function farBolt(fb, S, G, endY) {
+    var f = ST.flick; if (!f || !f.bolt || ST.fl < 0.45 || S.reduced) return;
+    var rnd = PX.rng(f.seed), w = fb.w, h = fb.h, d = fb.d, x = Math.round(f.x * w), y = Math.round(G.hy * (0.30 + 0.12 * rnd())), s2, bx;
+    while (y < endY) {
+      var seg = 2 + Math.floor(rnd() * 5), nx = x + Math.round((rnd() - 0.5) * 8 * G.a);
+      for (s2 = 0; s2 < seg && y + s2 < endY; s2++) {
+        bx = Math.round(lerp(x, nx, (s2 + 1) / seg)); var yy = y + s2; if (yy < 0 || yy >= h || bx < 1 || bx >= w - 1) continue;
+        d[yy * w + bx] = I.bolt + 2;
+        if (((yy + bx) & 1) === 0) { d[yy * w + bx - 1] = I.bolt; d[yy * w + bx + 1] = I.bolt; }
+      }
+      x = nx; y += seg;
     }
   }
+
+  // ---------- backdrop ----------
+  function mod(a, n) { return ((a % n) + n) % n; }
   // curtains of rain hanging under the cloud belly over the ridges: slanted streak texture, bell-shaped across, fading at both ends
   function curtains(fb, S, hy, cp) {
     var w = fb.w, d = fb.d, G = ST.G, slant = G.slant, a = G.a, n = 5, c, x, y;
@@ -724,7 +740,9 @@
   R.backdrop = function (fb, S, pal) {
     buildScene(S);
     var G = geom(S); advance(S);
-    var w = fb.w, h = fb.h, hy = G.hy, al = S.altitude, a = G.a, cp = ST.WS.cp, i, rw;
+    var w = fb.w, h = fb.h, hy = G.hy, al = S.altitude, a = G.a, cp = ST.WS.cp, i, rw, lipMax = 0, lx;
+    for (lx = 0; lx < w; lx++) if (S.lip[lx] > lipMax) lipMax = S.lip[lx];
+    var bot = Math.min(h, lipMax + 4);                                      // the ground covers everything below the lip: the fills need not go deeper
     var skey = w + "x" + h + "|" + hy;
     if (ST.skyKey !== skey || !ST.sky || ST.sky.length !== w * h) {
       skyBake(fb, S, hy);
@@ -757,17 +775,18 @@
     curtains(fb, S, hy, cp);
     var oxF = Math.floor(al * 0.07 + 130), yF = hy + 3 - ST.far.h;
     Sc.blitStrip(fb, ST.far, oxF, yF);
-    mist(fb, hy - 4, 3, h, I.far + 1, I.far + 2, cp * 1.2);
+    mist(fb, hy - 4, 3, bot, I.far + 1, I.far + 2, cp * 1.2);
+    if (ST.flick && ST.flick.bolt) farBolt(fb, S, G, yF + ST.far.top[mod(clamp(Math.round(ST.flick.x * w), 0, w - 1) + oxF, ST.far.w)]);
     var boltFar = (ST.sSeed & 4) === 0, bx = clamp(Math.round(ST.sX * w), 0, w - 1);
     if (boltFar && (ST.hold != null || S.tSec - ST.sStart < 1.05 || thumb)) drawBolt(fb, S, G, yF + ST.far.top[mod(bx + oxF, ST.far.w)]);
     var oxM = Math.floor(al * 0.15 + 240), yM = hy + 10 - ST.mid.h;
     Sc.blitStrip(fb, ST.mid, oxM, yM);
     if (!boltFar && (ST.hold != null || S.tSec - ST.sStart < 1.05 || thumb)) drawBolt(fb, S, G, yM + ST.mid.top[mod(bx + oxM, ST.mid.w)]);
-    mist(fb, hy + 7, 3, h, I.mid + 1, I.mid + 2, cp * 1.6 + 60);
+    mist(fb, hy + 7, 3, bot, I.mid + 1, I.mid + 2, cp * 1.6 + 60);
     scud(1);
     drawRain(fb, S, 0, false);
     Sc.blitStrip(fb, ST.near, al * 0.32 + 500, hy + 22 - ST.near.h);
-    mist(fb, hy + 20, 4, h, I.near, I.near + 1, cp * 2.2 + 140);
+    mist(fb, hy + 20, 4, bot, I.near, I.near + 1, cp * 2.2 + 140);
     scud(2);
   };
 
@@ -953,6 +972,18 @@
         puddle(fb, S, sx, py, A, B, c * 5 + q, t);
       }
     }
+    cc = cellsOf(S, 58, 30);
+    var tt = S.reduced ? 0 : t, Gi = ST.G;
+    for (c = cc[0]; c <= cc[1]; c++) {                                          // rivulets: water racing downhill across the slick rock, a bright head running along a dashed thread
+      if (h2(c, 231) > 0.42 - 0.12 * Gi.I) continue;
+      var rx0 = sxOf(S, c * 58 + h2(c, 232) * 58); if (rx0 < -30 || rx0 > w + 30 || Math.abs(rx0 - heroX) < 24 * zoom + 12) continue;
+      var rL = Math.round((8 + 14 * h2(c, 233)) * zoom * 1.3), ry0 = Math.round((0.14 + 0.78 * h2(c, 234)) * sbPx), head = Math.floor(mod(-tt * (0.7 + 0.5 * Gi.wind) * (0.6 + 0.8 * h2(c, 235)) + h2(c, 236), 1) * rL);
+      for (k = 0; k < rL; k++) {
+        var rxx = rx0 + k; if (rxx < 1 || rxx >= w - 1) continue;
+        var ryy = lipA[rxx] + ry0, dist = (k - head + rL) % rL, cc2 = dist === 0 ? I.wet + 2 : (dist < 3 ? I.wet + 1 : ((k & 1) ? I.wet : 0));
+        if (cc2) fb.set(rxx, ryy, cc2);
+      }
+    }
     cc = cellsOf(S, 24, 8);
     for (c = cc[0]; c <= cc[1]; c++) {
       if (h2(c, 211) > 0.26) continue;
@@ -1047,7 +1078,7 @@
     }
     cc = cellsOf(S, 130, 60);                                                    // crystal clusters where the charge pools in the deep, each in its own halo
     for (c = cc[0]; c <= cc[1]; c++) {
-      if (h2(c, 351) > 0.42) continue;
+      if (h2(c, 351) > 0.36) continue;
       var cr = at(c * 130 + h2(c, 352) * 130, 200 + 320 * h2(c, 353), 50); if (!cr || cr.y > h + 40 || cr.y < -40) continue;
       var nsp = 3 + Math.floor(h2(c, 354) * 3), halo = Math.round(16 * zd * 1.3 + 6);
       for (y = -halo; y <= halo * 0.6; y++) for (x = -halo * 1.4; x <= halo * 1.4; x++) {
@@ -1055,7 +1086,7 @@
         if (BP[(((cr.y + y) & 3) << 2) | ((cr.x + x) & 3)] < (1 - hq) * 0.85) { var pxh = cr.x + x, pyh = cr.y + y; if (pxh >= 0 && pxh < w && pyh >= 0 && pyh < h && pyh >= lipA[pxh] + 3) { var vv = fb.d[pyh * w + pxh]; if (vv >= SL && vv <= SL + 5) fb.d[pyh * w + pxh] = GD + (hq < 0.45 ? 1 : 0); } }
       }
       for (k = 0; k < nsp; k++) {
-        var ang = (k / Math.max(1, nsp - 1) - 0.5) * 1.1 + (h2(c, 355 + k) - 0.5) * 0.25, ln = Math.round((12 + 18 * h2(c, 360 + k)) * zd * 1.4), hw = Math.max(2, Math.round((2.6 + 2.4 * h2(c, 365 + k)) * Math.max(0.7, zd * 1.2))), sa = Math.sin(ang), ca = Math.cos(ang), bx = cr.x + Math.round((k - (nsp - 1) / 2) * hw * 1.6);
+        var ang = (k / Math.max(1, nsp - 1) - 0.5) * 1.1 + (h2(c, 355 + k) - 0.5) * 0.25, ln = Math.round((14 + 22 * h2(c, 360 + k)) * Math.max(zd, 0.6) * 1.4), hw = Math.max(2, Math.round((2.8 + 2.6 * h2(c, 365 + k)) * Math.max(0.8, zd * 1.2))), sa = Math.sin(ang), ca = Math.cos(ang), bx = cr.x + Math.round((k - (nsp - 1) / 2) * hw * 1.6);
         for (var tt = 0; tt <= ln; tt++) {
           var half = tt < ln * 0.78 ? hw : Math.max(0, hw * (1 - (tt - ln * 0.78) / (ln * 0.22))), hi = Math.ceil(half);
           for (var ss = -hi; ss <= hi; ss++) {
@@ -1105,6 +1136,7 @@
     }
     return out;
   }
+  function lowf(x) { return 0.55 * Math.sin(TAU * 3 * x / TP + 0.7) + 0.45 * Math.sin(TAU * 5 * x / TP + 2.1); }
   function seamLit(V) { var len = Math.sqrt(V.ex * V.ex + V.ey * V.ey) || 1; return -(V.ex * 0.6 + V.ey * 0.8) / len > 0.15; }   // the neighbour lies up-left: this edge faces the light
 
   function buildTex(S, zd, sbPx) {
@@ -1116,7 +1148,7 @@
       var tt = Math.min(1.2, y / sbPx), lv = 5.5 - 3.4 * Math.pow(tt, 0.8), bay = BP[((y & 3) << 2) | (x & 3)] - 0.5;
       if (y === 0) return (h2(x >> 1, 4) > 0.8) ? WT : RK + 6;
       if (V.d2 - V.d1 < 1.5) return seamLit(V) ? RK + clamp(Math.round(lv) + 1, 2, 7) : RK + 1;
-      var sh = -(V.dx * 0.6 / 14 + V.dy * 0.8 / 3) * 0.5, tone = lv + (h2(V.n1, 7) - 0.5) * 1.6 + clamp(sh, -0.7, 0.7) + bay * 0.9;
+      var sh = -(V.dx * 0.6 / 14 + V.dy * 0.8 / 3) * 0.5, tone = lv + (h2(V.n1, 7) - 0.5) * 1.6 + clamp(sh, -0.7, 0.7) + bay * 0.9 + 0.7 * lowf(x) * (1 - tt * 0.5);   // long slicks of wetter and drier rock
       if (V.dy < -0.6 && V.dy > -2.7 && h2(V.n1, 31) > 0.72 && (((x + Math.floor(h2(V.n1, 32) * 9)) % 10) < 2 + Math.floor(h2(V.n1, 33) * 4))) return tt < 0.5 ? WT + 1 : WT;   // sky mirrored in the wet plates
       return RK + clamp(Math.floor(tone), 1, 7);
     });
@@ -1203,10 +1235,14 @@
     var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip, G = ST.G, t = S.reduced ? 0 : S.tSec, zd = Math.round(depthZoom(S) * 40) / 40, a = G.a, x, y, o, k;
     var heroX = Math.round(S.ztx + S.anchorX * zoom), slopeK = clamp(S.slope, 0, 0.7), qoff = Math.round(sc * zoom - S.ztx);
     var sbPx = Math.max(10, Math.round(34 * zd)); ST.sbPx = sbPx;
-    var key = zd + "|" + sbPx;
-    if (TEX.key !== key || !TEX.t) { TEX.t = buildTex(S, zd, sbPx); TEX.key = key; }
+    var key = zd + "|" + sbPx, now = root.performance ? root.performance.now() : 0;
+    if (TEX.key !== key || !TEX.t) {
+      if (!TEX.t || Math.abs(zd - TEX.t.zd) > 0.14 || now - TEX.tb > 380) { TEX.t = buildTex(S, zd, sbPx); TEX.key = key; TEX.tb = now; }   // a fast zoom (pull-back) keeps the last tile for a moment instead of rebuilding every frame
+    }
     var T = TEX.t, SL = I.slate, GD = I.glowd, DK2 = DKK;
     groundAbove(fb, S, heroX);
+    var minLip = 0; for (x = 0; x < w; x++) if (lipA[x] < minLip) minLip = lipA[x];
+    if (SH.length < h - minLip + 16) SH = new Int16Array(h - minLip + 64);
     for (y = 0; y < SH.length; y++) SH[y] = Math.round(y * slopeK * 0.85);
     for (y = 0; y < 256; y++) DKK[y] = DARK[DARK[y]];
     for (x = 0; x < w; x++) {
@@ -1247,13 +1283,15 @@
 
   // ---------- QA hooks ----------
   // R.qaStrike()               -> a strike on the next frame
-  // R.qaStrike({hold: 0.8})    -> freeze the flash at 0.8 (bolt drawn) until R.qaStrike({clear: true})
+  // R.qaStrike({hold: 0.8})    -> freeze the flash at 0.8 (bolt drawn) until R.qaStrike({clear: true}); {sheet: true} freezes an in-cloud strike (no bolt), {warm: true} a warm one
+  // R.qaFlick({x: 0.6})        -> a distant heat-lightning flicker with a silent far bolt, starting just before the next frame
   R.qaStrike = function (o) {
     o = o || {};
     if (o.clear) { ST.hold = null; ST.force = null; ST.sStart = -99; ST.sheet = false; ST.lastT = -1e9; ST.palKey = ""; return "cleared"; }
-    if (o.hold != null) { ST.hold = o.hold; ST.sheet = false; if (o.x != null) ST.sX = o.x; ST.warm = !!o.warm; ST.bolt = null; ST.sSeed = (o.seed || 7) | 0; ST.lastT = -1e9; ST.palKey = ""; return "hold"; }
+    if (o.hold != null) { ST.hold = o.hold; ST.sheet = !!o.sheet; if (o.x != null) ST.sX = o.x; ST.warm = !!o.warm; ST.bolt = null; ST.sSeed = (o.seed || 7) | 0; ST.lastT = -1e9; ST.palKey = ""; return "hold"; }
     ST.force = { x: o.x, warm: o.warm, at: o.at }; ST.lastT = -1e9; return "armed";
   };
 
+  R.qaFlick = function (o) { o = o || {}; ST.flick = { t0: o.t0 == null ? 2.98 : o.t0, x: o.x || 0.6, y: o.y || 0.5, r: o.r || 0.25, bolt: true, seed: o.seed || 3 }; ST.fnext = 1e9; ST.lastT = -1e9; return "flick"; };
   V8.register("storm", R);
 })(typeof window !== "undefined" ? window : this);

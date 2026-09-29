@@ -1,10 +1,11 @@
 // The Bone Fields - V8 scene (10450-11950 m). A pale, mournful wasteland under a hazy sepia sky, built entirely in code on the shared
-// indexed framebuffer: a banded, dithered sky with a bleached low sun, dust veils and a far dust wall; hazy mesas; colossal half-buried
-// skeletons as layered silhouettes (ribcages seen side-on and as Gothic naves, a leviathan skull, a spine of great vertebrae, tusks and
-// long bones), each shaded like a volume (distance-field bevel + Lambert + ordered dither) and faded into the haze by depth; slow dust
-// devils crossing the plain; dry grass and dead thorn trees along a crest of bone-white dust. Below it the cracked hardpan gives way to
-// baked strata full of fossils - great ribs cut in section, vertebrae, ammonites, skulls whose sockets glow amber - a packed bone bed,
-// and a dim amber glow far below.
+// indexed framebuffer: a banded, dithered sky with a bleached low sun that sinks and rises over the zone, dust veils and a far dust wall;
+// hazy mesas; colossal half-buried skeletons as layered silhouettes (ribcages seen side-on and as Gothic naves, a leviathan skull, a spine
+// of great vertebrae, tusks and long bones), each shaded like a volume (distance-field bevel + Lambert + ordered dither) and faded into the
+// haze by depth, with dark giant ribs sweeping past in front; slow dust devils crossing the plain; dry grass and dead thorn trees along a
+// crest of bone-white dust. Below it the cracked hardpan gives way to baked strata holding stones, relics (a crown, a jug, a dagger, a shield
+// boss) and fossils - great ribs in section, ammonites - then a packed bone bed of skulls whose sockets glow amber, and a dim amber glow far
+// below. Sun height, haze and the props follow a 1500 m cycle (any altitude works).
 (function (root) {
   "use strict";
   var PX = root.PX, Sc = root.Sc, V8 = root.V8, hex = PX.hex, clamp = PX.clamp, clamp01 = PX.clamp01, B4 = PX.BAYER4, TAU = Math.PI * 2;
@@ -16,7 +17,6 @@
 
   function H(list) { return list.map(hex); }
   function sm(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
-  function lerp(a, b, t) { return a + (b - a) * t; }
   function mix3(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
   function h1(n) { return PX.h1(n); }
   function h2(a, b) { return PX.h2(a, b); }
@@ -148,14 +148,6 @@
     }
     return { w: w, h: h, d: out };
   }
-  function blitTone(fb, sp, x0, y0, base, lut) {                         // sprite tones 1..n -> palette base + tone - 1 (optionally through a LUT, e.g. fade to haze)
-    var w = fb.w, h = fb.h, d = fb.d, sw = sp.w, sh = sp.h, sd = sp.d;
-    for (var y = Math.max(0, -y0); y < sh && y0 + y < h; y++) {
-      var row = (y0 + y) * w, srow = y * sw, xa = Math.max(0, -x0), xb = Math.min(sw, w - x0);
-      for (var x = xa; x < xb; x++) { var v = sd[srow + x]; if (v) d[row + x0 + x] = lut ? lut[base + v - 1] : base + v - 1; }
-    }
-  }
-
   // ---------- the bones ----------
   // A ribcage seen from the side: a spine of vertebrae along the ground, ribs rising from it and curving over like great horns. o: comb (curl direction), n ribs
   function mComb(W, Hh, seed, n, curlDir) {
@@ -229,7 +221,7 @@
       var rp = pal.ramps[nm];
       for (j = 0; j < rp.n; j++) { LIFT[rp.base + j] = rp.base + Math.min(rp.n - 1, j + 1); DARK[rp.base + j] = rp.base + Math.max(0, j - 1); LUM[rp.base + j] = PX.lum(pal.rgb[rp.base + j]); }
     }
-    R.markerIdx = { c0: I.boneN + 1, c1: I.boneN + 4, c2: I.boneN + 6, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };
+    R.markerIdx = { c0: I.boneN, c1: I.boneN + 2, c2: I.boneN + 7, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };            // cairns: dark umber stones with a bone-white lit edge, readable against the pale haze
     R.birdIdx = I.boneN + 1;                                                // dark sepia buzzards against the pale sky
     R.watcherIdx = I.boneN + 1;                                             // a dark-cloaked watcher on the pale dust
     R.footprint = { col: I.dust + 1, hi: I.dust + 6 };                      // pressed dust with a pale rim
@@ -280,12 +272,11 @@
     else if (kind === "spine") m = mSpine(W, Hh, seed, Math.max(4, Math.round(W / 32)));
     return emboss(m, nT, { bevel: kind === "skull" ? Math.max(bevel, Math.round(Hh * 0.15)) : bevel, bias: bias || 0 });
   }
-  function nave(W, Hh, seed, n, nT, bevel, bias) {                              // composite of nested arches: farther arches paler
+  function nave(W, Hh, seed, n, nT, bevel, bias) {                        // nested arches, far -> near: each nearer arch paints over the one behind
     var arches = mArches(W, Hh, seed, n), out = { w: W, h: Hh, d: new Uint8Array(W * Hh) }, i, k;
     for (i = 0; i < arches.length; i++) {
-      var sp = emboss(arches[i].m, nT, { bevel: bevel, bias: bias || 0 }), t = arches[i].t, lift = Math.round((1 - t) * 0 + (1 - t) * (nT * 0.28));
-      for (k = 0; k < sp.d.length; k++) if (sp.d[k]) out.d[k] = Math.min(nT, sp.d[k] + (i < arches.length - 1 ? Math.round((arches.length - 1 - i) / arches.length * 2.2) * 0 : 0));
-      void lift;
+      var sp = emboss(arches[i].m, nT, { bevel: bevel, bias: bias || 0 });
+      for (k = 0; k < sp.d.length; k++) if (sp.d[k]) out.d[k] = sp.d[k];
     }
     return out;
   }
@@ -293,7 +284,7 @@
   function buildScene(S) {
     var key = S.w + "x" + S.h + "@" + (S.adj || 1) + "|" + S.horizonY;
     if (ST.built === key) return; ST.built = key; ST.skyKey = "";
-    var a = S.adj || 1, hz = S.horizonY, w = S.w, U = clamp(hz / 192, 0.7, 1.35) * a, i, k;
+    var a = S.adj || 1, hz = S.horizonY, w = S.w, U = clamp(hz / (192 * a), 0.7, 1.35) * a, i, k;               // Chunky keeps on-screen sizes: fewer, bigger pixels
     function Q(v) { return Math.max(2, Math.round(v * U)); }
     ST.U = U;
     ST.mesaF = mesaStrip({ L: 1300, H: Q(30), seed: 11, n: 14, base: I.far, mist: I.far + 1, fadeRows: Q(12) });
@@ -325,7 +316,6 @@
     ST.fg.push(emboss(fm, 6, { bevel: Math.max(5, Math.round(FH * 0.03)), bias: 0.38, tex: false }));
   }
 
-  R._lab = { I: I, newMask: newMask, mDisc: mDisc, mEll: mEll, mCap: mCap, mPoly: mPoly, mRib: mRib, mVert: mVert, emboss: emboss, blitTone: blitTone, mComb: mComb, mArches: mArches, mSkull: mSkull, mTusk: mTusk, mFemur: mFemur, mSpine: mSpine };
 
   // ---------- sky ----------
   function geom(S) {
@@ -342,7 +332,7 @@
     for (i = 0; i < 14; i++) idx.push(I.sky + i);
     Sc.bands(fb, 0, hy + 24, idx, 5);
     if (hy + 24 < h) fb.fillRect(0, hy + 24, w, h - hy - 24, I.sky + 13);
-    var sx = Math.round(w * 0.30), sy = G.sunY, r = Math.round(clamp(S.h * 0.05, 11, 22) * a);
+    var sx = Math.round(w * 0.20), sy = G.sunY, r = Math.round(clamp(S.h * 0.05, 11, 22) * a);
     ST.sunX = sx; ST.sunY = sy; ST.sunR = r;
     var rings = [[r + 1.5 * a, 1.0, 3], [r + 5 * a, 0.75, 2], [r + 9 * a, 0.5, 2], [r + 14 * a, 0.34, 1], [r + 20 * a, 0.18, 1]], Rm = rings[4][0] + 1;
     for (y = Math.max(0, sy - Rm); y <= Math.min(h - 1, sy + Rm); y++) for (x = Math.max(0, sx - Rm); x <= Math.min(w - 1, sx + Rm); x++) {
@@ -386,6 +376,7 @@
     }
     return sp;
   }
+  var LIFT2 = new Uint8Array(256), DARK2 = new Uint8Array(256);
   function blitOp(fb, sp, x0, y0, lut) {
     var w = fb.w, h = fb.h, d = fb.d;
     for (var y = 0; y < sp.h; y++) { var ty = y0 + y; if (ty < 0 || ty >= h) continue; for (var x = 0; x < sp.w; x++) { if (!sp.d[y * sp.w + x]) continue; var tx = x0 + x; if (tx < 0 || tx >= w) continue; d[ty * w + tx] = lut[d[ty * w + tx]]; } }
@@ -433,27 +424,29 @@
   R.backdrop = function (fb, S, pal) {
     buildScene(S);
     var G = geom(S); advance(S);
-    var w = fb.w, h = fb.h, hy = G.hy, al = S.altitude, a = G.a, cp = ST.WS.cp, U = G.U, x, y, i, t = S.reduced ? 0 : S.tSec;
+    var w = fb.w, h = fb.h, hy = G.hy, al = S.altitude, a = G.a, cp = ST.WS.cp, U = G.U, x, y, i, t = S.reduced ? 0 : S.tSec, lipMax = 0;
+    for (x = 0; x < w; x++) if (S.lip[x] > lipMax) lipMax = S.lip[x];
+    var bot = Math.min(h, lipMax + 4);                                      // the ground covers everything below the lip: the fills need not go deeper
     var skey = w + "x" + h + "|" + hy + "|" + G.sunY;
     if (ST.skyKey !== skey || !ST.sky || ST.sky.length !== w * h) {
       skyBake(fb, S, G);
       if (!ST.sky || ST.sky.length !== w * h) ST.sky = new Uint8Array(w * h);
       ST.sky.set(fb.d); ST.skyKey = skey;
     } else fb.d.set(ST.sky);
-    if (!ST.veils) veilsInit(S);
+    if (!ST.veils) { veilsInit(S); for (i = 0; i < 256; i++) { LIFT2[i] = LIFT[LIFT[i]]; DARK2[i] = DARK[DARK[i]]; } }
     for (i = 0; i < ST.veils.length; i++) {
       var vv = ST.veils[i], vspan = w + vv.sp.w + 60, vx = mod(vv.x - cp * 4 * vv.v - al * 0.05, vspan) - vv.sp.w;
-      blitOp(fb, vv.sp, Math.round(vx), Math.round(vv.y * hy), vv.dark ? DARK : LIFT);
+      blitOp(fb, vv.sp, Math.round(vx), Math.round(vv.y * hy), vv.dark ? DARK2 : LIFT2);
     }
     var wallA = Math.max(3, Math.round(6 * U));
     bank(fb, hy - Math.round(20 * U), wallA, hy + 12, I.far + 1, I.far + 2, cp * 1.2, Math.round(26 * U));
-    Sc.blitStrip(fb, ST.mesaF, al * 0.03 + cp * 0.2, hy + 4 - ST.mesaF.h);
-    Sc.blitStrip(fb, ST.landF, al * 0.045 + 120, hy + 8 - ST.landF.h);
+    Sc.blitStrip(fb, ST.mesaF, al * 0.04 + cp * 0.2, hy + 4 - ST.mesaF.h);
+    Sc.blitStrip(fb, ST.landF, al * 0.06 + 120, hy + 8 - ST.landF.h);
     bank(fb, hy - Math.round(6 * U), wallA, hy + 20, I.far + 3, I.far + 3, cp * 1.6 + 60, 12);
-    Sc.blitStrip(fb, ST.mesaN, al * 0.08 + 300, hy + 12 - ST.mesaN.h);
-    Sc.blitStrip(fb, ST.landM, al * 0.11 + 260, hy + 16 - ST.landM.h);
+    Sc.blitStrip(fb, ST.mesaN, al * 0.10 + 300, hy + 12 - ST.mesaN.h);
+    Sc.blitStrip(fb, ST.landM, al * 0.15 + 260, hy + 16 - ST.landM.h);
     var plainTop = hy + 16, ob;
-    for (y = plainTop; y < h; y++) {                                                          // the far plain: banded dust, drifting ripples, never a flat fill
+    for (y = plainTop; y < bot; y++) {                                                        // the far plain: banded dust, drifting ripples, never a flat fill
       var dep = (y - plainTop) / Math.max(1, h - plainTop), row = y * w; ob = (y & 3) << 2;
       for (x = 0; x < w; x++) {
         var tn = 3.4 - 1.6 * Math.min(1, dep * 2.2) + (((y >> 1) + ((x + Math.floor(cp * 3)) >> 5)) % 5 === 0 ? -0.7 : 0) + (BP[ob | (x & 3)] - 0.5) * 0.9;
@@ -465,15 +458,13 @@
       var dspan = w + 240, dx0 = mod(h1(i * 7 + 3) * dspan - cp * (5 + 4 * h1(i * 5 + 1)) - al * 0.06, dspan) - 120;
       devil(fb, Math.round(dx0), hy + Math.round((22 + 14 * h1(i * 11 + 2)) * U), Math.round((56 + 46 * h1(i * 13 + 5)) * U), Math.round((26 + 18 * h1(i * 17 + 7)) * U), t, i * 3.7 + 1, -(2 + 6 * G.wind));
     }
-    Sc.blitStrip(fb, ST.landN, al * 0.2 + 500, hy + 26 - ST.landN.h);
-    for (y = hy + 26; y < h; y++) { var rw2 = y * w; ob = (y & 3) << 2; for (x = 0; x < w; x++) fb.d[rw2 + x] = I.dust + 2 + (BP[ob | (x & 3)] < 0.35 ? 1 : 0); }
+    Sc.blitStrip(fb, ST.landN, al * 0.36 + 500, hy + 26 - ST.landN.h);
+    for (y = hy + 26; y < bot; y++) { var rw2 = y * w; ob = (y & 3) << 2; for (x = 0; x < w; x++) fb.d[rw2 + x] = I.dust + 2 + (BP[ob | (x & 3)] < 0.35 ? 1 : 0); }
   };
 
-  R._lab.devil = devil; R._lab.ST = ST;
 
   // ---------- world-locked bones standing on the crest: sprites cached per camera scale ----------
   var WL = { key: "", sp: null };
-  function putM(fb, x, y, c) { fb.set(x, y, c); }
   function wlSprites(S) {
     var k = Math.max(0.5, S.zoom * 1.25), key = Math.round(k * 24) + "|" + (S.adj || 1);
     if (WL.key === key && WL.sp) return WL.sp;
@@ -588,7 +579,7 @@
 
   R.light = function (S) {
     geom(S);
-    return { x: ST.sunX || Math.round(S.w * 0.3), y: ST.sunY || Math.round(S.h * 0.15), k: 0.34, col: [244, 228, 198], ambient: [176, 152, 122], bright: 0.86, ground: [206, 192, 166] };
+    return { x: ST.sunX || Math.round(S.w * 0.2), y: ST.sunY || Math.round(S.h * 0.15), k: 0.34, col: [244, 228, 198], ambient: [176, 152, 122], bright: 0.86, ground: [206, 192, 166] };
   };
 
   // ---------- ground textures: periodic tiles rendered once per depth-scale ----------
@@ -615,6 +606,7 @@
     }
     return out;
   }
+  function lowf(x) { return 0.55 * Math.sin(TAU * 3 * x / TP + 0.7) + 0.45 * Math.sin(TAU * 5 * x / TP + 2.1); }
   function smoothWob(L, seed) { var r = PX.rng(seed), c = [], k; for (k = 0; k < 3; k++) c.push({ f: 2 + Math.floor(r() * 5) + k * 2, ph: r() * TAU, a: 1 / (1 + k * 0.7) }); return function (x) { var s = 0; for (var i = 0; i < 3; i++) s += c[i].a * Math.sin(TAU * c[i].f * x / L + c[i].ph); return s / 2.1; }; }
   function seamLit(V) { var len = Math.sqrt(V.ex * V.ex + V.ey * V.ey) || 1; return -(V.ex * 0.6 + V.ey * 0.8) / len > 0.15; }
 
@@ -627,7 +619,7 @@
       var tt = Math.min(1.2, y / sbPx), lv = 5.7 - 3.0 * Math.pow(tt, 0.8), bay = BP[((y & 3) << 2) | (x & 3)] - 0.5;
       if (y === 0) return (h2(x >> 1, 4) > 0.75) ? DU + 5 : DU + 6;
       if (V.d2 - V.d1 < 1.5) return seamLit(V) ? DU + clamp(Math.round(lv) + 1, 2, 6) : PN + 2;
-      var sh = -(V.dx * 0.6 / 15 + V.dy * 0.8 / 3) * 0.5, tone = lv + (h2(V.n1, 7) - 0.5) * 1.5 + clamp(sh, -0.6, 0.6) + bay * 0.9;
+      var sh = -(V.dx * 0.6 / 15 + V.dy * 0.8 / 3) * 0.5, tone = lv + (h2(V.n1, 7) - 0.5) * 1.5 + clamp(sh, -0.6, 0.6) + bay * 0.9 + 0.75 * lowf(x) * (1 - tt * 0.4);   // soft drifts of paler and darker dust across the plain
       if (((y * 2 + (x >> 3)) % 9) === 0 && tt < 0.75) tone -= 0.9;                                    // wind ripples in the dust
       return DU + clamp(Math.floor(tone), 1, 6);
     });
@@ -637,7 +629,7 @@
       var bay = BP[((y & 3) << 2) | (x & 3)] - 0.5, dg = y / T.loamRows;
       if (y === 0) return PN + 3;
       if (V.d2 - V.d1 < 1.1) return seamLit(V) ? DU + 4 : PN + 1;
-      return h2(V.n1, 21) > 0.6 ? PN + clamp(Math.floor(3.2 + (h2(V.n1, 9) - 0.5) * 1.6 - dg * 0.8 + bay * 0.7), 1, 5) : DU + clamp(Math.floor(2.2 + (h2(V.n1, 9) - 0.5) * 1.7 - dg * 0.9 + bay * 0.8), 1, 4);
+      var lf = 0.6 * lowf(x + 40); return h2(V.n1, 21) > 0.6 - lf * 0.15 ? PN + clamp(Math.floor(3.2 + lf + (h2(V.n1, 9) - 0.5) * 1.6 - dg * 0.8 + bay * 0.7), 1, 5) : DU + clamp(Math.floor(2.2 + lf + (h2(V.n1, 9) - 0.5) * 1.7 - dg * 0.9 + bay * 0.8), 1, 4);
     });
     // beds: ochre, pale marl, rust and clay; wavy thickness, lit tops, laminae, cross-bedding
     T.bedRows = Math.ceil(90 * zd) + 18;
@@ -676,7 +668,7 @@
     T.deep = new Uint8Array(TP * T.deepRows);
     for (x = 0; x < TP; x++) for (y = 0; y < T.deepRows; y++) {
       var gl = y / T.deepRows, bay2 = BP[((y & 3) << 2) | (x & 3)] - 0.5, lines = ((y + Math.floor(3 * wob(x))) % 9) === 0;
-      T.deep[y * TP + x] = (bay2 + 0.5 < gl * 0.36) ? AM : DP + clamp(Math.floor(1.6 + h2(x >> 1, y >> 1) * 1.4 + (lines ? 0.9 : 0) - gl * 0.6), 0, 4);
+      T.deep[y * TP + x] = (bay2 + 0.5 < gl * 0.05) ? AM + 2 : ((bay2 + 0.5 < gl * 0.32) ? AM + 1 : DP + clamp(Math.floor(1.6 + h2(x >> 1, y >> 1) * 1.4 + (lines ? 0.9 : 0) - gl * 0.6), 0, 4));
     }
     return T;
   }
@@ -687,11 +679,15 @@
     var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip, G = geom(S), t = S.reduced ? 0 : S.tSec, zd = Math.round(depthZoom(S) * 40) / 40, x, y, o;
     var heroX = Math.round(S.ztx + S.anchorX * zoom), slopeK = clamp(S.slope, 0, 0.7), qoff = Math.round(sc * zoom - S.ztx);
     var sbPx = Math.max(10, Math.round(34 * zd)); ST.sbPx = sbPx;
-    var key = zd + "|" + sbPx;
-    if (TEX.key !== key || !TEX.t) { TEX.t = buildTex(S, zd, sbPx); TEX.key = key; }
+    var key = zd + "|" + sbPx, now = root.performance ? root.performance.now() : 0;
+    if (TEX.key !== key || !TEX.t) {
+      if (!TEX.t || Math.abs(zd - TEX.t.zd) > 0.14 || now - TEX.tb > 380) { TEX.t = buildTex(S, zd, sbPx); TEX.key = key; TEX.tb = now; }
+    }
     var T = TEX.t;
     if (!ST.B3 || ST.B3.length !== w) { ST.B3 = new Int16Array(w); ST.B4 = new Int16Array(w); }
     groundAbove(fb, S, heroX);
+    var minLip = 0; for (x = 0; x < w; x++) if (lipA[x] < minLip) minLip = lipA[x];
+    if (SH.length < h - minLip + 16) SH = new Int16Array(h - minLip + 64);
     for (y = 0; y < SH.length; y++) SH[y] = Math.round(y * slopeK * 0.85);
     for (x = 0; x < w; x++) {
       var lip = lipA[x]; if (lip >= h) continue;
@@ -733,35 +729,69 @@
     return m;
   }
   function fossils(zd) {
-    var key = Math.round(zd * 40); if (FS.key === key && FS.sp) return FS.sp;
+    var key = Math.round(zd * 40), now = root.performance ? root.performance.now() : 0; if (FS.key === key && FS.sp) return FS.sp;
+    if (FS.sp && Math.abs(zd - FS.zd) <= 0.14 && now - FS.tb <= 380) return FS.sp;
     function Q(v) { return Math.max(3, Math.round(v * zd * 1.15)); }
     var sp = {}, nT = 6, bv = Math.max(2.5, Q(5)), o = { bevel: bv, bias: 0.03 }, i;
     function arc(seed, dir, len, wd) { var m = newMask(Q(len * 0.8), Q(len * 0.62)); mRib(m, dir > 0 ? Q(4) : m.w - Q(4), m.h - 3, Q(len), -1.25 * dir - (dir < 0 ? Math.PI : 0) + (dir < 0 ? 0 : 0), dir * 2.3 / Q(len), Math.max(4, Q(wd)), 0.8, null); return emboss(m, nT, o); }
     sp.arcA = arc(1, 1, 120, 11); sp.arcB = arc(2, -1, 100, 9); sp.arcC = arc(3, 1, 80, 8);
-    sp.vert = emboss((function () { var m = newMask(Math.max(Q(150), 118), Math.max(Q(48), 36)); var vs = Math.max(Q(64), 40); for (i = 0; i < 3; i++) mVert(m, vs * 0.5 + i * vs * 0.72, vs * 0.44, vs, (i - 1) * 0.3, 0.4); return m; })(), nT, o);
+    sp.vert = emboss((function () { var m = newMask(Math.max(Q(190), 118), Math.max(Q(64), 42)); var vs = Math.max(Q(90), 56); for (i = 0; i < 3; i++) mVert(m, vs * 0.55 + i * vs * 0.62, vs * 0.42, vs, (i - 1) * 0.3, 0.35); return m; })(), nT, o);
     sp.femA = emboss(mLong(Q(96), Q(50), -0.35, Q(78), Q(4.6)), nT, o); sp.femB = emboss(mLong(Q(96), Q(50), 0.30, Q(78), Q(4.6)), nT, o); sp.femC = emboss(mLong(Q(80), Q(64), -1.05, Q(58), Q(4)), nT, o); sp.femD = emboss(mLong(Q(90), Q(30), 0.05, Q(74), Q(4)), nT, o);
     var skm = mSkull(Q(104), Q(64), 7); sp.skull = emboss(skm, nT, o); sp.skullEyes = [[0.505 * skm.w, 0.37 * skm.h, 0.105 * skm.w * 0.6, 0.135 * skm.h * 0.6], [0.74 * skm.w, 0.42 * skm.h, 0.085 * skm.w * 0.5, 0.075 * skm.h * 0.5]];
     var sk2 = mSkull(Q(72), Q(44), 9); sp.skullS = emboss(sk2, nT, o); sp.skullSEyes = [[0.505 * sk2.w, 0.37 * sk2.h, 0.105 * sk2.w * 0.6, 0.135 * sk2.h * 0.6]];
     sp.ammo = emboss(mAmmonite(Math.max(5, Q(15)), 0.4), nT, { bevel: Math.max(2, Q(3.2)), bias: 0.05 }); sp.ammoS = emboss(mAmmonite(Math.max(4, Q(9)), 2.0), nT, { bevel: 2.2, bias: 0.05 });
     sp.tooth = emboss((function () { var m = newMask(Q(34), Q(46)); mRib(m, Q(10), Q(44), Q(52), -Math.PI / 2 + 0.1, 1.1 / Q(52), Math.max(3.4, Q(9)), 0.92, null); return m; })(), nT, { bevel: Math.max(2.4, Q(4)), bias: 0.03 });
     sp.jaw = emboss((function () { var m = newMask(Q(110), Q(46)); mRib(m, Q(6), Q(38), Q(104), -0.55, 0.9 / Q(104), Math.max(4, Q(11)), 0.5, null); for (i = 0; i < 6; i++) { var tx = Q(16) + i * Q(14), ty = Q(26) - i * Q(2.4); mPoly(m, [[tx, ty], [tx + Q(8), ty], [tx + Q(4), ty - Q(13)]]); } return m; })(), nT, o);
-    FS.key = key; FS.sp = sp; return sp;
+    FS.key = key; FS.sp = sp; FS.zd = zd; FS.tb = now; return sp;
   }
-  function blitFossil(fb, S, sp, x0, y0, base, flip, margin, minB) {         // only below the crest (and, for the bone bed, below the beds), so nothing pokes out of its layer
+  function blitFossil(fb, S, sp, x0, y0, base, flip, margin, minB, fade) {         // only below the crest (and, for the bone bed, below the beds), so nothing pokes out of its layer
     var w = fb.w, h = fb.h, d = fb.d, sw = sp.w, sh = sp.h, sd = sp.d, lip = S.lip;
-    for (var y = 0; y < sh; y++) { var ty = y0 + y; if (ty < 0 || ty >= h) continue; for (var x = 0; x < sw; x++) { var v = sd[y * sw + (flip ? sw - 1 - x : x)]; if (!v) continue; var tx = x0 + x; if (tx < 0 || tx >= w || ty < lip[tx] + margin || (minB && ty < lip[tx] + minB[tx])) continue; d[ty * w + tx] = base + v - 1; } }
+    for (var y = 0; y < sh; y++) { var ty = y0 + y; if (ty < 0 || ty >= h) continue; for (var x = 0; x < sw; x++) { var v = sd[y * sw + (flip ? sw - 1 - x : x)]; if (!v) continue; var tx = x0 + x; if (tx < 0 || tx >= w || ty < lip[tx] + margin || (minB && ty < lip[tx] + minB[tx])) continue; var tn = v - 1; if (fade) { var fr = (ty - lip[tx] - (minB ? minB[tx] : 0)) / fade; if (fr > 0 && BP[((ty & 3) << 2) | (tx & 3)] < (fr > 1 ? 1 : fr) * 0.85 && tn > 0) tn--; } d[ty * w + tx] = base + tn; } }
+  }
+  // relics: '.' empty; g/h/d gold body/light/dark, c/e/f clay, i/j iron, a amber gem, k ink
+  var RELICS = [
+    [".h..h..h..h.", ".gk.gk.gk.gk", ".ggggaggggk.", ".gddgddgddgk", ".gggggggggk.", "..kkkkkkkk.."],                                       // a crown
+    ["..kkk.", "..kfk.", "..kck.", ".kcccek", "kcfcccek", "kcccceek", "kcccceek", ".kcceek.", "..kkkk.."],                                     // a jug
+    ["..k..", ".kik.", ".kjk.", ".kik.", ".kjk.", ".kik.", ".kjk.", ".kik.", "kkjkk", ".kgk.", ".kdk.", "..k.."],                            // a dagger
+    ["..kkkkk..", ".kjjjjjk.", "kjjiiijjk", "kjihhhijk", "kjihahijk", "kjihhhijk", "kjjiiijjk", ".kjjjjjk.", "..kkkkk.."]                     // a shield boss
+  ];
+  function drawRelic(fb, S, k, x, y, flip) {
+    var r = RELICS[k], M = { g: I.ochre + 3, h: I.ochre + 4, d: I.ochre + 1, c: I.clay + 3, e: I.clay + 2, f: I.clay + 4, i: I.rust + 1, j: I.rust + 2, a: I.amber + 3, k: I.deep + 1 };
+    for (var yy = 0; yy < r.length; yy++) for (var xx = 0; xx < r[yy].length; xx++) {
+      var ch = r[yy].charAt(flip ? r[yy].length - 1 - xx : xx); if (ch === ".") continue;
+      putU(fb, S, x + xx, y + yy, M[ch], 5);
+    }
   }
   function putU(fb, S, x, y, idx, m) { if (x < 0 || x >= fb.w || y < 0 || y >= fb.h) return; if (y < S.lip[x] + (m == null ? 3 : m)) return; fb.d[y * fb.w + x] = idx; }
   function deepStamps(fb, S, zd, sbPx, t) {
     var w = fb.w, h = fb.h, zoom = S.zoom, lipA = S.lip, c, cc, k, x, y, FSP = fossils(zd), BM = I.boneM, AM = I.amber, DP = I.deep;
     var breathe = S.reduced ? 0.6 : 0.5 + 0.5 * Math.sin(t * 1.3);
     function at(wx, du, marginX) { var sx = sxOf(S, wx); if (sx < -marginX || sx > w + marginX) return null; return { x: sx, y: Math.round(lipA[clamp(sx, 0, w - 1)] + du * zd) }; }
+    // embedded stones and the relics of the ones who came before: a crown, a jug, a dagger, a shield boss
+    cc = cellsOf(S, 200, 60);
+    for (c = cc[0]; c <= cc[1]; c++) {
+      if (h2(c, 441) > 0.34) continue;
+      var bs = at(c * 200 + h2(c, 442) * 200, 88 + 64 * h2(c, 443), 40); if (!bs || bs.y > h + 14 || bs.y < -14) continue;
+      var br = Math.max(3, Math.round((5 + 6 * h2(c, 444)) * zd * 1.2)), bw = Math.round(br * 1.3);
+      for (y = -br; y <= br; y++) for (x = -bw; x <= bw; x++) {
+        var ex = x / 1.3, d2 = ex * ex + y * y; if (d2 > br * br + 0.3 * jag(x + c * 7, 3, c) * br) continue;
+        var lit = -(ex * 0.65 + y * 0.75) / br, tone = lit > 0.55 ? 5 : lit > 0.15 ? 4 : lit > -0.35 ? 3 : 2;
+        if (d2 > (br - 1) * (br - 1) && lit < 0.2) tone = 0;
+        putU(fb, S, bs.x + x, bs.y + y, tone >= 4 ? I.dust + tone - 1 : I.pan + tone + 1, 4);
+      }
+    }
+    cc = cellsOf(S, 330, 30);
+    for (c = cc[0]; c <= cc[1]; c++) {
+      if (h2(c, 451) > 0.55) continue;
+      var rl = at(c * 330 + h2(c, 452) * 330, 90 + 60 * h2(c, 453), 30); if (!rl || rl.y > h + 8 || rl.y < -14) continue;
+      drawRelic(fb, S, Math.floor(h2(c, 454) * RELICS.length) % RELICS.length, rl.x, rl.y, h2(c, 455) > 0.5);
+    }
     // fossils in the beds: great ribs cut in section, vertebrae, ammonites, long bones
     cc = cellsOf(S, 180, 90);
     for (c = cc[0]; c <= cc[1]; c++) {
       if (h2(c, 401) > 0.62) continue;
       var p = at(c * 180 + h2(c, 402) * 180, 78 + 70 * h2(c, 403), 90); if (!p || p.y > h + 60) continue;
-      var kind = Math.floor(h2(c, 404) * 8), pick = [FSP.arcA, FSP.arcB, FSP.arcC, FSP.vert, FSP.ammo, FSP.femA, FSP.femB, FSP.ammoS][kind];
+      var kind = Math.floor(h2(c, 404) * 8), pick = [FSP.arcA, FSP.arcB, FSP.arcC, FSP.ammo, FSP.ammo, FSP.femA, FSP.femB, FSP.ammoS][kind];
       blitFossil(fb, S, pick, p.x - (pick.w >> 1), p.y - (pick.h >> 1), BM, h2(c, 405) > 0.5, 4);
     }
     // the bone bed: a packed jumble (dense cells, deterministic overlap); skulls watch from the darker earth with amber eyes
@@ -773,9 +803,9 @@
       var kd = h2(c, k + 414), sp2, eyes = null;
       if (kd < 0.36) sp2 = [FSP.femA, FSP.femB, FSP.femC, FSP.femD][Math.floor(h2(c, k + 415) * 4)];
       else if (kd < 0.41) sp2 = FSP.tooth; else if (kd < 0.58) sp2 = FSP.jaw; else if (kd < 0.74) sp2 = [FSP.arcC, FSP.arcB][Math.floor(h2(c, k + 416) * 2)];
-      else if (kd < 0.84) sp2 = FSP.vert; else if (kd < 0.92) sp2 = FSP.ammoS; else { sp2 = k >= 2 ? FSP.skull : FSP.skullS; eyes = k >= 2 ? FSP.skullEyes : FSP.skullSEyes; }
+      else if (kd < 0.80) sp2 = FSP.vert; else if (kd < 0.92) sp2 = FSP.ammoS; else { sp2 = k >= 2 ? FSP.skull : FSP.skullS; eyes = k >= 2 ? FSP.skullEyes : FSP.skullSEyes; }
       var fl = h2(c, k + 417) > 0.5, x0 = pp.x - (sp2.w >> 1), y0 = pp.y - (sp2.h >> 1);
-      blitFossil(fb, S, sp2, x0, y0, BM, fl, 2, ST.B3);
+      blitFossil(fb, S, sp2, x0, y0, BM, fl, 2, ST.B3, Math.round(140 * zd));                                  // the deeper, the more the bones sink into shadow (an ordered dither, one tone)
       if (eyes) for (var e = 0; e < eyes.length; e++) {                             // the eyes of the dead: two amber embers that pulse
         var ex = Math.round(fl ? sp2.w - 1 - eyes[e][0] : eyes[e][0]) + x0, ey = Math.round(eyes[e][1]) + y0, er = Math.max(1, Math.round(Math.min(eyes[e][2], eyes[e][3])));
         if (ex < 0 || ex >= w || ey < lipA[ex] + ST.B3[ex]) continue;
@@ -795,13 +825,23 @@
         var dxh = (x - spk.w / 2) / (spk.w * 0.75), dyh = (y - spk.h / 2) / (spk.h * 0.9), qh = 1 - Math.sqrt(dxh * dxh + dyh * dyh); if (qh <= 0) continue;
         if (BP[((hy2 & 3) << 2) | (hx & 3)] < qh * 0.6) { var vh = fb.d[hy2 * w + hx]; if (vh >= DP && vh <= DP + 4) fb.d[hy2 * w + hx] = AM + (qh > 0.55 ? 1 : 0); }
       }
-      blitFossil(fb, S, spk, xs, ys, BM, fl2, 2, ST.B4);
+      blitFossil(fb, S, spk, xs, ys, BM, fl2, 2, ST.B4, Math.round(60 * zd));
       for (var e2 = 0; e2 < eyes2.length; e2++) {
         var ex2 = Math.round(fl2 ? spk.w - 1 - eyes2[e2][0] : eyes2[e2][0]) + xs, ey2 = Math.round(eyes2[e2][1]) + ys, er2 = Math.max(1, Math.round(Math.min(eyes2[e2][2], eyes2[e2][3])));
         if (ex2 < 0 || ex2 >= w || ey2 < lipA[ex2] + ST.B4[ex2]) continue;
         var pu = clamp01(0.55 + 0.45 * Math.sin(t * 1.5 + c * 1.9 + e2));
         for (var yy2 = -er2; yy2 <= er2; yy2++) for (var xx2 = -er2; xx2 <= er2; xx2++) if (xx2 * xx2 + yy2 * yy2 <= er2 * er2 + 0.5) putU(fb, S, ex2 + xx2, ey2 + yy2, AM + (pu > 0.5 ? 3 : 2), 2);
         putU(fb, S, ex2, ey2, AM + 4, 2);
+      }
+    }
+    if (!S.reduced) {                                                            // embers drifting up out of the deep, flickering with the palette
+      cc = cellsOf(S, 44, 10);
+      for (c = cc[0]; c <= cc[1]; c++) for (k = 0; k < 6; k++) {
+        var eh = h2(c * 5 + k, 461); if (eh < 0.6) continue;
+        var edu = 262 + k * 44 + h2(c, k + 462) * 44 - ((t * (3 + eh * 5)) % 44), ewx = c * 44 + h2(c, k + 463) * 44 + Math.sin(t * 0.6 + c + k) * 2, esx = sxOf(S, ewx);
+        if (esx < 0 || esx >= w) continue;
+        var esy = Math.round(lipA[esx] + edu * zd); if (esy < 0 || esy >= h || esy < lipA[esx] + ST.B4[esx] + 2) continue;
+        putU(fb, S, esx, esy, AM + 2 + (Math.floor(eh * 300) % 2), 4);
       }
     }
     cc = cellsOf(S, 170, 120);

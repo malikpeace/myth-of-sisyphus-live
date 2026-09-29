@@ -1,12 +1,14 @@
 // The Ash Fields - V8 zone scene (7450-8950 m). A smoke-red sky under layered ash clouds lit orange from below, a black volcano whose
-// lava rivers flow by palette cycling (no pixel is redrawn to make them move), a rolling plume, jagged basalt ridges rim-lit by a glowing
-// crust plain, heat shimmer at the horizon, falling ash and rising embers. The ground is a cut through the volcano's skirts: an ash
-// surface with drifts, laminated ash beds, red scoria, jointed basalt columns with glowing joints, banded old flows, crust plates over
-// a magma sea; relics of a buried city and glowing bombs are sealed in the layers.
+// lava rivers flow by palette cycling (no pixel is redrawn to make them move), a rolling plume that erupts now and then (a lava fountain,
+// a surge of glow), lightning flickering inside the ash, jagged basalt ridges and a wall of basalt columns rim-lit by a glowing crust plain
+// with lava streams running toward you, heat shimmer at the horizon, falling ash and rising embers. The ground is a cut through the
+// volcano's skirts: an ash surface with drifts and dead trees, laminated ash beds, red scoria, jointed basalt columns with glowing joints,
+// banded old flows, crust plates breaking apart over a magma sea; relics of a buried city, glowing bombs, lava tubes and (rarely) an old
+// stone are sealed in the layers.
 (function (root) {
   "use strict";
   var PX = root.PX, Sc = root.Sc, V8 = root.V8, hex = PX.hex, clamp = PX.clamp, clamp01 = PX.clamp01, B4 = PX.BAYER4;
-  var R = { rock: { mat: "warm", style: "granite" }, noBirds: true, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.78, f: 4 } };
+  var R = { rock: { mat: "warm", style: "granite" }, noBirds: true, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.68, f: 3 } };
   var I = {}, ST = {}, CL = [], built = "", SKY0 = null, LAVA0 = null, MAG0 = null, CLD0 = null, PUFF = [];
   // ---------------------------------------------------------------------------------------------------------------
   // shared helpers (this block is duplicated in canyon.js / volcanic.js / obsidian.js so every zone file stands alone)
@@ -59,7 +61,7 @@
   }
   // a shaded stone: lumpy outline, lit from the upper-left, dark rim on the shaded side. ramp = palette base of a >=6 tone ramp.
   // Rasterised once per (size, ramp, shape) and cached: each call is a cheap blit.
-  var STC = {};
+  var STC = {}, STN = 0;
   function stoneSprite(rx, ry, ramp, seed, top) {
     var ph = PX.h1((seed & 7) * 7 + 3) * TAU, W = 2 * Math.ceil(rx) + 3, Hh = 2 * Math.ceil(ry) + 3, d = new Uint8Array(W * Hh), ox = Math.ceil(rx) + 1, oy = Math.ceil(ry) + 1;
     for (var y = -Math.ceil(ry) - 1; y <= Math.ceil(ry) + 1; y++) for (var x = -Math.ceil(rx) - 1; x <= Math.ceil(rx) + 1; x++) {
@@ -75,7 +77,7 @@
   }
   function stone(fb, cx, cy, rx, ry, ramp, seed, hi) {
     var top = hi == null ? 4 : hi, r2 = Math.round(rx * 2), q2 = Math.round(ry * 2), key = (((r2 << 8) | q2) * 256 + ramp) * 64 + (seed & 7) * 8 + top;
-    var sp = STC[key]; if (!sp) sp = STC[key] = stoneSprite(r2 / 2, q2 / 2, ramp, seed, top);
+    var sp = STC[key]; if (!sp) { if (++STN > 700) { STC = {}; STN = 1; } sp = STC[key] = stoneSprite(r2 / 2, q2 / 2, ramp, seed, top); }
     var w = fb.w, h = fb.h, d = fb.d, x0 = cx - sp.ox, y0 = cy - sp.oy, sw = sp.w, sd = sp.d, x, y;
     if (x0 >= w || y0 >= h || x0 + sw <= 0 || y0 + sp.h <= 0) return;
     for (y = 0; y < sp.h; y++) { var ty = y0 + y; if (ty < 0 || ty >= h) continue; for (x = 0; x < sw; x++) { var v = sd[y * sw + x]; if (!v) continue; var tx = x0 + x; if (tx < 0 || tx >= w) continue; d[ty * w + tx] = ramp + v - 1; } }
@@ -119,7 +121,7 @@
     I.mid = pal.ramp("mid", H(["#1f0f13", "#2b1417", "#3a1b1b", "#52251d", "#7b3520"]));
     I.near = pal.ramp("near", H(["#100809", "#190d0e", "#251314", "#361b17", "#582a1b", "#8a4520"]));
     I.vol = pal.ramp("vol", H(["#120a10", "#1c0f14", "#2a161a", "#3e2019", "#5c2f1c", "#87421e", "#b85a22"]));
-    I.ash = pal.ramp("ash", H(["#1f191a", "#2b2122", "#3a2c2b", "#4d3a36", "#664c44", "#856558", "#a98873"]));
+    I.ash = pal.ramp("ash", H(["#1f1516", "#2b1c1c", "#3b2722", "#503530", "#6e4a3f", "#8f6552", "#b8865f"]));
     I.scor = pal.ramp("scor", H(["#1c0e0e", "#2c1412", "#42201a", "#5f2d20", "#84402a"]));
     I.bas = pal.ramp("bas", H(["#100a10", "#181119", "#231a25", "#322735", "#463a4a"]));
     I.mag = pal.ramp("mag", H(["#2a0c10", "#4b1210", "#7d1c10", "#b5300f", "#e5561a", "#ff8f2e"]));
@@ -131,7 +133,7 @@
     R.birdIdx = I.near; R.watcherIdx = I.near + 1;
     R.footprint = { col: I.ash + 2, hi: I.ash + 5 };                    // pressed ash with a warm lit rim
     R.markerIdx = { c0: I.bas + 1, c1: I.bas + 3, c2: I.scor + 4, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };   // cairns in basalt lit by lava
-    R.pal = pal; RM = null;
+    R.pal = pal; RMAP = null;
     built = "";
     build(S);
   };
@@ -191,11 +193,11 @@
   // ---------- jagged basalt ridges: two-tone facets (lit toward the volcano, dark away), rim light, fissures, a glowing haze at the base ----------
   function ridgeStrip(o) {
     var L = o.L, Hh = o.H, st = Sc.newStrip(L, Hh), d = st.d, rnd = PX.rng(o.seed), x, y, k, P = o.ramp, n = o.n;
-    var crest = new Float32Array(L), ci = new Int16Array(L), waves = [], lam = [L / 4, L / 9, L / 19, L / 41];
-    for (k = 0; k < lam.length; k++) waves.push({ l: Math.round(lam[k]), a: Math.pow(0.55, k), ph: rnd() });
+    var crest = new Float32Array(L), ci = new Int16Array(L), waves = [], cnt = o.cnt || [4, 9, 19, 41];                                       // whole numbers of periods per strip: it tiles seamlessly
+    for (k = 0; k < cnt.length; k++) waves.push({ c: cnt[k], a: Math.pow(0.55, k), ph: rnd() });
     for (x = 0; x < L; x++) {
       var s = 0, ws = 0;
-      for (k = 0; k < waves.length; k++) { var f = (x / waves[k].l + waves[k].ph) % 1, tri = Math.abs(f * 2 - 1); s += waves[k].a * (o.round ? Math.sin(f * TAU) * 0.5 + 0.5 : tri); ws += waves[k].a; }
+      for (k = 0; k < waves.length; k++) { var f = (x * waves[k].c / L + waves[k].ph) % 1, tri = Math.abs(f * 2 - 1); s += waves[k].a * (o.round ? Math.sin(f * TAU) * 0.5 + 0.5 : tri); ws += waves[k].a; }
       crest[x] = o.base - o.amp * (s / ws - 0.35) * 1.5;
       ci[x] = Math.round(crest[x]);
     }
@@ -322,15 +324,6 @@
     }
     return sp;
   }
-  function ashStreak(seed, w, hgt) {                                     // a thin stratus band: dark top, a lava-lit lower edge, dissolving ends
-    var sp = new PX.Sprite(w, hgt), x, y;
-    for (y = 0; y < hgt; y++) for (x = 0; x < w; x++) {
-      var ex = (x + 0.5 - w / 2) / (w / 2), ey = (y + 0.5 - hgt / 2) / (hgt / 2), e = Math.pow(Math.abs(ex), 2.4) + ey * ey * 0.9; if (e >= 1) continue;
-      var dens = (1 - e) * (0.8 + 0.2 * Math.sin(x * 0.11 + seed)), b = B4[y & 3][x & 3] + 0.5;
-      if (b < dens * 1.6) sp.d[y * w + x] = y >= hgt - 2 ? I.cloud + 5 : (y >= hgt * 0.5 ? I.cloud + 3 : I.cloud + 1);
-    }
-    return sp;
-  }
   function puffSprite(r, seed) {                                         // a plume billow: lumpy, dark, its underside and left flank lit by the vent; a dithered interior
     var W = r * 2 + 5, sp = new PX.Sprite(W, W), C = I.cloud, x, y, ph = PX.h1(seed) * TAU, ph2 = PX.h1(seed + 9) * TAU;
     for (y = 0; y < W; y++) for (x = 0; x < W; x++) {
@@ -355,7 +348,7 @@
     var Hc = clamp(Math.round(hy * 0.62), 52, 190);
     ST.vol = volcanoSprite(Hc, 5);
     ST.far = ridgeStrip({ L: 1200, H: Math.round(hy * 0.30), seed: 3, base: Math.round(hy * 0.22), amp: hy * 0.13, ramp: I.hz, n: 4, round: true, fade: I.hz + 2, fadeRows: A(8), roughTone: 0.5 });
-    ST.mid = ridgeStrip({ L: 1100, H: Math.round(hy * 0.30), seed: 7, base: Math.round(hy * 0.20), amp: hy * 0.13, ramp: I.mid, n: 5, round: true, fade: I.mid + 3, fadeRows: A(7), fissures: 90 });
+    ST.mid = ridgeStrip({ L: 1100, H: Math.round(hy * 0.30), seed: 7, base: Math.round(hy * 0.20), amp: hy * 0.13, ramp: I.mid, n: 5, round: true, cnt: [3, 6, 11], fade: I.mid + 3, fadeRows: A(7), fissures: 90 });
     ST.plain = plainStrip({ L: 1024, H: Math.max(S.h - hy, 60) + A(24), seed: 9, yr: A(13), a: a });
     ST.near = columnStrip({ L: 900, H: Math.round(hy * 0.20), seed: 13, base: Math.round(hy * 0.11), amp: hy * 0.06, jit: 6, ws: a, ramp: I.near, n: 6, fade: I.mag + 3, fadeRows: A(5) });
     CL = [];
@@ -367,7 +360,6 @@
     PUFF = [];
     for (i = 0; i < 9; i++) PUFF.push(puffSprite(2 + i * Math.max(1, Math.round(hy * 0.011 * a + 1)), 40 + i));
   }
-  var RM = null;
 
   // where the crater sits on screen (the volcano barely parallaxes: it is very far away)
   function volPos(S) {
@@ -376,7 +368,7 @@
     return { x: vx, y: vy, cx: vx + v.cx, cy: vy + v.craterY, hy: hy };
   }
   R.light = function (S) {
-    build(S); var p = volPos(S), t = S.reduced ? 0 : S.tSec, fl = 0.94 + 0.06 * Math.sin(t * 2.3) * Math.sin(t * 0.9);
+    var p = volPos(S), t = S.reduced ? 0 : S.tSec, fl = 0.94 + 0.06 * Math.sin(t * 2.3) * Math.sin(t * 0.9);
     return { x: p.cx, y: p.cy, k: 0.74 * fl, col: [255, 138, 62], ambient: [112, 48, 40], bright: 0.62, ground: [104, 48, 30] };
   };
 
@@ -398,15 +390,6 @@
     var th = 1 + (S.reduced ? 0 : 0.07 * Math.sin(t * 1.1) + 0.04 * Math.sin(t * 2.7));
     pal.setRamp("mag", MAG0.map(function (c, k) { var f = 1 + (th - 1) * (k / 5); return [Math.min(255, c[0] * f), Math.min(255, c[1] * f), c[2] * f]; }));
   };
-
-  function hazeBand(fb, y0, amp, y1, idx, drift) {                       // rolling smoke bank: solid below a wavy crest with a two-row dithered fringe
-    var w = fb.w, d = fb.d, x, y, MODW = hazeBand.m || (hazeBand.m = new Float32Array(4096));
-    for (x = 0; x < w; x++) { var xa = x + drift; MODW[x] = Math.round(amp * (Math.sin(xa * 0.021) * 0.55 + Math.sin(xa * 0.057 + 1.1) * 0.3 + Math.sin(xa * 0.131 + 2.3) * 0.15)); }
-    for (y = Math.max(0, y0 - amp - 2); y < Math.min(fb.h, y1); y++) {
-      var row = y * w, br = B4[y & 3];
-      for (x = 0; x < w; x++) { var e = y - (y0 + MODW[x]); if (e >= 0 || (e === -1 && br[x & 3] < 0) || (e === -2 && br[x & 3] < -0.3)) d[row + x] = idx; }
-    }
-  }
 
   function plume(fb, S, vp, t) {                                         // billows rising from the crater, spreading into an ash sheet; drawn back to front, fading in and out
     var a = S.adj || 1, N = 20, i, top = vp.cy - Math.round(S.horizonY * 0.74), span = vp.cy - top, wind = 0.55 + 0.45 * Math.sin(S.altitude * 0.004 + 1), tt = t + erupt(t) * 3;
@@ -666,6 +649,21 @@
       fb.set(cx + x, cy + y, c);
     }
   }
+  function oldStone(fb, cx, cy, r) {                                    // a stone lost long ago, sealed in the old flows: pale ash-grey, cracked, its edge lit by the lava around it
+    var w = fb.w, h = fb.h, d = fb.d, x, y, R2 = r * 2.2;
+    for (y = -Math.ceil(R2); y <= Math.ceil(R2); y++) for (x = -Math.ceil(R2); x <= Math.ceil(R2); x++) {
+      var px = cx + x, py = cy + y; if (px < 0 || py < 0 || px >= w || py >= h) continue;
+      var q = 1 - (x * x + y * y) / (R2 * R2); if (q <= 0 || B4[py & 3][px & 3] + 0.5 > q * 1.1) continue;
+      var v = d[py * w + px]; if ((v >= I.bas && v <= I.bas + 4) || (v >= I.scor && v <= I.scor + 4)) d[py * w + px] = I.mag + (q > 0.55 ? 2 : 1);
+    }
+    for (y = -r; y <= r; y++) for (x = -r; x <= r; x++) {
+      var d2 = x * x + y * y; if (d2 > r * r) continue;
+      var lit = (-(x * 0.7 + y * 0.7)) / r, tone = lit > 0.5 ? 6 : lit > 0.1 ? 5 : lit > -0.35 ? 4 : 3;
+      if (d2 > (r - 1) * (r - 1)) tone = lit > 0.3 ? 5 : 2;
+      if (Math.abs(x - Math.round(y * 0.45) - 1) < 1 && y > -r * 0.7 && y < r * 0.55) tone = 0;
+      fb.set(cx + x, cy + y, I.ash + tone);
+    }
+  }
   function features(fb, S, ds, heroX, t) {
     var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip, a = S.adj || 1, c, r, kk;
     var wl = (0 - S.ztx) / zoom + sc, wr = (w - S.ztx) / zoom + sc, keep = clamp((S.zoom / a - 0.08) / 0.34, 0.3, 1);
@@ -688,10 +686,16 @@
     // relics of a buried city in the ash beds and the scoria
     var rc = 150;
     for (c = Math.floor(wl / rc) - 1; c <= Math.ceil(wr / rc) + 1; c++) for (r = 0; r < 2; r++) {
-      if (PX.h2(c * 5 + r, 181) < 1 - 0.45 * keep) continue;
+      if (PX.h2(c * 5 + r, 181) < 1 - 0.3 * keep) continue;
       var rx = sx(c * rc + PX.h2(c, r + 182) * rc), rdu = 30 + r * 46 + PX.h2(c, r + 183) * 44; if (rx < -16 || rx > w + 16) continue;
       var ry = Math.round(lipAt(rx) + rdu * ds); if (ry < -12 || ry > h + 4) continue;
-      relic(fb, Math.floor(PX.h2(c, r + 184) * 6) % 6, rx, ry, PX.h2(c, r + 185) > 0.5);
+      relic(fb, [0, 0, 3, 3, 5, 1, 1, 2, 4][Math.floor(PX.h2(c, r + 184) * 9) % 9], rx, ry, PX.h2(c, r + 185) > 0.5);
+    }
+    var oc = 210;                                                        // an old stone, rarely, sealed in the flows
+    for (c = Math.floor(wl / oc) - 1; c <= Math.ceil(wr / oc) + 1; c++) {
+      if (PX.h2(c, 261) < 0.86) continue;
+      var ox = sx(c * oc + PX.h2(c, 262) * oc), oy = Math.round(lipAt(ox) + (250 + 70 * PX.h2(c, 263)) * ds); if (ox < -16 || ox > w + 16 || oy < -14 || oy > h + 14) continue;
+      oldStone(fb, ox, oy, Math.max(6, Math.round(12 * ds * 1.7)));
     }
     // lava veins: glowing cracks welling up from the magma through the basalt and old flows; the palette cycle makes the glow travel up them
     var vc = 96;

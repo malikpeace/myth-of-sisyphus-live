@@ -28,7 +28,8 @@
     return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
   }
   function fbm2(x, y, s) { return vn2(x, y, s) * 0.55 + vn2(x * 2.07 + 11.3, y * 2.07 + 4.1, s + 1) * 0.30 + vn2(x * 4.3 + 3.7, y * 4.3 + 17.9, s + 2) * 0.15; }
-  function zoneF(al) { return al < 1000 ? 0.55 : clamp01((al - 1800) / 700); }          // 0 at 1800 m .. 1 at 2500 m (a neutral middle when the zone is previewed elsewhere)
+  function zoneM(al) { return al < 1000 ? al : Math.max(0, al - 1800); }              // metres into the zone (a legacy mode that reaches this scene on a low altitude counter just uses its own metres)
+  function zoneF(al) { return clamp01(zoneM(al) / 700); }                              // 0 at 1800 m .. 1 at 2500 m
 
   // ---------------------------------------------------------------- palette
   var SKY0 = null, SKYF = -1, VBASE = [[8, 34, 48], [14, 54, 72], [22, 90, 112], [34, 144, 170], [76, 200, 220], [176, 244, 248]];
@@ -40,6 +41,7 @@
     SKYF = -1; SKY0 = skyColors(0.5);
     I.sky = pal.ramp("sky", SKY0);
     I.mw = pal.ramp("mw", H(["#15134f", "#211d6e", "#342b90", "#5646b4", "#8a6cd4", "#c2a6ee", "#f2e2fa"]));
+    I.mwc = pal.ramp("mwc", H(["#d8a4d4", "#eebcc4", "#ffdcc8"]));                     // the warm heart of the galaxy
     I.nv = pal.ramp("nv", H(["#241a5a", "#3c2a86", "#5e3ea8", "#8a62c8"]));
     I.nt = pal.ramp("nt", H(["#0c2440", "#123a5c", "#195478", "#2c7c9a"]));
     I.nr = pal.ramp("nr", H(["#40183e", "#6c2860", "#a04080", "#d07aa8"]));
@@ -66,7 +68,7 @@
     R.footprint = { col: I.sl + 3, hi: I.sl + 6 };
     R.pal = pal;
     LITS = null;
-    ST.key = ""; ST.skyKey = "";
+    // (the baked caches hold palette INDICES only and the ramps are allocated in a fixed order, so they stay valid across re-inits with the same size)
     buildScene(S);
     R.initMs = performance.now() - t0;
   };
@@ -114,7 +116,7 @@
     var L = st.w, Hh = st.h, d = st.d, x, y, o, v;
     for (y = 1; y < Hh - 1; y++) for (x = 0; x < L; x++) {
       o = y * L + x; v = d[o]; if (v !== b + 2) continue;
-      var l = d[y * L + (x + L - 1) % L], r = d[y * L + (x + 1) % L], u = d[o - L], dn = d[o + L];
+      var l = d[x === 0 ? o + L - 1 : o - 1], r = d[x === L - 1 ? o - L + 1 : o + 1], u = d[o - L], dn = d[o + L];
       if (l === r && l === u && l === dn && l !== 0 && l !== v) d[o] = l;
     }
     for (y = Math.round(Hh * 0.45); y < Hh; y++) {                            // the cloud sea below lights the feet of the peaks: rock climbs one tone, dithered
@@ -137,6 +139,15 @@
     var skyBot = Math.min(h, hy + 30);
     Sc.bands(fb, 0, skyBot, idx, 4);
     if (skyBot < h) fb.fillRect(0, skyBot, w, h - skyBot, I.sky + SKY_N - 1);
+    // airglow: a faint teal band hugging the horizon, thin and patchy, dissolving upward through ordered dither
+    var a = S.adj || 1, gh = Math.round(34 * a), gy0 = hy - gh + Math.round(6 * a), d = fb.d, x, y;
+    for (x = 0; x < w; x++) {
+      var top = gy0 + Math.round(3 * a * Math.sin(x * 0.021 + 1.3) + 2 * a * Math.sin(x * 0.057)), pat = 0.65 + 0.7 * fbm2(x * 0.03, 5.5, 71);
+      for (y = Math.max(0, top); y <= Math.min(h - 1, hy + 6); y++) {
+        var f = (y - top) / Math.max(1, hy + 6 - top), dens = Math.pow(f, 1.25) * pat, lv = Math.floor(dens * 3.3 + (BP[((y & 3) << 2) | (x & 3)] - 0.5) * 0.95);
+        if (lv >= 1) d[y * w + x] = I.nt + Math.min(2, lv - 1);
+      }
+    }
     ST.sky = fb.d;
   }
 
@@ -161,7 +172,15 @@
       B = Math.max(0, B);
       Bf[y * CW + x] = Math.min(255, Math.round(B * 200));
       var lv = Math.floor(Math.pow(B, 0.92) * 7.0 + (BP[((y & 3) << 2) | (x & 3)] - 0.5) * 0.95);
-      if (lv >= 1) d[y * CW + x] = I.mw + Math.min(B > 1.34 && ((x + y) & 1) === 0 ? 6 : 5, lv - 1);
+      if (lv >= 1) {
+        var ti = Math.min(6, lv - 1), warm = B - 0.98 + 0.22 * (nz - 0.5);                        // the core turns warm: cream and rose in dithered steps
+        var iv;
+        if (ti >= 5 && warm > -0.05) {
+          var wl = Math.floor(warm * 11 + 0.9 + (BP[((y & 3) << 2) | (x & 3)] - 0.5) * 1.6);                 // ordered dither between lavender, rose, cream
+          iv = wl <= 0 ? I.mw + 5 : wl === 1 ? I.mwc : wl === 2 ? I.mwc + 1 : I.mwc + 2;
+        } else iv = I.mw + Math.min(5, ti);
+        d[y * CW + x] = iv;
+      }
     }
     // a far spiral galaxy: a tilted, banded ellipse with a hot core, a dust lane and a small companion
     var ga = clamp(0.09 * w, 22, 46), gb = ga * 0.30, gx = M + (port ? 0.64 : 0.58) * w, gy = M + (port ? 0.15 : 0.20) * hy, gca = Math.cos(-0.33), gsa = Math.sin(-0.33);
@@ -249,14 +268,23 @@
 
   // ---------------------------------------------------------------- a sea of cloud tops (tileable): lumpy crest of overlapping swells; the body is lit like a relief (bulges catch the light on their upper-left)
   var LAT = null;
+  function ensureLAT() { if (!LAT) { LAT = new Float32Array(65536); var lr = PX.rng(31337); for (var q0 = 0; q0 < 65536; q0++) LAT[q0] = lr(); } }
   function lat(ix, iy) { return LAT[((iy & 255) << 8) | (ix & 255)]; }
   function vnP(x, y, P) {                                                  // value noise from a 256x256 lattice, periodic in x with period P (cells)
     var ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
     var x0 = ((ix % P) + P) % P, x1 = (x0 + 1) % P, a = lat(x0, iy), b = lat(x1, iy), c = lat(x0, iy + 1), d = lat(x1, iy + 1);
     return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
   }
+  function pnoise(qx, dd, L) {                                              // smooth noise that tiles seamlessly along the slab (period L); features ~60 px wide, ~40 px tall
+    return vnP(qx * 24 / L, dd * 0.024, 24) * 0.55 + vnP(qx * 48 / L + 7.3, dd * 0.048 + 3.1, 48) * 0.30 + vnP(qx * 96 / L + 1.9, dd * 0.096 + 8.7, 96) * 0.15;
+  }
+  function poolGrid(L, D) {                                                // the glow-pool noise sampled every 4 px (it tiles along x): the slab bake then just interpolates it
+    var nx = L >> 2, ny = (D >> 2) + 3, g = new Float32Array(nx * ny), gx, gy;
+    for (gy = 0; gy < ny; gy++) for (gx = 0; gx < nx; gx++) g[gy * nx + gx] = pnoise(gx * 4, gy * 4, L);
+    return { g: g, nx: nx, ny: ny };
+  }
   function cloudDeck(o) {
-    if (!LAT) { LAT = new Float32Array(65536); var lr = PX.rng(31337); for (var q0 = 0; q0 < 65536; q0++) LAT[q0] = lr(); }
+    ensureLAT();
     var L = o.L, Hh = o.H, st = Sc.newStrip(L, Hh), rnd = PX.rng(o.seed), wob = Sc.periodic(L, o.seed * 7 + 1), T = o.tones, x, y, i, base = o.base, arcs = [];   // tones: [under, shade, mid, lit, rim]
     var topBig = new Float32Array(L).fill(1e9), top = new Int16Array(L).fill(Hh);
     x = 0;
@@ -297,40 +325,56 @@
   }
   function buildSlab(S) {
     var a = S.adj || 1, L = 1536, D = clamp(S.h + 130, 330, 700), d = new Uint8Array(L * D), rnd = PX.rng(20260929), beds = [], cum, nb, qx, dd, k, i;
-    if (!LITS) litMaps();
+    if (!LITS) litMaps(); ensureLAT();
     function A(v) { return Math.max(1, Math.round(v * a)); }
+    var NF = Math.max(2, Math.round(L / A(340))), WF = L / NF;
     var crust = A(8); cum = crust; nb = 0;
     while (cum < D + 70 && nb < 70) {
       var kr = rnd(), kind = kr < 0.34 ? 0 : kr < 0.62 ? 1 : kr < 0.84 ? 2 : 3, th = A(9 + Math.floor(rnd() * 24)), fr = rnd(), fam = fr < 0.60 ? I.sl : fr < 0.84 ? I.sb : I.sw;
       beds.push({ t: th, kind: kind, fam: fam, tone: rnd(), n1: 2 + Math.floor(rnd() * 5), n2: 8 + Math.floor(rnd() * 10), p1: rnd() * TAU, p2: rnd() * TAU, a1: A(1 + rnd() * 3.2), a2: 0.5 + rnd() * 1.5, bw: A(16 + rnd() * 44), sh: Math.floor(rnd() * 200) });
       cum += th; nb++;
     }
-    var ed = new Int16Array(nb + 2), SL = I.sl, deepD = A(80), crustE = new Int16Array(L), FLT = [], fr2 = PX.rng(555), fi;
+    var PG = poolGrid(L, D), PGg = PG.g, PGn = PG.nx;
+    var ed = new Int16Array(nb + 2), SL = I.sl, deepD = A(80), crustE = new Int16Array(L), FLT = [], fr2 = PX.rng(555), fi, PL = TAU / L, aF1 = A(15), aF2 = A(7), a40 = A(40), a160 = A(160), a70 = A(70), a200 = A(200), a26 = A(26), a240 = A(240), HL = L * 0.5;
+    var S45 = new Float32Array(D + 400); for (i = 0; i < S45.length; i++) S45[i] = 26 * Math.sin((i - 200) * 0.045);
+    var fu0c = new Float32Array(4), FSl = new Float32Array(4), FOf = new Float32Array(4), ck = -1, cfr = -1, cKind = 0, cF = 0, cToneAdd = 0, cOre = false;
     for (i = 0; i < 4; i++) FLT.push({ x: Math.floor(fr2() * L), s: (fr2() < 0.5 ? -1 : 1) * (0.35 + 0.5 * fr2()), o: (fr2() < 0.5 ? -1 : 1) * A(4 + fr2() * 9) });     // faults: slanted planes that shift the strata on one side
+    for (i = 0; i < 4; i++) { FSl[i] = FLT[i].s; FOf[i] = FLT[i].o; }
+    var FJ = new Float32Array(D + 400); for (i = 0; i < FJ.length; i++) FJ[i] = A(2.4) * Math.sin(i * 0.037 + 2.1) + A(1.5) * Math.sin(i * 0.11 + 0.7) + A(0.9) * Math.sin(i * 0.29 + 3.3);    // faults meander a little: no ruled lines
     for (qx = 0; qx < L; qx++) {
       var col = qx * D, jag = PX.h2(qx >> 2, 5) - 0.5, e0 = crust + Math.round(1.5 * Math.sin(qx * TAU * 5 / L) + 2.2 * jag);
       crustE[qx] = e0; ed[0] = e0;
       for (k = 0; k < nb; k++) { var bd = beds[k]; ed[k + 1] = ed[k] + Math.max(3, bd.t + Math.round(bd.a1 * Math.sin(qx * TAU * bd.n1 / L + bd.p1) + bd.a2 * Math.sin(qx * TAU * bd.n2 / L + bd.p2))); }
-      k = 0;
+      k = 0; ck = -1; cfr = -1;
+      var pxi = qx >> 2, pxi1 = pxi + 1 >= PGn ? 0 : pxi + 1, ptx = (qx & 3) * 0.25;
+      var sf1 = aF1 * Math.sin(qx * PL + 0.7), sf2 = aF2 * Math.sin(qx * PL * 3 + 2.2), sfu = 70 * Math.sin(qx * PL * 3);
+      for (fi = 0; fi < FLT.length; fi++) { var fw = qx - FLT[fi].x; fu0c[fi] = ((fw + L * 1.5) % L) - HL; }
       for (dd = 0; dd < D; dd++) {
-        var bay = BP[((dd & 3) << 2) | (qx & 3)] - 0.5, idx, gl = dd > deepD ? sm((dd - deepD) / A(240)) : 0;
+        var bay = BP[((dd & 3) << 2) | (qx & 3)] - 0.5, idx, gl = dd > deepD ? sm((dd - deepD) / a240) : 0;
         if (dd < e0) {                                                       // starlit regolith crust: bright rim, then a dithered fall-off into the strata
           var tc = dd / e0;
           if (dd === 0) idx = SL + 7; else if (dd === 1) idx = SL + 6;
           else idx = SL + clamp(Math.floor(5.6 - 2.6 * tc + bay * 1.1 + (PX.h2(qx, dd + 40) > 0.95 ? 1 : 0)), 3, 6);
         } else {
-          var fld = A(15) * Math.sin(qx * TAU / L + 0.7) * clamp01((dd - A(40)) / A(160)) + A(7) * Math.sin(qx * TAU * 3 / L + 2.2) * clamp01((dd - A(70)) / A(200)), foff = 0, onF = 0, fhit = 0;
-          if (dd > A(26)) for (fi = 0; fi < FLT.length; fi++) { var fu0 = qx - FLT[fi].x - FLT[fi].s * dd; fu0 = ((fu0 + L * 1.5) % L) - L * 0.5; if (fu0 > 0) foff += FLT[fi].o; if (fu0 > -0.6 && fu0 < 0.6) { onF = 1; fhit = fi; } else if (fu0 >= 0.6 && fu0 < 1.6 && !onF) onF = 2; }
+          var fld = sf1 * clamp01((dd - a40) / a160) + sf2 * clamp01((dd - a70) / a200), foff = 0, onF = 0, fhit = 0;
+          if (dd > a26) for (fi = 0; fi < 4; fi++) { var fu0 = fu0c[fi] - FSl[fi] * dd + FJ[dd + fi * 37]; if (fu0 < -HL) fu0 += L; else if (fu0 >= HL) fu0 -= L; if (fu0 > 0) foff += FOf[fi]; if (fu0 > -0.6 && fu0 < 0.6) { onF = 1; fhit = fi; } else if (fu0 >= 0.6 && fu0 < 1.6 && !onF) onF = 2; }
           var dp = dd - fld - foff;
           while (k > 0 && dp < ed[k]) k--; while (k < nb - 1 && dp >= ed[k + 1]) k++;
-          var bd2 = beds[k], ib = Math.max(0, dp - ed[k]), bh = ed[k + 1] - ed[k], fu = (qx + 0.4 * dp + 70 * Math.sin(qx * TAU * 3 / L) + 26 * Math.sin(dp * 0.045)) / A(340), fR = Math.floor(fu), ff = fu - fR;   // facies: the character of a bed changes sideways along steep seams
+          var bd2 = beds[k], ib = Math.max(0, dp - ed[k]), bh = ed[k + 1] - ed[k], fu = (qx + 0.4 * dp + sfu + S45[(dp + 200.5) | 0]) / WF, fR = Math.floor(fu), ff = fu - fR;   // facies: the character of a bed changes sideways along steep seams
           if (ff > 0.74 && BP[((dd & 3) << 2) | (qx & 3)] < (ff - 0.74) / 0.26) fR++;
-          var fk = PX.h2(k * 5 + 1, fR * 7 + 3), fF = PX.h2(k * 3 + 2, fR * 11 + 5), kindV = fk < 0.30 ? 0 : fk < 0.58 ? 1 : fk < 0.82 ? 2 : 3, F = fF < 0.58 ? I.sl : fF < 0.84 ? I.sb : I.sw;
-          if (k < 2 && kindV === 0) kindV = 1;                                                                     // no brick courses right under the crust
-          var tone = 5.4 - dd * 0.0095 + (bd2.tone - 0.5) * 1.5 + (PX.h2(k * 7 + 3, fR * 13 + 1) - 0.5) * 0.5, tn;
+          fR = ((fR % NF) + NF) % NF;
+          if (k !== ck || fR !== cfr) {                                                                            // per (bed, facies) constants, recomputed only when they change
+            ck = k; cfr = fR;
+            var fk = PX.h2(k * 5 + 1, fR * 7 + 3), fF = PX.h2(k * 3 + 2, fR * 11 + 5);
+            cKind = fk < 0.30 ? 0 : fk < 0.58 ? 1 : fk < 0.82 ? 2 : 3; if (k < 2 && cKind === 0) cKind = 1;      // no brick courses right under the crust
+            cF = fF < 0.58 ? I.sl : fF < 0.84 ? I.sb : I.sw;
+            cToneAdd = (bd2.tone - 0.5) * 1.5 + (PX.h2(k * 7 + 3, fR * 13 + 1) - 0.5) * 0.5;
+            cOre = PX.h2(k * 3 + 1, fR * 5 + 9) < 0.16;
+          }
+          var kindV = cKind, F = cF, tone = 5.4 - dd * 0.0095 + cToneAdd, tn;
           if (ib === 0) {
             tn = clamp(Math.floor(tone + 1.3 + bay * 0.5), 2, 6); idx = F + tn; if (gl > 0 && PX.h2(qx >> 1, k + 300) < gl * 0.9) idx = I.vg2 + clamp(Math.floor(0.8 + gl * 3.2), 0, 4);
-            if (PX.h2(k * 3 + 1, fR * 5 + 9) < 0.16 && PX.h2(qx >> 2, k) < 0.86) { var oreK = (k + fR) % 3; idx = oreK === 0 ? I.vg0 + 3 : oreK === 1 ? I.cv + 3 : I.cp + 2; }             // an ore seam: a glittering line of crystal along the bedding
+            if (cOre && PX.h2(qx >> 2, k) < 0.86) { var oreK = (k + fR) % 3; idx = oreK === 0 ? I.vg0 + 3 : oreK === 1 ? I.cv + 3 : I.cp + 2; }             // an ore seam: a glittering line of crystal along the bedding
           }
           else if (ib === bh - 1) idx = F + clamp(Math.floor(tone - 2.2), 0, 3);
           else if (kindV === 0) {                                          // jointed blocks
@@ -346,11 +390,11 @@
             var fh = PX.h2(qx * 3 + k, dd + 200); if (fh > 0.9935) idx = I.vg0 + 4; else if (fh > 0.982) idx = F + Math.min(6, 5);
           } else idx = F + clamp(Math.floor(tone - 1.0 + bay * 0.8 - (ib / bh) * 0.5), 0, 4);          // dark massive bed
           if (gl > 0.05) {                                                    // glow pooling in the deep: the strata turn teal-lit in dithered patches, with a few hot cores
-            var pv = fbm2(qx * 0.016, dd * 0.024, 41) * gl;
+            var pyi = (dd >> 2) * PGn, pty = (dd & 3) * 0.25, pa = PGg[pyi + pxi], pb = PGg[pyi + pxi1], pc = PGg[pyi + PGn + pxi], pd = PGg[pyi + PGn + pxi1], pv = (pa + (pb - pa) * ptx + (pc - pa) * pty + (pa - pb - pc + pd) * ptx * pty) * gl;
             if (pv > 0.24 && BP[((dd & 3) << 2) | (qx & 3)] < clamp01((pv - 0.24) * 5)) idx = LITS.teal[idx];
             if (pv > 0.40) { var lvg = Math.floor((pv - 0.40) * 9 + bay * 1.2); if (lvg >= 0) idx = I.vg1 + Math.min(3, lvg); }
           }
-          if (onF === 1) { idx = (gl > 0.12 && PX.h2(dd >> 1, fhit + 1900) < gl * 1.6) ? I.vg1 + 3 : F; }                       // the fault plane: a dark seam, glowing in the deep
+          if (onF === 1) { idx = (gl > 0.12 && PX.h2(dd >> 3, fhit + 1900) < gl * 1.25) ? I.vg1 + 3 : F; }                       // the fault plane: a dark seam, glowing in the deep
           else if (onF === 2 && idx >= F && idx < F + 7) idx = F + Math.min(6, idx - F + 2);                                   // its lit lip
         }
         d[col + dd] = idx;
@@ -481,8 +525,8 @@
       var lit = -(x / rx * 0.7 + y / ry * 0.7), c, bay = BP[(((cy + y) & 3) << 2) | ((cx + x) & 3)], fac = Math.floor((th + Math.PI) / TAU * nf + 0.5 * Math.sin(th * 5 + w1));
       if (e > 1.0) c = lit > 0.15 ? SL + 6 : SL;                                                     // outer edge: lit / dark
       else if (e > 0.82) c = lit > 0.1 ? SL + 5 : lit > -0.3 ? SL + 3 : SL + 2;                       // the shell
-      else if (e > 0.46 + 0.05 * Math.sin(th * nf + w0)) {                                           // crystal teeth: facets alternate, brighter toward the hollow
-        var t = (0.82 - e) / 0.36, base = purple ? I.cv : vg;
+      else if (e > 0.30 + 0.05 * Math.sin(th * nf + w0)) {                                           // crystal teeth: facets alternate, brighter toward the hollow
+        var t = (0.82 - e) / 0.52, base = purple ? I.cv : vg;
         c = purple ? base + clamp(Math.floor(1.6 + t * 2.4 + ((fac & 1) ? 0.8 : -0.4) + bay * 0.6), 1, 4) : base + clamp(Math.floor(2.0 + t * 2.4 + ((fac & 1) ? 0.9 : -0.5) + bay * 0.6), 1, 5);
         if (t > 0.86) c = purple ? base + 4 : base + 5;
       }
@@ -511,11 +555,20 @@
     }
     fb.set(cx, cy, BN);
   }
-  function skull(fb, x, y, flip) {
-    var rows = ["...aaaaa...", "..abcdddca.", ".abcdddddca", ".acddddddda", ".acdpddpdda", ".acdppdppda", ".aacddddcaa", "..acdaaadca", "...acdcdca.", "...aacacaa."], BN = I.bn, G = I.vg1 + 4;
-    for (var yy = 0; yy < rows.length; yy++) for (var xx = 0; xx < rows[yy].length; xx++) {
-      var ch = rows[yy].charAt(flip ? rows[yy].length - 1 - xx : xx); if (ch === ".") continue;
-      fb.set(x + xx, y + yy, ch === "p" ? G : BN + Math.max(0, ch.charCodeAt(0) - 98));
+  function skull(fb, x, y, flip) {                                          // a fossil skull: domed cranium, deep sockets with a cold glint, a notch of nose, a row of teeth
+    var BN = I.bn, cx = x + 7, cy = y + 6, u, v;
+    for (v = -7; v <= 8; v++) for (u = -8; u <= 8; u++) {
+      var uu = flip ? -u : u, cr = (uu / 6.6) * (uu / 6.6) + ((v + 0.5) / 5.6) * ((v + 0.5) / 5.6), inCr = cr <= 1, inJaw = v >= 4 && v <= 7 && Math.abs(uu) <= 3.8 - (v - 4) * 0.25;
+      if (!inCr && !inJaw) continue;
+      var e1 = ((uu + 2.8) / 2.0) * ((uu + 2.8) / 2.0) + ((v - 0.6) / 1.8) * ((v - 0.6) / 1.8), e2 = ((uu - 2.8) / 2.0) * ((uu - 2.8) / 2.0) + ((v - 0.6) / 1.8) * ((v - 0.6) / 1.8), c;
+      if (e1 <= 1 || e2 <= 1) c = (e1 <= 0.16 || e2 <= 0.16) ? I.vg1 + 4 : I.sl;                                                   // sockets: dark, with a cold spark
+      else if (v >= 3 && v <= 4 && Math.abs(uu) <= 0.6) c = I.sl;                                                                  // the nose
+      else if (inJaw && v >= 5 && (uu & 1) === 0 && Math.abs(uu) <= 3) c = BN;                                                    // gaps between teeth
+      else {
+        var lit = -(uu * 0.7 + v * 0.65) / 6.5, edge = inCr ? cr > 0.78 : (v === 7 || Math.abs(uu) >= 3.2);
+        c = edge ? (lit > 0.05 ? BN + 3 : BN + 1) : (lit > 0.35 ? BN + 3 : lit > -0.1 ? BN + 2 : BN + 1);
+      }
+      fb.set(cx + u, cy + v, c);
     }
   }
   function tablet(fb, cx, cy, seed) {
@@ -606,21 +659,30 @@
     for (i = 0; i < n1; i++) { var px = cx + Math.round((-0.6 + 1.2 * (i + 0.5) / n1) * rx * 0.8); crystalShards(fb, px, cy + poolY + 1, seed * 3 + i, k * (0.55 + 0.5 * rnd()), (i + grp) % 3 === 0 ? I.cv : vg, true); }
     for (i = 0; i < 4; i++) { var qx = cx + Math.round((-0.7 + 1.4 * (i + 0.5) / 4) * rx * 0.7), qt = Math.round(-ry * Math.sqrt(Math.max(0.05, 1 - Math.pow((qx - cx) / rx, 2))) * 0.94); crystalShards(fb, qx, cy + qt + 1, seed * 5 + i, k * (0.3 + 0.3 * rnd()), vg, false); }
   }
-  function sundial(fb, cx, cy, r, seed) {                                   // a great stone sundial for the night: a ringed disc of star-marks, a gnomon and its long shadow, sunk in a chamber
-    var BN = I.bn, SL = I.sl, x, y, k;
+  function sundial(fb, cx, cy, r, seed) {                                   // a great stone sundial for the night: a tilted star-marked disc, a triangular gnomon fin and its long tapering shadow, sunk in a chamber
+    var BN = I.bn, SL = I.sl, x, y, k, t, q, ry = r * 0.62;
     halo(fb, cx, cy, Math.round(r * 2.2), Math.round(r * 1.5), 0.6, LITS.teal);
-    for (y = -r; y <= r; y++) for (x = -r - 4; x <= r + 4; x++) {                      // the disc, seen tilted: an ellipse
-      var e = (x * x) / ((r + 3) * (r + 3)) + (y * y) / ((r * 0.62) * (r * 0.62)); if (e > 1) continue;
-      var lit = -(x / r * 0.6 + y / r * 0.8), rim = e > 0.82;
-      fb.set(cx + x, cy + y, rim ? (lit > 0.1 ? BN + 3 : BN) : (e > 0.7 ? BN + 1 : (lit > 0.2 ? SL + 3 : SL + 2)));
+    for (y = -Math.ceil(ry); y <= Math.ceil(ry); y++) for (x = -r - 4; x <= r + 4; x++) {                // the disc, seen tilted: an ellipse with a chunky bronze rim
+      var e = (x * x) / ((r + 3) * (r + 3)) + (y * y) / (ry * ry); if (e > 1) continue;
+      var lit = -(x / r * 0.6 + y / r * 0.8), rim = e > 0.80;
+      fb.set(cx + x, cy + y, rim ? (lit > 0.1 ? BN + 3 : (lit > -0.3 ? BN + 1 : BN)) : (e > 0.66 ? SL + 1 : (lit > 0.2 ? SL + 3 : SL + 2)));
     }
-    for (k = 0; k < 12; k++) {                                                         // hour marks with tiny glowing stars
-      var a = k / 12 * TAU, px = Math.round(cx + Math.cos(a) * (r - 1) * 0.86), py = Math.round(cy + Math.sin(a) * (r * 0.62 - 1) * 0.86);
-      fb.set(px, py, k % 3 === 0 ? I.vg1 + 5 : BN + 2); if (k % 3 === 0) { fb.set(px + 1, py, I.vg1 + 3); fb.set(px - 1, py, I.vg1 + 3); }
+    for (k = 0; k < 8; k++) {                                                          // eight radial star-ticks on the rim ring, two of them lit
+      var a = (k + 0.5) / 8 * TAU, ca = Math.cos(a), sa = Math.sin(a);
+      for (t = 0.66; t <= 0.80; t += 0.045) fb.set(Math.round(cx + ca * (r + 3) * Math.sqrt(t)), Math.round(cy + sa * ry * Math.sqrt(t)), (k === 1 || k === 5) ? I.vg1 + 4 : BN + 1);
     }
-    for (y = 1; y <= Math.round(r * 0.6); y++) { fb.set(cx + Math.round(y * 0.9), cy + Math.round(y * 0.3), SL); fb.set(cx + Math.round(y * 0.9) + 1, cy + Math.round(y * 0.3), SL + 1); }   // the shadow
-    for (y = 0; y < Math.round(r * 0.55); y++) { fb.set(cx, cy - y, BN + 3); fb.set(cx + 1, cy - y, BN + 1); }                                                               // the gnomon
-    fb.set(cx, cy - Math.round(r * 0.55), I.vg1 + 5);
+    for (k = 0; k < 26; k++) {                                                         // a dashed inner ring
+      if (k % 3 === 2) continue; var a2 = k / 26 * TAU; fb.set(Math.round(cx + Math.cos(a2) * (r + 3) * 0.52), Math.round(cy + Math.sin(a2) * ry * 0.52), SL + 1);
+    }
+    var sl0 = Math.round(r * 0.95);                                                    // the shadow: a dark wedge that tapers as it runs out across the dial
+    for (t = 1; t <= sl0; t++) { var sxp = cx + Math.round(t * 0.95), syp = cy + Math.round(t * 0.30), wid = t < sl0 * 0.35 ? 4 : (t < sl0 * 0.7 ? 3 : 2); for (q = 0; q < wid; q++) fb.set(sxp, syp + q - 1, SL); }
+    var H = Math.max(6, Math.round(r * 0.62)), len = Math.max(5, Math.round(r * 0.55));   // the gnomon: a right-triangle fin, tall at the pole end, lit on its slope
+    for (x = -len; x <= 0; x++) {
+      var hh = Math.round(H * (1 + x / len)), by = cy + 1;
+      for (y = 0; y <= hh; y++) fb.set(cx + x, by - y, y === hh ? BN + 3 : (x >= -1 ? BN + 1 : (y >= hh - 1 ? BN + 3 : BN + 2)));
+      if (x === -len) fb.set(cx + x, by, BN);
+    }
+    fb.set(cx, cy + 1 - H - 1, I.vg1 + 5);
   }
   function armillary(fb, cx, cy, r, seed) {                               // the old star-machine: three bronze rings around a small pale sphere
     var BZ = I.bz, rings = [[1.0, 0.30, 0.15], [0.42, 1.0, 0.12], [0.86, 0.62, -0.75]], q, t;
@@ -662,7 +724,7 @@
     var CW = A(52), c0 = Math.floor((qoff - 80) / CW), c1 = Math.floor((qoff + w + 80) / CW), c, j;
     for (c = c0; c <= c1; c++) {
       for (j = 0; j < 8; j++) {
-        var hh = PX.h2(c * 13 + j, 7100 + j * 3), P = [0.62, 0.5, 0.36, 0.34, 0.40, 0.2, 0.16, 0.09][j];
+        var hh = PX.h2(c * 13 + j, 7100 + j * 3), P = [0.62, 0.5, 0.36, 0.24, 0.40, 0.2, 0.16, 0.09][j];
         if (hh > P) continue;
         var qx = c * CW + PX.h2(c, 7200 + j) * CW, sx = Math.round(qx - qoff); if (sx < -40 || sx > w + 40) continue;
         var lo = [14, 90, 34, 50, 70, 100, 100, 50][j], hi = [150, 300, 260, 300, 300, 320, 320, 260][j];
@@ -712,7 +774,7 @@
     buildScene(S);
     var w = fb.w, h = fb.h, hy = S.horizonY + Math.round((1 - S.openingT) * S.h * 0.12), al = S.altitude, t = S.reduced ? 0 : S.tSec, a = S.adj || 1, i, x, y;
     function A(v) { return Math.max(1, Math.round(v * a)); }
-    var zone = zoneF(al) * 700;                                             // metres into the zone (0..700): parallax is measured from the zone's start so previews look the same
+    var zone = Math.min(zoneM(al), 1400);                                   // metres into the zone: parallax is measured from the zone's start so previews look the same
     bakeSky(S, hy);
     fb.d.set(ST.sky);
     var skyBot = Math.min(h, hy + 30), zf = zoneF(al), ox = -M - Math.round(zf * 20), oy = -M + Math.round(zf * 5) + Math.round((1 - S.openingT) * S.h * 0.05);
@@ -758,5 +820,6 @@
     }
   };
 
+  R.debugStamps = { stoneBlob: stoneBlob, rockShard: rockShard, crystalShards: crystalShards, crystalCluster: crystalCluster, geode: geode, cavern: cavern, meteorite: meteorite, ammonite: ammonite, skull: skull, tablet: tablet, astrolabe: astrolabe, telescope: telescope, dome: dome, armillary: armillary, sundial: sundial };   // (QA: lets a test page paint each prop on its own)
   V8.register("galaxy", R);
 })(typeof window !== "undefined" ? window : this);
