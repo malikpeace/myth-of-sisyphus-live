@@ -55,6 +55,23 @@ shift backdrop layers by `(1-openingT)*S.h*0.12` like hills.js) | `realmId` | `w
 `pull` 0..1 (pull-back zoom) | `cairns`, `bestM`, `oldBestPassed` (used by core markers).
 World-locked things: world x of a screen column = (x - ztx)/zoom + scroll  (that is how the meadow/flowers/pines are placed).
 
+## Shared overlays (v8/overlays.js) - the engine draws these for every realm; tune them with optional realm fields
+Drawn by core.js around your layers: bird flocks + the "passed your old best" bird/afterglow (after `backdrop`), mythic events
+(eagle / wind streaks in the sky; the hooded WATCHER on the ground after markers; thunder flash as a final full-frame lift),
+footprints (right after `ground`), the 1000 m quote sign and the Daily target sign (after markers, before the actor).
+Optional fields on your realm object (set them in `R.init`, they are palette INDICES from your own ramps):
+- `R.birdIdx`   colour of birds / eagle silhouettes against YOUR sky (default 0 = the darkest slot). Night skies: pick a pale index or set `R.noBirds = true`.
+- `R.watcherIdx` colour of the watcher silhouette (default 0). On dark grounds pick something that still reads.
+- `R.footprint = { col: idx, hi: idx }` footprint colour + its 1-px lit rim (default: the pixel under it darkened two ramp steps / lightened one).
+- `R.markerIdx` overrides the cairn/flag/pole/sign palette slots (see MARK in core.js) if your world needs different stones.
+- `R.noShadow` skips the hero/stone ground shadow (Dusk).
+Signs use fixed marker slots 247/248 (post) + 253/254 (paper/ink) so they are readable everywhere; do not overwrite 244..254 in your palette.
+Do NOT draw your own bird flocks / eagle / footprints any more (they would double up). Ambient realm life (petals, embers, snow, fireflies, fish) is yours.
+`V8.thumbnail(id, w, h)` renders your realm into the menu card (it builds a synthetic S: `gameState:"title"`, `reduced:true`, `adj:1`,
+flat-ish terrain, no hero) - make sure `init/backdrop/ground/front` survive that S and any w x h (cards are ~80 x 38 game px after a whole-number reduction of a ~4-6x frame).
+Chunky mode (Settings > pixels): `S.adj` = 1 normally, ~0.67 in Chunky. Multiply fixed pixel sizes that should keep their on-screen size by it
+(sun radius, cloud/sprite sizes, particle sizes, lamp glows). Texture grain (dither, facets, blades) should stay in whole native pixels so Chunky really looks chunkier.
+
 ## Testing (all headless, no dependencies)
 A static server must be running on port 8811 serving the repo root:
 `perl -e 'alarm shift; exec @ARGV' 21600 python3 v8/tools/serve.py /Users/malikpeace/myth-of-sisyphus-live 8811 &`
