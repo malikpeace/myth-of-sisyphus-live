@@ -12,7 +12,6 @@
   "use strict";
   var PX = root.PX;
   var clamp = PX.clamp, clamp01 = PX.clamp01, lerp = PX.lerp, smooth01 = PX.smooth01;
-
   // slot numbers in the shared actor sprite (rock owns 1..13; 14/15 belong to the belt + outline)
   var SLOT = { BELT: 14, OUT: 15, T0: 16, T1: 17, T2: 18, T3: 19, RIM: 20, HAIRLO: 21, SANDAL: 22, SASH: 23, CLOTHDEEP: 24, CLOTH: 25, CLOTHHI: 26, CLOTHSH: 27,
     HAIR: 28, HAIRHI: 29, BEARD: 30, EYE: 31, WRAP: 32, BAND: 33, LAUREL: 34, AURA: 35, BRONZE: 36, SWEAT: 37,
@@ -61,7 +60,7 @@
 
   // ---------- the rig (local frame: x forward, y DOWN, floor at y = 0; all lengths scale with s) ----------
   // Proportions (units of s): thigh 10.3 + shin 9.9 + foot 2.3, torso 13.6, neck 2.3, head radius 3.75, upper arm 8.2 + forearm 7.8.
-  var THIGH = 11.2, SHIN = 10.6, FOOT = 2.3, TORSO = 13.2, UARM = 8.2, FARM = 7.8, HEADR = 3.9;
+  var THIGH = 12.2, SHIN = 11.6, FOOT = 2.3, TORSO = 13.2, UARM = 8.2, FARM = 7.8, HEADR = 4.6;
   function leanInOf(P, s) {                                            // giant stone: the whole body steps in so a bent arm reaches it
     var giantT = smooth01(clamp01((P.ratio - 1.6) / 1.2)), leanIn = 0, ax = P.manBaseX || 0;
     if (giantT > 0.001) {
@@ -85,26 +84,29 @@
     var bobAmp = 0.95 * P.activity * s * (1 - brace * 0.55);
     var bob = -(0.5 - 0.5 * Math.cos(2 * wph)) * bobAmp;                 // the hips rise at the passing poses, drop at the contacts
     var idle = (P.playing && P.activity < 0.035 && P.effort < 0.055 && P.slideEffort < 0.04 && stumble < 0.04) ? (Math.sin(P.tSec * 2.05) * 0.5 + 0.5) * (P.reduced ? 0.28 : 1) : 0;
-    var hipH = 18.3 * s;
+    var TN0 = root.HERO_TUNE || {};
+    var hipH = (21.5 - giantT * (TN0.ghip != null ? TN0.ghip : 1.0)) * s;
     var hip = { x: ax - brace * 3.0 * s - stumble * 1.8 * s + pd * 1.1 * s - wl * 0.6 * s,
                 y: gY - hipH + bob + brace * 2.2 * s + stumble * 2.6 * s + pd * 0.8 * s };
-    var lean = 0.62 + brace * 0.30 + stumble * 0.16 + pd * 0.09 + wl * 0.12 + giantT * 0.05 - idle * 0.03;     // spine angle from vertical (rad)
+    var lean = 0.62 + brace * 0.30 + stumble * 0.16 + pd * 0.09 + wl * 0.12 + giantT * (TN0.glean != null ? TN0.glean : 0.18) - idle * 0.03;
+    lean = lean - 0.07 + (P.theta || 0);                                     // authored against gravity, so on a climb the body leans into the slope by the slope angle too
     // where his hands will land on the stone, and therefore where his shoulders must be for the arms to be nearly straight (a real push: extended arms,
     // body a diagonal from heel to hand) - this stands him back from small and medium stones instead of pressing his face into them
     var smallGripT = 1 - smooth01(clamp01((P.ratio - 1.0) / 0.72));
     var shY0 = hip.y - Math.cos(lean) * TORSO * s + bob * 0.4 + stumble * 0.8 * s;
-    var TN = root.HERO_TUNE || {}, gd = TN.gdrop != null ? TN.gdrop : -1.0;                 // against a colossus the hands can only reach the flank at about shoulder height
+    var TN = root.HERO_TUNE || {}, gd = TN.gdrop != null ? TN.gdrop : 1.0;                 // against a colossus the hands can only reach the flank at about shoulder height
     var handY = shY0 + lerp(gd * s, 5.4 * s, smallGripT);                 // hands land BELOW the shoulder (chest height on the stone), never at head height
     var rel = clamp(handY - P.bly, -P.brad + 3, P.brad - 3), halfw = Math.sqrt(Math.max(0, P.brad * P.brad - rel * rel));
     var handX = P.blx - halfw + 1.2 * s;
-    var armMax = (TN.garm != null ? TN.garm : 0.90) * (UARM + FARM) * s, ddy = handY - shY0, reachX = Math.sqrt(Math.max(0, armMax * armMax - ddy * ddy));
-    var fit = clamp((handX - reachX) - (hip.x + Math.sin(lean) * TORSO * s), -10 * s, 3 * s) * (1 - giantT);
+    var armMax = (TN.garm != null ? TN.garm : lerp(0.90, 0.97, giantT)) * (UARM + FARM) * s, ddy = handY - shY0, reachX = Math.sqrt(Math.max(0, armMax * armMax - ddy * ddy));
+    var fitD = (handX - reachX) - (hip.x + Math.sin(lean) * TORSO * s);
+    var fit = fitD < 0 ? Math.max(fitD, -10 * s) : Math.min(fitD, 3 * s) * (1 - giantT);       // too close to the stone: step back so the arms straighten (a giant only ever pulls him back, never forward)
     hip.x += fit;
     var sh = { x: hip.x + Math.sin(lean) * TORSO * s, y: shY0 };
     var idleHeadT = 1 - smooth01(clamp01(P.activity / 0.06));
-    var nl = lean * 0.95 - 0.10 - giantT * (TN.gneck != null ? TN.gneck : 0.55), neckLen = (3.5 - giantT * 0.9 + 0.7 * idleHeadT) * s;
+    var nl = lean * 0.95 - 0.10 - giantT * (TN.gneck != null ? TN.gneck : 0.25), neckLen = (4 - giantT * 0.3 + 0.7 * idleHeadT) * s;
     var neck = { x: sh.x + Math.sin(nl) * neckLen, y: sh.y - Math.cos(nl) * neckLen };
-    var headR = HEADR * s, ht = lean * 0.30 - 0.03 * idle - giantT * (TN.gtilt != null ? -TN.gtilt : 0.62);       // beside a colossus he looks UP at it (the face stays clear of the arm)                 // the head lifts toward the horizon: less tilted than the spine
+    var headR = HEADR * s, ht = lean * 0.30 - 0.03 * idle - giantT * (TN.gtilt != null ? -TN.gtilt : 0.25);       // beside a colossus he looks UP at it (the face stays clear of the arm)                 // the head lifts toward the horizon: less tilted than the spine
     var head = { x: neck.x + Math.sin(ht) * headR * 0.92, y: neck.y - Math.cos(ht) * headR * 0.92 };
     var L1 = THIGH * s, L2 = SHIN * s, legLen = L1 + L2, ankleY = gY - FOOT * s;
     function reach(f, planted) {                                          // never over-extend a leg: a planted foot slides in along the floor, a lifted one along the line
@@ -116,28 +118,36 @@
       return f;
     }
     var legs = [];
-    if (brace > 0.08) {                                              // dug in: the stone is forcing him back down the slope
-      var bf = reach({ x: hip.x - (17 + brace * 2 + pd * 1.0) * s, y: ankleY }, true), ff = reach({ x: hip.x - (5.6 + brace * 1.4 + pd * 0.3) * s, y: ankleY }, true);
-      legs.push({ foot: bf, knee: PX.ik2(hip.x, hip.y, bf.x, bf.y, L1, L2, 1), far: true, plant: true, ang: -0.28 * brace });
-      legs.push({ foot: ff, knee: PX.ik2(hip.x, hip.y, ff.x, ff.y, L1, L2, 1), far: false, plant: true, ang: 0 });
-    } else {
-      var stepReach = 6.4 * s * (1 - wl * 0.4) * (1 + (P.groove || 0) * 0.3), stepLift = 5.0 * s;
+    var bkk = smooth01(clamp01(brace / 0.55));                                   // walk <-> dug-in is a blend, never a one-frame teleport
+    var wl0 = [], br0 = null;
+    if (bkk < 0.999) {
+      var stepReach = 6.4 * s * (1 - wl * 0.4) * (1 + (P.groove || 0) * 0.3), stepLift = 3.5 * s;
       for (var leg = 0; leg < 2; leg++) {
         var ph = (P.wp + leg * 0.5) * 6.2832, fwd = Math.cos(ph), sw = Math.sin(ph), lift = Math.max(0, sw) * stepLift * P.activity;
         var ankle = reach({ x: hip.x - (7.4 - stumble * 1.0) * s - fwd * stepReach, y: ankleY - lift }, lift < 0.01);
-        var ang = (sw > 0 ? -0.6 * fwd : -0.55 * Math.max(0, (fwd - 0.55) / 0.45)) * P.activity;          // toe-off, toe up into the contact
-        legs.push({ foot: ankle, knee: PX.ik2(hip.x, hip.y, ankle.x, ankle.y, L1, L2, 1), far: leg === 1, plant: lift < 0.01, ang: ang });
+        var ang = (sw > 0 ? -0.6 * fwd : -0.55 * Math.max(0, (fwd - 0.55) / 0.45)) * P.activity;
+        wl0.push({ foot: ankle, far: leg === 1, plant: lift < 0.01, ang: ang });
       }
+    }
+    if (bkk > 0.001) {
+      var bf = reach({ x: hip.x - (17 + brace * 2 + pd * 1.0) * s, y: ankleY }, true), ff = reach({ x: hip.x - (5.6 + brace * 1.4 + pd * 0.3) * s, y: ankleY }, true);
+      br0 = [{ foot: ff, far: false, plant: true, ang: 0 }, { foot: bf, far: true, plant: true, ang: -0.28 * brace }];
+    }
+    for (var lg = 0; lg < 2; lg++) {
+      var a0 = wl0[lg], b0 = br0 && br0[lg], f, ang2, plant2;
+      if (a0 && b0) { f = { x: lerp(a0.foot.x, b0.foot.x, bkk), y: lerp(a0.foot.y, b0.foot.y, bkk) }; ang2 = lerp(a0.ang, b0.ang, bkk); plant2 = a0.plant || bkk > 0.5; }
+      else { var c0 = a0 || b0; f = { x: c0.foot.x, y: c0.foot.y }; ang2 = c0.ang; plant2 = c0.plant; }
+      legs.push({ foot: f, knee: PX.ik2(hip.x, hip.y, f.x, f.y, L1, L2, -1), far: lg === 1, plant: plant2, ang: ang2 });
     }
     for (var li = 0; li < legs.length; li++) legs[li].ground = { x: legs[li].foot.x - 1.0 * s, y: gY };
     // arms: both hands on the stone's surface (handX / handY from above; the second hand a little higher)
     var hand = { x: handX, y: handY }, maxR = 0.985 * (UARM + FARM) * s, dH = Math.hypot(hand.x - sh.x, hand.y - sh.y);
     if (dH > maxR) { hand.x = sh.x + (hand.x - sh.x) * maxR / dH; hand.y = sh.y + (hand.y - sh.y) * maxR / dH; }
-    var rel2 = clamp(handY - 2.2 * s - P.bly, -P.brad + 3, P.brad - 3), hand2 = { x: P.blx - Math.sqrt(Math.max(0, P.brad * P.brad - rel2 * rel2)) + 1.4 * s, y: handY - 2.2 * s };
+    var rel2 = clamp(handY - 3.6 * s - P.bly, -P.brad + 3, P.brad - 3), hand2 = { x: P.blx - Math.sqrt(Math.max(0, P.brad * P.brad - rel2 * rel2)) + 1.4 * s, y: handY - 3.6 * s };
     var shB = { x: sh.x + 0.7 * s, y: sh.y - 0.8 * s }, dH2 = Math.hypot(hand2.x - shB.x, hand2.y - shB.y);
     if (dH2 > maxR) { hand2.x = shB.x + (hand2.x - shB.x) * maxR / dH2; hand2.y = shB.y + (hand2.y - shB.y) * maxR / dH2; }
-    var elbow = PX.ik2(sh.x, sh.y, hand.x, hand.y, UARM * s, FARM * s, -1);
-    var elbow2 = PX.ik2(shB.x, shB.y, hand2.x, hand2.y, UARM * s, FARM * s, -1);
+    var elbow = PX.ik2(sh.x, sh.y, hand.x, hand.y, UARM * s, FARM * s, 1);
+    var elbow2 = PX.ik2(shB.x, shB.y, hand2.x, hand2.y, UARM * s, FARM * s, 1);
     elbow.y += pd * 0.8 * s; elbow2.y += pd * 0.8 * s;
     return { hip: hip, sh: sh, shB: shB, neck: neck, head: head, headR: headR, legs: legs, hand: hand, hand2: hand2, elbow: elbow, elbow2: elbow2,
              idle: idle, leanIn: leanIn, brace: brace, ax: ax, lean: lean, ht: ht };
@@ -147,14 +157,14 @@
   function rigCheer(P) {
     var s = P.s, release = P.cheer.release, armsUp = P.cheer.arms, jump = P.cheer.jump, bx = P.manBaseX || 0;
     var li0 = P.ratio != null ? leanInOf(P, s).leanIn : 0;                 // he lets go where he stood (leaning in on the stone) and steps back to stand
-    var jy = jump * 22 * s, hip = { x: bx + li0 * (1 - smooth01(clamp01(release * 1.25))), y: -jy - 20.6 * s };
+    var jy = jump * 22 * s, hip = { x: bx + li0 * (1 - smooth01(clamp01(release * 1.25))), y: -jy - 22.2 * s };
     var lean = lerp(0.62, 0.05, release), ht = lean * 0.3 - armsUp * 0.32;
     var sh = { x: hip.x + Math.sin(lean) * TORSO * s, y: hip.y - Math.cos(lean) * TORSO * s };
     var legs = [], L1 = THIGH * s, L2 = SHIN * s;
     for (var leg = 0; leg < 2; leg++) {
       var dir = leg === 0 ? -1 : 1;
-      var ankle = { x: hip.x + dir * (3.2 + release * 2.6) * s, y: -jy + jump * 6 * s - FOOT * s };
-      legs.push({ foot: ankle, knee: PX.ik2(hip.x, hip.y, ankle.x, ankle.y, L1, L2, 1), far: leg === 0, plant: false, ang: -0.35 * jump, ground: { x: ankle.x - 1.0 * s, y: -jy + jump * 6 * s } });
+      var ankle = { x: hip.x + dir * (3.2 + release * 2.6) * s, y: -jy - jump * 3.5 * s - FOOT * s };
+      legs.push({ foot: ankle, knee: PX.ik2(hip.x, hip.y, ankle.x, ankle.y, L1, L2, -1), far: leg === 0, plant: false, ang: -0.35 * jump, ground: { x: ankle.x - 1.0 * s, y: -jy - jump * 3.5 * s } });
     }
     var nl = lean * 0.8 - 0.06, neckLen = 2.6 * s, neck = { x: sh.x + Math.sin(nl) * neckLen, y: sh.y - Math.cos(nl) * neckLen }, headR = HEADR * s;
     var head = { x: neck.x + Math.sin(ht) * headR * 0.92, y: neck.y - Math.cos(ht) * headR * 0.92 };
@@ -163,7 +173,7 @@
       var d = arm === 0 ? -1 : 1;
       var spread = lerp(0.7, 3.4, armsUp), shp0 = arm === 0 ? { x: sh.x - spread * s, y: sh.y - 0.6 * s } : { x: sh.x + spread * s, y: sh.y + 0.5 * s };
       var fwdHX = shp0.x + 20.5 * s, fwdHY = shp0.y + 3.5 * s, sideHX = hip.x + d * 5 * s, sideHY = hip.y + 2 * s;      // gripping (the push pose) -> arms hanging
-      var upHX = sh.x + d * 11.5 * s, upHY = sh.y - 18.5 * s;                                                              // cheering: a wide V, the head between the fists
+      var upHX = sh.x + d * (d < 0 ? 14 : 11.5) * s, upHY = sh.y - (d < 0 ? 17 : 18.5) * s;                                                              // cheering: a wide V, the head between the fists
       var hX = lerp(lerp(fwdHX, sideHX, release), upHX, armsUp), hY = lerp(lerp(fwdHY, sideHY, release), upHY, armsUp);
       var shp = shp0, elSide = armsUp > 0.5 ? (d < 0 ? -1 : 1) : (release > 0.5 ? 1 : -1);
       var el = PX.ik2(shp.x, shp.y, hX, hY, UARM * s, FARM * s, elSide);
@@ -171,6 +181,77 @@
     }
     var spr = lerp(0.7, 3.4, armsUp);
     return { hip: hip, sh: sh, shB: { x: sh.x - spr * s, y: sh.y - 0.6 * s }, shN: { x: sh.x + spr * s, y: sh.y + 0.5 * s }, neck: neck, head: head, headR: headR, legs: legs, arms: arms, cheer: true, idle: 0, brace: 0, lean: lean, ht: ht, armsUp: armsUp };
+  }
+
+  // ---------- hand-authored heads (facing right) ----------
+  // h hair, H hair highlight, l hair shade | S skin light, s skin, d skin shade, D skin deep | k brow, e eye, b beard, m mouth
+  // Five sizes, chosen by the head's on-screen radius; the pixels are drawn (not computed) so the face always reads as a face.
+  var HEADS = [
+    { r: 4.55, cx: 5, cy: 5, rows: [                       // 11 x 11
+      "...hHHhh...",
+      "..hHhhhhh..",
+      ".hhhhhhhhh.",
+      "hhhhhhhssS.",
+      "hhhhhssSkS.",
+      "hhhhdssseS.",
+      "hhhldsssssS",
+      ".hhlsssbbm.",
+      ".lhlsbbbbb.",
+      "..ll.bbbbb.",
+      ".....bbbb.." ] },
+    { r: 3.75, cx: 4, cy: 4, rows: [                       // 9 x 9
+      "..hHHhh..",
+      ".hhhhhhh.",
+      "hhhhhssS.",
+      "hhhhssSkS",
+      "hhhdssseS",
+      "hhldssssS",
+      ".hlssbbbm",
+      ".lhlsbbbb",
+      "..l.bbbb." ] },
+    { r: 3.0, cx: 3, cy: 3, rows: [                        // 8 x 7
+      "..hHhh..",
+      ".hhhhhh.",
+      "hhhhssS.",
+      "hhhssSkS",
+      "hhdssseS",
+      ".hlsbbbm",
+      "...bbbb." ] },
+    { r: 2.35, cx: 2, cy: 3, rows: [                       // 6 x 6
+      ".hHhh.",
+      "hhhhsS",
+      "hhhskS",
+      "hhdseS",
+      ".lsbbb",
+      "..bbb." ] },
+    { r: 0, cx: 1, cy: 2, rows: [                          // 4 x 4
+      ".hh.",
+      "hhsS",
+      "hdse",
+      ".bbb" ] }
+  ];
+  (function () { HEADS.forEach(function (H) { H.w = 0; H.rows.forEach(function (r) { if (r.length > H.w) H.w = r.length; }); }); })();
+  function pickHead(hr) { for (var i = 0; i < HEADS.length; i++) if (hr >= HEADS[i].r) return HEADS[i]; return HEADS[HEADS.length - 1]; }
+  // colour look: letters -> palette slots;  shadow look: one dark body colour plus a rim of light where the sun grazes the edge
+  var HSLOT = {
+    color: { h: SLOT.HAIR, H: SLOT.HAIRHI, l: SLOT.HAIRLO, S: SLOT.T3, s: SLOT.T2, d: SLOT.T1, D: SLOT.T0, k: SLOT.T0, e: SLOT.EYE, b: SLOT.BEARD, m: SLOT.T1 },
+    shadow: { h: SLOT.HAIR, H: SLOT.HAIR, l: SLOT.HAIR, S: SLOT.T2, s: SLOT.T1, d: SLOT.T0, D: SLOT.T0, k: SLOT.T0, e: SLOT.T1, b: SLOT.HAIR, m: SLOT.T0 }
+  };
+  function stampHead(sp, HB, hx, hy, phi, isColor, L2, lightOn) {
+    var map = HSLOT[isColor ? "color" : "shadow"], rows = HB.rows, cx = HB.cx, cy = HB.cy, t2 = Math.tan(phi / 2), sn = Math.sin(phi);
+    var ox = Math.round(hx), oy = Math.round(hy), pts = [], mask = {}, r, c;
+    for (r = 0; r < rows.length; r++) for (c = 0; c < rows[r].length; c++) {
+      var ch = rows[r][c]; if (ch === ".") continue;
+      var dx = c - cx, dy = r - cy;
+      dx = dx - Math.round(dy * t2); dy = dy + Math.round(dx * sn); dx = dx - Math.round(dy * t2);        // three integer shears = a small rotation that never drops a pixel
+      pts.push([ox + dx, oy + dy, ch]); mask[(ox + dx) + "," + (oy + dy)] = 1;
+    }
+    var rx = L2[0] < -0.45 ? -1 : (L2[0] > 0.45 ? 1 : 0), ry = L2[1] < -0.45 ? -1 : (L2[1] > 0.45 ? 1 : 0);
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i], slot = map[p[2]];
+      if (!isColor && lightOn && (!mask[p[0] + "," + (p[1] + ry)] && ry !== 0 || !mask[(p[0] + rx) + "," + p[1]] && rx !== 0)) slot = SLOT.RIM;
+      sp.set(p[0], p[1], slot);
+    }
   }
 
   // ---------- rasteriser ----------
@@ -187,11 +268,12 @@
     function off(p, ax, ay) { return { x: p.x + fwdV[0] * ax + dnV[0] * ay, y: p.y + fwdV[1] * ax + dnV[1] * ay }; }       // local-frame offset in px (ax, ay already multiplied by s)
     function lp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
     function dirL(lx, ly) { var vx = fwdV[0] * lx + dnV[0] * ly, vy = fwdV[1] * lx + dnV[1] * ly, l = Math.sqrt(vx * vx + vy * vy) || 1; return [vx / l, vy / l]; }
-    function prof(pts) {                                                        // width profile along a limb (rig units -> px), smooth between the control points
+    function prof(pts, kk) {
+      kk = kk == null ? 1 : kk;                                                        // width profile along a limb (rig units -> px), smooth between the control points
       return function (t) {
         var n = pts.length, j = 0; while (j < n - 2 && t > pts[j + 1][0]) j++;
         var a = pts[j], b = pts[j + 1], u = clamp01((t - a[0]) / ((b[0] - a[0]) || 1)); u = u * u * (3 - 2 * u);
-        return Math.max(minR * 0.9, (a[1] + (b[1] - a[1]) * u) * hz);
+        return Math.max(minR * 0.9, (a[1] + (b[1] - a[1]) * u) * hz * kk);
       };
     }
     // light: the sun from behind/above (rim) plus a cool bounce off the stone in front - so the face, chest and forearms stay readable
@@ -241,10 +323,11 @@
     }
 
     // ---- muscle silhouettes (rig units; half-widths toward the front / the back of each limb) ----
-    var TH_F = prof([[0, 4.5], [0.42, 4.55], [1, 2.7]]), TH_B = prof([[0, 4.3], [0.4, 3.7], [1, 2.6]]);                 // thigh: quad sweep in front, glute -> hamstring behind
-    var SH_F = prof([[0, 2.7], [0.5, 2.15], [1, 1.5]]), SH_B = prof([[0, 2.7], [0.28, 3.5], [0.7, 2.3], [1, 1.45]]);   // shin: straight front, calf bulge behind
-    var UA_F = prof([[0, 3.3], [0.4, 3.4], [1, 2.35]]), UA_B = prof([[0, 3.35], [0.38, 3.45], [1, 2.4]]);                // upper arm: biceps / triceps
-    var FA_F = prof([[0, 2.55], [0.32, 2.65], [1, 1.5]]), FA_B = prof([[0, 2.65], [0.3, 2.8], [1, 1.5]]);                 // forearm
+    var LK = 0.66;
+    var TH_F = prof([[0, 4.5], [0.42, 4.55], [1, 2.7]], LK), TH_B = prof([[0, 4.3], [0.4, 3.7], [1, 2.6]], LK);                 // thigh: quad sweep in front, glute -> hamstring behind
+    var SH_F = prof([[0, 2.7], [0.5, 2.15], [1, 1.5]], LK), SH_B = prof([[0, 2.7], [0.28, 3.5], [0.7, 2.3], [1, 1.45]], LK);   // shin: straight front, calf bulge behind
+    var UA_F = prof([[0, 3.3], [0.4, 3.4], [1, 2.35]], LK), UA_B = prof([[0, 3.35], [0.38, 3.45], [1, 2.4]], LK);                // upper arm: biceps / triceps
+    var FA_F = prof([[0, 2.55], [0.32, 2.65], [1, 1.5]], LK), FA_B = prof([[0, 2.65], [0.3, 2.8], [1, 1.5]], LK);                 // forearm
     var TO_F = prof([[0, 2.7], [0.2, 2.45], [0.55, 4.0], [1, 3.1]]), TO_B = prof([[0, 2.7], [0.3, 2.85], [0.7, 3.5], [1, 3.4]]);   // torso: waist -> chest / lats -> trapezius
     var NE = prof([[0, 2.35], [1, 1.85]]);
 
@@ -252,21 +335,21 @@
       var t = tone(far);
       PX.limb(sp, hip.x, hip.y, l.knee.x, l.knee.y, TH_F, TH_B, t, -1);
       PX.limb(sp, l.knee.x, l.knee.y, l.foot.x, l.foot.y, SH_F, SH_B, t, -1);
-      PX.disc(sp, l.knee.x, l.knee.y, R(2.75 * s), t);                                                                  // a round knee
+      PX.disc(sp, l.knee.x, l.knee.y, R(2.2 * s), t);                                                                  // a round knee
       if (!far && isColor && lod > 0.6) { var kh = off(l.knee, 1.5 * s, -1.2 * s); sp.set(kh.x, kh.y, SLOT.T3); }                                     // kneecap highlight
-      PX.disc(sp, l.foot.x, l.foot.y, R(1.6 * s), t);
+      PX.disc(sp, l.foot.x, l.foot.y, R(1.3 * s), t);
       var ca = Math.cos(-l.ang), sa = Math.sin(-l.ang);
       function lf(px, py) { return off(l.foot, (px * ca - py * sa) * s, (px * sa + py * ca) * s); }
       var heel = lf(-1.1, 1.0), toe = lf(4.3, 1.35), s0 = lf(-1.5, 2.25), s1 = lf(4.6, 2.2);
-      PX.capsule(sp, heel.x, heel.y, toe.x, toe.y, R(1.5 * s), R(1.05 * s), t);                                        // the foot
+      PX.capsule(sp, heel.x, heel.y, toe.x, toe.y, R(1.2 * s), R(0.85 * s), t);                                        // the foot
       PX.capsule(sp, s0.x, s0.y, s1.x, s1.y, R(0.72 * s), R(0.68 * s), function () { return SLOT.SANDAL; });          // the leather sole
       if (lod > 0.55) { var st = lf(2.0, 0.6), an = lf(0.2, -0.4); sp.set(st.x, st.y, SLOT.SANDAL); sp.set(an.x, an.y, SLOT.SANDAL); }   // straps
     }
     function armDraw(shoulder, elbow, hand, far) {
-      var t = tone(far), e = m(elbow), h = m(hand);
+      var t = tone(far && !(J.cheer && J.armsUp > 0.3)), e = m(elbow), h = m(hand);
       PX.limb(sp, shoulder.x, shoulder.y, e.x, e.y, UA_F, UA_B, t, 1);
       PX.limb(sp, e.x, e.y, h.x, h.y, FA_F, FA_B, t, 1);
-      PX.disc(sp, e.x, e.y, R(2.35 * s), t);                                                                            // a round elbow
+      PX.disc(sp, e.x, e.y, R(1.9 * s), t);                                                                            // a round elbow
       PX.disc(sp, h.x + 0.4 * hz, h.y, R((J.cheer && J.armsUp > 0.5 ? 2.15 : 1.75) * s), t);
       if (lod > 0.5) { var wr = lp(e, h, 0.52); PX.disc(sp, wr.x, wr.y, R(1.15 * s), function (x, y, u, v) { return far ? SLOT.CLOTHDEEP : SLOT.CLOTHSH; }); }     // a thin, dim linen wrap (the skin hand stays the brightest thing)
       if (cosm === "wraps" && lod > 0.45) { var wp2 = lp(e, h, 0.72); PX.disc(sp, wp2.x, wp2.y, R(2.1 * s), function () { return SLOT.WRAP; }); }
@@ -282,7 +365,7 @@
     for (i = 0; i < legs.length; i++) if (legs[i].far) legDraw(legs[i], true);
     castLimb(hip, sh, TO_F, TO_B, 1);
     PX.limb(sp, hip.x, hip.y, sh.x, sh.y, TO_F, TO_B, tone(false), 1);                                                 // torso
-    PX.disc(sp, hip.x, hip.y + 0.4 * hz, R(3.9 * s), tone(false));                                                    // pelvis: joins the torso to both thighs
+    PX.disc(sp, hip.x, hip.y + 0.4 * hz, R(3.4 * s), tone(false));                                                    // pelvis: joins the torso to both thighs
     if (J.idle > 0.02) PX.disc(sp, lp(hip, sh, 0.55).x, lp(hip, sh, 0.55).y, R((1.2 + J.idle * 0.5) * s), tone(false));   // breathing
     for (i = 0; i < legs.length; i++) if (!legs[i].far) legDraw(legs[i], false);
 
@@ -290,11 +373,12 @@
     var nx = Math.cos(J.lean), ny = Math.sin(J.lean);
     var bk = A(J.hip.x - nx * 2.7 * s, J.hip.y - ny * 2.7 * s), ft = A(J.hip.x + nx * 3.1 * s, J.hip.y + ny * 3.1 * s), span = Math.max(1, ft[0] - bk[0]);
     var flow = (P.reduced ? 0 : -(0.6 + P.activity * 1.4 + (P.windLean || 0) * 2.4) + Math.sin(P.tSec * 2.4 + P.wp * 6.28) * 0.7 * (0.4 + P.activity)) * hz;
-    var cl = [bk, ft, [ft[0] + 1.9 * hz + flow * 0.3, ft[1] + 9.0 * hz], [ft[0] - 0.7 * hz + flow * 0.6, ft[1] + 10.4 * hz], [bk[0] + span * 0.58 + flow * 0.7, bk[1] + 9.4 * hz],
-              [bk[0] + span * 0.30 + flow * 0.85, bk[1] + 10.6 * hz], [bk[0] - 1.2 * hz + flow, bk[1] + 8.6 * hz]];
-    var top = Math.min(bk[1], ft[1]), hemY = 8.2 * hz;
+    var KH = 0.7;
+    var cl = [bk, ft, [ft[0] + 1.9 * hz + flow * 0.3, ft[1] + 9.0 * KH * hz], [ft[0] - 0.7 * hz + flow * 0.6, ft[1] + 10.4 * KH * hz], [bk[0] + span * 0.58 + flow * 0.7, bk[1] + 9.4 * KH * hz],
+              [bk[0] + span * 0.30 + flow * 0.85, bk[1] + 10.6 * KH * hz], [bk[0] - 1.2 * hz + flow, bk[1] + 8.6 * KH * hz]];
+    var top = Math.min(bk[1], ft[1]), hemY = 8.2 * KH * hz;
     PX.poly(sp, cl, function (x, y) {
-      var e = y - top, col = (x - bk[0]) / span;
+      var e = y - (bk[1] + Math.max(0, Math.min(1, (x - bk[0]) / span)) * (ft[1] - bk[1])), col = (x - bk[0]) / span;
       if (e < 1.6 * hz) return SLOT.SASH;                                                                            // the sash at the waist
       if (e > hemY + 1.0 * hz && (x % 3) === 0) return 0;                                                            // torn hem: gaps between the teeth
       if (e > hemY) return SLOT.CLOTHDEEP;                                                                             // the hem: a dark edge
@@ -320,52 +404,11 @@
     PX.limb(sp, sh.x, sh.y, neck.x, neck.y, NE, NE, tone(false), 1);
     if (isColor && lod > 0.55) { var hsx = head.x + shx * 0.8, hsy = head.y + shy * 0.8; for (var ay = -Math.ceil(hr); ay <= Math.ceil(hr); ay++) for (var ax2 = -Math.ceil(hr); ax2 <= Math.ceil(hr); ax2++) if (ax2 * ax2 + ay * ay <= hr * hr) { var sx = Math.floor(hsx + ax2), sy = Math.floor(hsy + ay), dk = castShade(sx, sy); if (dk) sp.set(sx, sy, dk); } }
 
-    // ---- head: skull + jaw, hair (cap, sideburn, streaming tail), a short full beard on the chin and jaw only, visible skin at the cheek / eye / brow ----
-    var hu = dirL(Math.sin(J.ht), -Math.cos(J.ht)), hf = dirL(Math.cos(J.ht), Math.sin(J.ht)), hrr = hr * 1.02;
-    var bx0 = Math.floor(head.x - hrr * 1.6), bx1 = Math.ceil(head.x + hrr * 1.6), by0 = Math.floor(head.y - hrr * 1.6), by1 = Math.ceil(head.y + hrr * 1.6);
-    for (var py = by0; py <= by1; py++) for (var px2 = bx0; px2 <= bx1; px2++) {
-      var rx2 = px2 + 0.5 - head.x, ry2 = py + 0.5 - head.y, lu = (rx2 * hu[0] + ry2 * hu[1]) / hr, lf = (rx2 * hf[0] + ry2 * hf[1]) / hr;
-      var skull = (lu / 1.05) * (lu / 1.05) + (lf / 0.95) * (lf / 0.95) <= 1;
-      var jaw = ((lf - 0.34) / 0.6) * ((lf - 0.34) / 0.6) + ((lu + 0.42) / 0.5) * ((lu + 0.42) / 0.5) <= 1;
-      var hairBack = ((lf + 0.34) / 0.92) * ((lf + 0.34) / 0.92) + ((lu - 0.05) / 1.12) * ((lu - 0.05) / 1.12) <= 1 && lu > -0.34;      // hair covers the back of the skull, down to the nape
-      if (!(skull || jaw || hairBack)) continue;
-      var nxn = rx2 / (hr * 1.1), nyn = ry2 / (hr * 1.1), dS = nxn * L2[0] + nyn * L2[1], dF = isColor ? (nxn * FL[0] + nyn * FL[1]) * 0.5 : 0, dd = Math.max(dS, dF), slot;
-      var hairTop = lu > 0.50 - Math.max(0, lf - 0.05) * 0.32 && lf < 0.92;                                                          // the hairline slopes back from the brow
-      var beard = lu < -0.44 && lf > -0.06 && lf < 0.98 && (jaw || skull);                                                              // chin + jaw only
-      if (hairTop || (hairBack && lf < -0.40 && lu > -0.25)) slot = dS > 0.84 && k > 0.05 ? SLOT.HAIRHI : (dd > -0.30 ? SLOT.HAIR : SLOT.HAIRLO);
-      else if (beard) slot = dS > 0.80 && k > 0.06 ? SLOT.HAIRHI : (dd > -0.35 ? SLOT.BEARD : SLOT.HAIR);
-      else if (skull || jaw) slot = tone(false)(px2, py, nxn, nyn);
-      else continue;
-      sp.set(px2, py, slot);
-    }
-    if (hr >= 2.6 && lod > 0.55) {                                                                                     // face details, placed in the head's own frame
-      function hp(lfv, luv) { return [head.x + hf[0] * lfv * hr + hu[0] * luv * hr, head.y + hf[1] * lfv * hr + hu[1] * luv * hr]; }
-      var nose = hp(1.08, -0.02), brow = hp(0.56, 0.34), eye = hp(0.56, 0.16), ear = hp(-0.16, 0.06);
-      sp.set(nose[0], nose[1], isColor ? SLOT.T2 : (k > 0.06 ? SLOT.T3 : SLOT.T1));
-      if (isColor) { sp.set(brow[0], brow[1], SLOT.T0); sp.set(eye[0], eye[1], SLOT.EYE); }
-      if (hr >= 3.4) sp.set(ear[0], ear[1], isColor ? SLOT.T1 : SLOT.T0);
-    }
-    // hair streaming back, and a lock over the brow
-    if (lod > 0.62) {                                                                                                // (no streaming tail at mid-zoom: it lengthened the head into a snout)
-      var wave = P.reduced ? 0 : Math.sin(P.tSec * 5.3 + P.wp * 6.28) * 0.5, tr = (0.8 + P.activity * 0.5 + (P.windLean || 0) * 1.6) * clamp01((lod - 0.55) / 0.35);
-      var h0 = [head.x - hf[0] * 0.75 * hr + hu[0] * 0.55 * hr, head.y - hf[1] * 0.75 * hr + hu[1] * 0.55 * hr];
-      var h1 = [h0[0] - hf[0] * tr * hr * 0.9 + fwdV[0] * 0, h0[1] - hf[1] * tr * hr * 0.9 + wave * hz + 0.5 * hz];
-      var h2 = [h1[0] - hf[0] * tr * hr * 0.75, h1[1] + 1.6 * hz + wave * hz];
-      PX.capsule(sp, h0[0], h0[1], h1[0], h1[1], R(1.25 * s), R(0.8 * s), function (x, y, u, v) { return v < -0.2 ? SLOT.HAIRHI : SLOT.HAIR; });
-      PX.capsule(sp, h1[0], h1[1], h2[0], h2[1], R(0.8 * s), R(0.32 * s), function () { return SLOT.HAIR; });
-    }
+    // ---- head: a hand-authored bitmap chosen by size (see HEADS), tilted a little with the neck ----
+    var hu = dirL(Math.sin(J.ht), -Math.cos(J.ht)), hf = dirL(Math.cos(J.ht), Math.sin(J.ht));
+    stampHead(sp, pickHead(hr), head.x, head.y, Math.max(-0.5, Math.min(0.5, Math.atan2(hu[0], -hu[1]))), isColor, L2, k > 0.06);
     if (cosm === "headband" && lod > 0.45) { var hb0 = [head.x - hf[0] * hr * 0.95 + hu[0] * hr * 0.42, head.y - hf[1] * hr * 0.95 + hu[1] * hr * 0.42], hb1 = [head.x + hf[0] * hr * 0.8 + hu[0] * hr * 0.42, head.y + hf[1] * hr * 0.8 + hu[1] * hr * 0.42]; PX.capsule(sp, hb0[0], hb0[1], hb1[0], hb1[1], Math.max(0.6, 0.6 * hz), Math.max(0.6, 0.6 * hz), function () { return SLOT.BAND; }); }
     if (cosm === "laurel" && lod > 0.45) for (var li = -2; li <= 2; li++) sp.set(head.x + li * 1.6 * hz, head.y - hr * 1.05 - (Math.abs(li) % 2) * hz * 0.8, SLOT.LAUREL);
-
-    // ---- a few muscle marks and creases (colour look) ----
-    if (isColor && lod > 0.72) {
-      var tf = tone(false);
-      function mark(a3, b3, t, lat, slot, fs) {                                                                    // one pixel at (t along a3->b3, lat px toward the front normal)
-        var ax = b3.x - a3.x, ay = b3.y - a3.y, ll = Math.sqrt(ax * ax + ay * ay) || 1, nxm = -ay / ll * fs, nym = ax / ll * fs;
-        sp.set(a3.x + ax * t + nxm * lat, a3.y + ay * t + nym * lat, slot);
-      }
-      mark(hip, sh, 0.57, 2.5 * hz, SLOT.T1, 1); mark(hip, sh, 0.40, 1.5 * hz, SLOT.T1, 1); mark(hip, sh, 0.28, 1.3 * hz, SLOT.T1, 1);   // pec line + abs
-    }
 
     if (isColor && lod > 0.16) outlinePass(sp);                                                                       // ink outline (colour look): every edge, in the deep warm dark
 
@@ -376,10 +419,6 @@
       for (var an2 = 0; an2 < 40; an2++) { var aa = an2 / 40 * 6.2832; if ((an2 & 1) === 0) sp.set(head.x + Math.cos(aa) * ar, head.y + Math.sin(aa) * ar, SLOT.AURA); }
     }
     if (cosm === "bronze" && lod > 0.5) { sp.set(head.x - 1, head.y - hr, SLOT.BRONZE); sp.set(sh.x, sh.y - 2 * hz, SLOT.BRONZE); }
-    if (P.pushTime > 10 && lod > 0.55) {                                                                               // sweat after sustained pushing
-      var swt = Math.min(1, (P.pushTime - 10) / 2), dy = P.reduced ? hr : ((P.tSec * 16) % 18) * hz * 0.5;
-      sp.set(head.x - hr, head.y - hr * 0.3, SLOT.SWEAT); if (swt > 0.5) sp.set(head.x - hr + 1, head.y + dy, SLOT.SWEAT);
-    }
   }
 
   var OUTMAP = null;

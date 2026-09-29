@@ -84,7 +84,7 @@
     var J = null;
     if (P.mode === "cheer") J = Hero.rigCheer({ s: s, cheer: P.cheer, manBaseX: P.manBaseX, ratio: P.ratio, brad: P.brad, blx: P.blx, bly: P.bly });
     else J = Hero.rig({ s: s, brace: P.brace, stumble: P.stumble, pushDrive: P.pushDrive, windLean: P.windLean, wp: P.wp, activity: P.activity, effort: P.effort, slideEffort: P.slideEffort,
-                        tSec: P.tSec, reduced: P.reduced, playing: P.playing, groove: P.groove, ratio: P.ratio, brad: P.brad, blx: P.blx, bly: P.bly, manBaseX: P.manBaseX });
+                        tSec: P.tSec, reduced: P.reduced, playing: P.playing, groove: P.groove, theta: P.theta, ratio: P.ratio, brad: P.brad, blx: P.blx, bly: P.bly, manBaseX: P.manBaseX });
     var heroShadow = null;
     if (J && !P.hideHero) { var hf = map(J.hip.x - 2 * s, 0); heroShadow = { u: (hf[0] - rcF[0]) * cs - (hf[1] - (rcF[1] + Rpx)) * sn, ru: 13 * s * z, rv: Math.max(1.6, 2.6 * s * z) }; }
     P.heroShadow = heroShadow;
