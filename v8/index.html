@@ -12462,12 +12462,16 @@
       bridgeDepth: bridged ? 12 * zoom : 0, shadowCol: mix(day.ground, [0, 0, 0], 0.78), noShadow: !!(R && R.noShadow) || (duskActive() && !lightSrc) };
   }
   // effort dust: motion leaves evidence (step dust kicked back, churned soil while sliding, grit off the stone), on integer pixels
-  function v8Dust(day, g0, ztx, zty, zoom) {
+  function v8Dust(day, g0, ztx, zty, zoom, sink) {
     if (REDUCED || gameState === "title" || bridgeGapActiveAt(ANCHOR_X, 150)) return;
     var SINK = 3, ox = ztx + ANCHOR_X * zoom, oy = zty + (ANCHOR_Y + SINK) * zoom, cs = Math.cos(g0.theta), sn = Math.sin(g0.theta);
     function map(lx, ly) { return [ox + zoom * (lx * cs + ly * sn), oy + zoom * (-lx * sn + ly * cs)]; }
     var spd4 = Math.abs(audioEffSpeed), dustCol = mix(day.ground, [255, 255, 255], 0.22), dustDark = mix(day.ground, [0, 0, 0], 0.25);
-    var dot = function (lx, ly, w, col, a) { if (a <= 0.02) return; var m = map(lx, ly); g.fillStyle = css(col, Math.min(1, a * 1.6)); g.fillRect(Math.round(m[0]), Math.round(m[1]), w, 1); };
+    var dot = function (lx, ly, w, col, a) {
+      if (a <= 0.02) return; var m = map(lx, ly);
+      if (sink) { sink.push({ x: Math.round(m[0]), y: Math.round(m[1]), w: w, a: Math.min(1, a * 1.6), light: (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) > 118 }); return; }
+      g.fillStyle = css(col, Math.min(1, a * 1.6)); g.fillRect(Math.round(m[0]), Math.round(m[1]), w, 1);
+    };
     if (audioEffSpeed > 0.8 && effort > 0.15) {
       var kick = clamp01(spd4 / 9);
       for (var sd4 = 0; sd4 < 5; sd4++) {
@@ -12544,17 +12548,14 @@
     for (var x = 0; x < VW; x++) v8LipCols[x] = Math.round(zty + terrainLipAt((x - ztx) / zoom) * zoom);
     var S = { w: VW, h: VH, zoom: zoom, ztx: ztx, zty: zty, altitude: altitude, scroll: altitude * GROUND_SCROLL, tSec: tSec, reduced: REDUCED,
       anchorX: ANCHOR_X, anchorY: ANCHOR_Y, horizonY: HORIZON, lip: v8LipCols, slope: leanSlope, openingT: openingT, realmId: realmId,
-      windGust: windGustPower, adj: PIXEL_ZOOM_ADJ, gameState: gameState, pull: pullA, bestM: (gameState === "title" || playMode === "run") ? 0 : Math.max(0, Math.round(runStartBest || 0)), oldBestPassed: oldBestPassed,
+      fx: fxP, pullMark: pullMark, pullNext: pullNext, stoneX: fxBoulderX, stoneR: fxBrad, windGust: windGustPower, adj: PIXEL_ZOOM_ADJ, gameState: gameState, pull: pullA, bestM: (gameState === "title" || playMode === "run") ? 0 : Math.max(0, Math.round(runStartBest || 0)), oldBestPassed: oldBestPassed,
       cairns: (gameState === "title" || playMode === "run" || playMode === "summit") ? [] : cairnList((0 - ztx) / zoom, (VW - ztx) / zoom) };
     var g0 = v8Geometry();
     var light = V8.realms[realmId].light ? V8.realms[realmId].light(S) : null;
     var P = v8ActorParams(day, g0, ztx, zty, zoom, light);
+    S.dots = []; v8Dust(day, g0, ztx, zty, zoom, S.dots);
     V8.render(g, S, P);
-    v8Dust(day, g0, ztx, zty, zoom);
     updateControlHintNearRock(g0.blx, g0.bly, g0.brad, ztx, zty, zoom);
-    v8DrawFx(ztx, zty, zoom);
-    drawWindGust(day);
-    drawPullTrail();
     drawHudLayers(day);
   }
   if (window.V8) V8.onEvent = function (name, arg) { if (name === "strike") duskStrike(arg); };
@@ -13619,7 +13620,10 @@
     var openingT = gameState === "title" ? 0 : (gameState === "intro" ? smooth01(introPan) : 1);
     var openingDrop = Math.round((1 - openingT) * VH * (REALM_MENU_ENABLED?0.15:0.62));
     var v8id = v8RealmId();
-    if (v8id) { v8DrawRealm(day, zoom, shakeX, shakeY, openingT, openingDrop, pullA, v8id); return; }
+    if (v8id) {
+      try { v8DrawRealm(day, zoom, shakeX, shakeY, openingT, openingDrop, pullA, v8id); return; }
+      catch (v8e) { window.__v8err = String(v8e && v8e.stack || v8e); V8_REALMS = false; try { console.error(v8e); } catch (_) {} }
+    }
 
     // background: image if loaded, else sky gradient
     if (mtBgReady) {

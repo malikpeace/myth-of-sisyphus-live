@@ -4,7 +4,7 @@
 // fog and glow are ordered dithers between two palette entries, and day/night or lightning are palette animations.
 (function (root) {
   "use strict";
-  var PX = root.PX, V8 = { realms: {}, fb: null, pal: null, key: "", realm: null, shade1: new Uint8Array(256), shade2: new Uint8Array(256), stats: { ms: 0 } };
+  var PX = root.PX, clamp01 = PX.clamp01, V8 = { realms: {}, fb: null, pal: null, key: "", realm: null, shade1: new Uint8Array(256), shade2: new Uint8Array(256), stats: { ms: 0 } };
 
   V8.register = function (id, realm) { V8.realms[id] = realm; realm.id = id; };
   // realms can raise game events (e.g. V8.emit("strike", 0.8) for lightning: the game adds the thunder, haptics and shake)
@@ -12,12 +12,13 @@
   V8.emit = function (name, arg) { if (V8.onEvent) V8.onEvent(name, arg); };
   V8.has = function (id) { return !!V8.realms[id]; };
 
+  V8.light1 = new Uint8Array(256);
   V8.buildShade = function (pal) {
     var i, n;
-    for (i = 0; i < 256; i++) { V8.shade1[i] = i; V8.shade2[i] = i; }
+    for (i = 0; i < 256; i++) { V8.shade1[i] = i; V8.shade2[i] = i; V8.light1[i] = i; }
     for (var name in pal.ramps) {
       var r = pal.ramps[name];
-      for (i = 0; i < r.n; i++) { V8.shade1[r.base + i] = r.base + Math.max(0, i - 1); V8.shade2[r.base + i] = r.base + Math.max(0, i - 2); }
+      for (i = 0; i < r.n; i++) { V8.shade1[r.base + i] = r.base + Math.max(0, i - 1); V8.shade2[r.base + i] = r.base + Math.max(0, i - 2); V8.light1[r.base + i] = r.base + Math.min(r.n - 1, i + 1); }
     }
   };
 
@@ -27,6 +28,7 @@
   V8.markerColors = function (pal) {
     var C = [[52, 50, 50], [98, 94, 90], [148, 142, 132], [56, 42, 34], [112, 90, 66], [214, 196, 130], [168, 148, 88], [150, 158, 170], [108, 116, 130]];
     for (var i = 0; i < C.length; i++) pal.set(244 + i, C[i]);
+    pal.set(253, [252, 244, 224]); pal.set(254, [10, 12, 18]);   // label text + its drop shadow
   };
   V8.markers = function (fb, S, pal, R) {
     var z = S.zoom, w = fb.w, lip = S.lip, mk = (R && R.markerIdx) || MARK, sc = Math.max(0.55, z * 1.25), i, y, yy, x;
@@ -47,6 +49,123 @@
         for (y = 0; y < ph; y++) fb.set(fsx, fy - y, y & 1 ? mk.p1 : mk.p0);
         var wave = S.reduced ? 0 : Math.round(Math.sin(S.tSec * 3) * 0.6);
         for (yy = 0; yy < chh; yy++) for (x = 0; x < cw - (yy >> 1); x++) fb.set(fsx + 1 + x, fy - ph + yy + (x > cw / 2 ? wave : 0), (yy === chh - 1 || x === 0) ? (S.oldBestPassed ? mk.g1 : mk.f1) : (S.oldBestPassed ? mk.g0 : mk.f0));
+      }
+    }
+  };
+
+  // Particles (dust, grit, motes) drawn INTO the framebuffer: a light particle lifts whatever is under it one step along its ramp,
+  // a dark one lowers it; partial alpha is an ordered dither. Colours therefore stay in the palette.
+  V8.particles = function (fb, S, list, pal) {
+    if (!list || !list.length || S.reduced) return;
+    var base = S.scroll, w = fb.w, h = fb.h, d = fb.d, i, x, y, xx, yy;
+    for (i = 0; i < list.length; i++) {
+      var p = list[i], k = p.life / p.max, a = k < 0.45 ? 0.95 : 0.95 * (1 - (k - 0.45) / 0.55);
+      if (p.grow) a *= 0.72;
+      var sz = p.grow ? Math.round(p.size + k * p.grow) : (p.size > 1 && k > 0.7 ? 1 : p.size);
+      var sx = Math.round(S.ztx + (p.rel ? p.wx : p.wx - base) * S.zoom - sz / 2), sy = Math.round(S.zty + p.y * S.zoom - sz + 1);
+      var lightP = (0.2126 * p.col[0] + 0.7152 * p.col[1] + 0.0722 * p.col[2]) > 118;
+      for (yy = 0; yy < sz; yy++) for (xx = 0; xx < sz; xx++) {
+        x = sx + xx; y = sy + yy; if (x < 0 || y < 0 || x >= w || y >= h) continue;
+        if (PX.BAYER4[y & 3][x & 3] + 0.5 > a) continue;
+        var o = y * w + x, v = d[o];
+        d[o] = lightP ? V8.light1[V8.light1[v]] : V8.shade1[v];
+      }
+    }
+  };
+
+  // screen-space dust dots ({x,y,w,light,a}) from the actor pass: same palette-locked treatment as particles
+  V8.dots = function (fb, list) {
+    if (!list || !list.length) return;
+    var w = fb.w, h = fb.h, d = fb.d;
+    for (var i = 0; i < list.length; i++) {
+      var q = list[i];
+      for (var xx = 0; xx < q.w; xx++) {
+        var x = q.x + xx, y = q.y; if (x < 0 || y < 0 || x >= w || y >= h) continue;
+        if (PX.BAYER4[y & 3][x & 3] + 0.5 > q.a) continue;
+        var o = y * w + x, v = d[o]; d[o] = q.light ? V8.light1[V8.light1[v]] : V8.shade1[v];
+      }
+    }
+  };
+
+
+  // ---- tiny 5x7 pixel font for in-canvas labels (uppercase, digits, a little punctuation); glyph = 7 rows of 5 ----
+  var GLYPH = {
+    "0": ".###.|#...#|#..##|#.#.#|##..#|#...#|.###.", "1": "..#..|.##..|..#..|..#..|..#..|..#..|.###.", "2": ".###.|#...#|....#|...#.|..#..|.#...|#####",
+    "3": "####.|....#|...#.|..##.|....#|#...#|.###.", "4": "...#.|..##.|.#.#.|#..#.|#####|...#.|...#.", "5": "#####|#....|####.|....#|....#|#...#|.###.",
+    "6": ".###.|#....|#....|####.|#...#|#...#|.###.", "7": "#####|....#|...#.|..#..|.#...|.#...|.#...", "8": ".###.|#...#|#...#|.###.|#...#|#...#|.###.",
+    "9": ".###.|#...#|#...#|.####|....#|....#|.###.", "A": ".###.|#...#|#...#|#####|#...#|#...#|#...#", "B": "####.|#...#|#...#|####.|#...#|#...#|####.",
+    "C": ".###.|#...#|#....|#....|#....|#...#|.###.", "D": "####.|#...#|#...#|#...#|#...#|#...#|####.", "E": "#####|#....|#....|####.|#....|#....|#####",
+    "F": "#####|#....|#....|####.|#....|#....|#....", "G": ".###.|#...#|#....|#.###|#...#|#...#|.###.", "H": "#...#|#...#|#...#|#####|#...#|#...#|#...#",
+    "I": ".###.|..#..|..#..|..#..|..#..|..#..|.###.", "J": "..###|...#.|...#.|...#.|...#.|#..#.|.##..", "K": "#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",
+    "L": "#....|#....|#....|#....|#....|#....|#####", "M": "#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#", "N": "#...#|##..#|#.#.#|#..##|#...#|#...#|#...#",
+    "O": ".###.|#...#|#...#|#...#|#...#|#...#|.###.", "P": "####.|#...#|#...#|####.|#....|#....|#....", "Q": ".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",
+    "R": "####.|#...#|#...#|####.|#.#..|#..#.|#...#", "S": ".####|#....|#....|.###.|....#|....#|####.", "T": "#####|..#..|..#..|..#..|..#..|..#..|..#..",
+    "U": "#...#|#...#|#...#|#...#|#...#|#...#|.###.", "V": "#...#|#...#|#...#|#...#|#...#|.#.#.|..#..", "W": "#...#|#...#|#...#|#.#.#|#.#.#|##.##|#...#",
+    "X": "#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#", "Y": "#...#|#...#|.#.#.|..#..|..#..|..#..|..#..", "Z": "#####|....#|...#.|..#..|.#...|#....|#####",
+    " ": ".....|.....|.....|.....|.....|.....|.....", ".": ".....|.....|.....|.....|.....|.##..|.##..", ":": ".....|.##..|.##..|.....|.##..|.##..|.....",
+    "/": "....#|....#|...#.|..#..|.#...|#....|#....", "-": ".....|.....|.....|#####|.....|.....|.....", "+": ".....|..#..|..#..|#####|..#..|..#..|.....",
+    "%": "##..#|##..#|...#.|..#..|.#...|#..##|#..##", "'": "..#..|..#..|.#...|.....|.....|.....|.....", "!": "..#..|..#..|..#..|..#..|..#..|.....|..#.."
+  };
+  var GROWS = {};
+  V8.textWidth = function (str, scale) { return (str.length * 6 - 1) * (scale || 1); };
+  // draws str with its top-left at (x, y); fg = palette index, sh = palette index for a 1-px drop shadow (or 0 for none)
+  V8.text = function (fb, x, y, str, fg, sh, scale) {
+    scale = scale || 1; str = String(str).toUpperCase();
+    for (var i = 0; i < str.length; i++) {
+      var rows = GROWS[str.charAt(i)] || (GROWS[str.charAt(i)] = (GLYPH[str.charAt(i)] || GLYPH[" "]).split("|"));
+      for (var pass = sh ? 0 : 1; pass < 2; pass++) for (var r = 0; r < 7; r++) for (var q = 0; q < 5; q++) {
+        if (rows[r].charAt(q) !== "#") continue;
+        var px = x + (i * 6 + q) * scale + (pass === 0 ? scale : 0), py = y + r * scale + (pass === 0 ? scale : 0);
+        for (var yy = 0; yy < scale; yy++) for (var xx = 0; xx < scale; xx++) fb.set(px + xx, py + yy, pass === 0 ? sh : fg);
+      }
+    }
+  };
+
+  // ---- the Pull-Back overlay: a gold dotted trail from where the climb began to the hero, its start post, and the labels ----
+  V8.pullOverlay = function (fb, S) {
+    var pa = S.pull; if (pa <= 0.01) return;
+    var z = S.zoom, w = fb.w, mk = MARK, lip = S.lip, startX = S.anchorX - Math.max(0, S.altitude) * 7.2;
+    var x0 = Math.max(startX, -S.ztx / z - 4), x1 = S.anchorX - 10, step = Math.max(3, Math.round(6 / z)), flow = (S.tSec * 22) % step, k = 0;
+    for (var x = x1 - (step - flow); x >= x0; x -= step, k++) {
+      var sx = Math.round(S.ztx + x * z); if (sx < 0 || sx >= w) continue;
+      var near = clamp01((x - x0) / 90), a = pa * (0.30 + 0.60 * near);
+      var sy = lip[sx] - 3; if (PX.BAYER4[sy & 3][sx & 3] + 0.5 > a) continue;
+      fb.set(sx, sy, mk.f0); fb.set(sx + 1, sy, mk.f0);
+    }
+    if (startX >= x0 - 1) {
+      var bx = Math.round(S.ztx + startX * z), by = lip[Math.max(0, Math.min(w - 1, bx))];
+      for (var yy = 0; yy < 8; yy++) fb.set(bx, by - yy, mk.f0); for (var xx = 1; xx <= 3; xx++) { fb.set(bx + xx, by - 8, mk.f0); fb.set(bx + xx, by - 7, mk.f0); }
+    }
+    if (pa > 0.4 && S.pullMark) {
+      var fa = (pa - 0.4) / 0.6;
+      // numbers on the cairns you have already passed
+      for (var ci = 0; ci < S.cairns.length; ci++) {
+        var cc = S.cairns[ci]; if (cc.m >= S.pullMark) continue;
+        var csx = Math.round(S.ztx + cc.x * z), csy = lip[Math.max(0, Math.min(w - 1, csx))] - Math.round(14 * z * 1.25) - 8;
+        if (fa > 0.5) V8.text(fb, csx - Math.round(V8.textWidth(String(cc.m)) / 2), csy, String(cc.m), mk.f0, 254, 1);
+      }
+      var lx = Math.round(S.ztx + (S.anchorX + (S.stoneX || 40) * 0.5) * z), ly = Math.round(S.zty + (S.anchorY - (S.stoneR || 30) * 2 - 16) * z) - 22;
+      var t1 = S.pullMark + "M", tw1 = V8.textWidth(t1, 2);
+      V8.text(fb, lx - Math.round(tw1 / 2), ly, t1, 253, 254, 2);
+      if (S.pullNext) { var t2 = "NEXT " + S.pullNext + "M"; V8.text(fb, lx - Math.round(V8.textWidth(t2) / 2), ly + 18, t2, mk.f0, 254, 1); }
+    }
+  };
+
+  // ---- wind: pale streaks racing right-to-left in front of the world, plus tumbling debris; lifts the pixels under it along their ramp ----
+  V8.wind = function (fb, S) {
+    var wg = PX.clamp01(S.windGust * 1.6) * (S.reduced ? 0.35 : 1); if (wg < 0.04 || S.gameState !== "playing") return;
+    var w = fb.w, h = fb.h, d = fb.d, span = w + 180, n = Math.round(8 + wg * 30), i, x, y;
+    for (i = 0; i < n; i++) {
+      var sp = 170 + PX.h1(i * 3 + 1) * 240, life = span / sp, tt = S.tSec / life + PX.h1(i * 5 + 2), cyc = Math.floor(tt), ph = tt - cyc;
+      if (PX.h2(i, cyc * 3 + 7) > 0.3 + wg * 0.65) continue;
+      var sx = Math.round(w + 90 - ph * span), sy = Math.round(h * 0.10 + PX.h2(i * 9, cyc * 2 + 1) * h * 0.72 + Math.sin(S.tSec * 3 + i + sx * 0.02) * 2);
+      var len = 22 + Math.round(PX.h2(i, cyc) * 60 * wg), a = Math.min(1, wg * 1.3) * (0.34 + PX.h1(i * 4 + 4) * 0.36) * Math.min(1, Math.sin(ph * Math.PI) * 1.8);
+      if (sy < 0 || sy >= h) continue;
+      for (x = 0; x < len; x++) {
+        var px = sx + x; if (px < 0 || px >= w) continue;
+        var f = x < len * 0.4 ? 1 : x < len * 0.75 ? 0.5 : 0.2;
+        if (PX.BAYER4[sy & 3][px & 3] + 0.5 > a * f * 1.2) continue;
+        var o = sy * w + px; d[o] = V8.light1[V8.light1[d[o]]];
       }
     }
   };
@@ -75,6 +194,10 @@
     var res = null;
     if (A) res = root.V8Actor.frameFb(fb, pal, A, V8.shade1, V8.shade2);
     if (R.front) R.front(fb, S, pal, res);
+    if (S.fx) V8.particles(fb, S, S.fx, pal);
+    if (S.dots) V8.dots(fb, S.dots);
+    V8.wind(fb, S);
+    V8.pullOverlay(fb, S);
     fb.present(g, pal);
     V8.stats.ms = performance.now() - t0;
     return res;
