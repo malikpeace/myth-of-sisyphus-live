@@ -251,7 +251,7 @@
     var R = V8.realm, fb = V8.fb, pal = V8.pal;
     if (R.palette) R.palette(pal, S);
     R.backdrop(fb, S, pal);
-    if (V8.birds) { V8.birds(fb, S, R); V8.mythicSky(fb, S, R); }
+    if (V8.birds) { V8.afterglow(fb, S, R); V8.birds(fb, S, R); V8.mythicSky(fb, S, R); }
     R.ground(fb, S, pal);
     if (V8.footprints) V8.footprints(fb, S, R);
     if (R.markers) R.markers(fb, S, pal); else V8.markers(fb, S, pal, R);

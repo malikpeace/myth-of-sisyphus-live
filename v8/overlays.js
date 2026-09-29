@@ -45,6 +45,24 @@
     }
   };
 
+  // ---- "you passed your old best": a warm afterglow band on the horizon (a dithered lift along each ramp) and the big bird crossing the sky ----
+  V8.afterglow = function (fb, S, R) {
+    var a = S.afterglow || 0, w = fb.w, h = fb.h, d = fb.d, hz = S.horizonY || h * 0.5;
+    if (a > 0.01) {
+      var y0 = Math.max(0, Math.round(hz - 18)), y1 = Math.min(h - 1, Math.round(S.anchorY + 58)), span = Math.max(1, y1 - y0);
+      for (var y = y0; y <= y1; y++) {
+        var t = (y - y0) / span, prof = t < 0.45 ? t / 0.45 : (1 - t) / 0.55, dens = Math.min(0.9, a * 2.6 * prof);
+        if (dens <= 0.02) continue;
+        for (var x = 0; x < w; x++) if (dith(x, y, dens)) { var o = y * w + x; d[o] = V8.light1[d[o]]; }
+      }
+    }
+    if ((S.oldBestBird || 0) > 0.01 && !S.reduced && !R.noBirds) {
+      var p = clamp01(1 - S.oldBestBird / 4.2), col = R.birdIdx == null ? 0 : R.birdIdx;
+      bird(fb, w + 28 - p * (w + 90), Math.round(hz * 0.34 + Math.sin(p * 6.283) * 10), 4, 2, col);
+      bird(fb, w + 8 - p * (w + 80), Math.round(hz * 0.34 + 14), 2, 1, col);
+    }
+  };
+
   // ---- mythic events. S.mythic = { type, p (0..1 through the event), seed } ----
   V8.mythicSky = function (fb, S, R) {
     var m = S.mythic; if (!m || !m.type || S.reduced) return;
