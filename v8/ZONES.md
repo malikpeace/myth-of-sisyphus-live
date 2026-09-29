@@ -52,6 +52,6 @@ Hero + stone must read clearly (rim light colour and ground contact shadow come 
 ## Working rules (same as wave 1)
 Read `v8/REALM-GUIDE.md` (contract, overlays, Chunky, thumbnail) and study `v8/realms/hills.js`, `snow.js`, `dusk.js` for quality and structure.
 One realm file per zone: `v8/realms/<id>.js` (+ optional shared helpers appended to nothing else - do NOT edit scenery.js, core.js, index.html; ask me).
-Test with realm-test (`realm=<id>`), the real game (`qaRealmArt=1&qaRealm=<id>` selects any registered V8 scene) at desktop 1440x900, phone 430x932 (dpr 2) and landscape 932x430,
+Test with realm-test (`realm=<id>`), the real game (`?qa=1&qaScene=<id>` forces any registered V8 scene, also the non-menu zones; then ENTER -> start any mode/realm; `start8.py` START helper works with `V8HOST`/BASE + `qaScene`) at desktop 1440x900, phone 430x932 (dpr 2) and landscape 932x430,
 at alt 0 / 350 / 1100 / 3000. Budget: ~1.5-2 ms/frame ground+backdrop on desktop, unique colours per frame under ~150, no console errors,
 Chunky-aware (`S.adj`), `R.birdIdx/watcherIdx/footprint/thumb` set. Report: files, unique colours, ms/frame, anything I must wire.

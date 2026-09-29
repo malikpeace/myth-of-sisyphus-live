@@ -2334,6 +2334,7 @@
   var QA_STATE = params.has("qa") || /QA/i.test(window.location.search);
   var QA_AUTOSTART = params.get("qaStart") === "1";
   var QA_REALM_ART = QA_STATE && params.get("qaRealmArt") === "1";
+  var QA_SCENE = QA_STATE ? (params.get("qaScene") || "") : "";   // force any registered V8 scene (incl. legacy-journey zones that are not menu realms)
   var linkedRealm = Realms.find(params.get("realm"));
   var REALM_MENU_ENABLED = !QA_STATE || QA_REALM_ART || params.get("realmsPreview") === "1" || !!linkedRealm;
   if (linkedRealm || (QA_REALM_ART && Realms.find(params.get("qaRealm")))) {
@@ -12604,21 +12605,27 @@
   var v8LipCols = null;
   function v8RealmId() {
     if (!V8_REALMS) return null;
+    if (QA_SCENE && V8.has(QA_SCENE)) return QA_SCENE;
     if (selectedRealm && V8.has(selectedRealm)) return selectedRealm;
     if (!selectedRealm && gameState === "title" && REALM_MENU_ENABLED && V8.has("hills")) return "hills";
     return null;
   }
   // Legacy modes (rush / daily / timed / resolve / classic endless / summit) OPEN in the new Hills, then hand over to the old painted
   // zones through a short mist crossing (a dithered whiteout, swap at the peak, dither back out). Extend the table as zones get rebuilt.
-  var V8_LEGACY_SEGMENTS = [{ to: 700, id: "hills" }];   // visual metres -> V8 scene; beyond the table the legacy painted world draws
+  var V8_LEGACY_SEGMENTS = [                             // visual metres -> V8 scene; anywhere the table has a gap the legacy painted world still draws
+    { from: 0, to: 700, id: "hills" }, { from: 700, to: 1120, id: "waterfalls" }, { from: 1120, to: 1800, id: "snow" },
+    { from: 3200, to: 4450, id: "sunset-rome" }, { from: 5950, to: 7450, id: "moon-rome" }, { from: 13450, to: 15000, id: "blossom" }
+    // wave 2 (ZONES.md): galaxy 1800, canyon 2500, storm 4450, volcanic 7450, aurora 8950, bones 10450, obsidian 11950, void 15000
+  ];
   var V8_CROSS_SECONDS = 1.5, v8Want, v8Cross = null, v8MistA = 0, v8MistPat = [];
   function v8LegacyWant() {
     if (!V8_REALMS || selectedRealm || gameState === "title" || customize.look !== "classic") return null;
     var m = visualMeters();
-    for (var i = 0; i < V8_LEGACY_SEGMENTS.length; i++) if (m < V8_LEGACY_SEGMENTS[i].to && V8.has(V8_LEGACY_SEGMENTS[i].id)) return V8_LEGACY_SEGMENTS[i].id;
+    for (var i = 0; i < V8_LEGACY_SEGMENTS.length; i++) { var sg = V8_LEGACY_SEGMENTS[i]; if (m >= sg.from && m < sg.to && V8.has(sg.id)) return sg.id; }
     return null;
   }
   function v8SceneNow() {
+    if (QA_SCENE && V8_REALMS && V8.has(QA_SCENE)) return { id: QA_SCENE, mist: 0 };
     var id = v8RealmId();
     if (selectedRealm || gameState === "title") { v8Want = undefined; v8Cross = null; return { id: id, mist: 0 }; }
     var want = v8LegacyWant();
