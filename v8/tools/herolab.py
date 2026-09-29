@@ -55,7 +55,7 @@ def main():
     if not imgs: return
     crops = []
     for n, im, w, h in imgs:
-        cx, cy = int(w * 0.42), int(h * 0.68)
+        cx, cy = int(w * float(os.environ.get('HX', '0.42'))), int(h * float(os.environ.get('HY', '0.68')))
         box = tuple(int(v) for v in os.environ.get("CROP", "-60,-62,60,12").split(",")); c = im.crop((cx + box[0], cy + box[1], cx + box[2], cy + box[3])).resize(((box[2]-box[0]) * scale, (box[3]-box[1]) * scale), Image.NEAREST)
         crops.append((n, c))
     cw, ch = crops[0][1].size; cols = min(int(os.environ.get("COLS", "4")), len(crops)); rows = (len(crops) + cols - 1) // cols

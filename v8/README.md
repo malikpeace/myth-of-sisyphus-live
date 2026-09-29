@@ -6,7 +6,7 @@ V7 (painted plates) is untouched at `/v7/`; V5, V6 and the main link are untouch
 **Play:** https://malikpeace.github.io/myth-of-sisyphus-live/v8/
 
 ## What is new
-- **The hero and the stone** are drawn natively on the world's pixel grid (no resampling): a rig-driven figure with two looks (Settings > Hero: *shadow* = dark, backlit, rim-lit; *color*), a lit faceted stone with per-realm materials.
+- **The hero and the stone** are drawn natively on the world's pixel grid (no resampling): a rig-driven figure (skeleton with forward knees, straight-armed push, constant-speed stance so the planted foot does not skate) with hand-authored bitmap heads in five sizes and two looks (Settings > Hero: *shadow* = dark, backlit, rim-lit, turning moonlit slate on near-black surroundings; *color*), a lit faceted stone with per-realm materials that rolls without slipping (spin = ground speed / radius).
 - **Seven realms built entirely in code** (no image plates): The Hills, The Falls, Moonlit Rome, Sunset Rome, The Snow, The Blossom, The Dusk. Each frame uses ~70-130 colours (V7 used 5,000-12,000).
 - **The endless journey** (Endless, Rush, Timed, Daily, Resolve, Summit) walks through all 14 zones as V8 scenes (see `ZONES.md`); a dithered mist crossing hides each hand-over.
 - **Pixel UI:** one bitmap font (SisyphusPx), stepped-corner panels, buttons, dialogs, HUD and realm cards painted by the realms themselves.
@@ -21,3 +21,6 @@ Docs: `REALM-GUIDE.md` (how to write a scene), `ZONES.md` (journey ladder), `V8-
 
 ## Deploy routine
 `python3 v8/tools/bust.py` (cache-bust tokens) -> `git add` finished v8 files -> commit -> push (Pages rebuilds in ~1 min).
+
+## Hero QA tools (`tools/`)
+`herogame.py` + `runcaps.sh TAG DEV ALTS LOOK realm:port ...` capture the REAL game's hero at chosen altitudes (headless Chrome, native canvas crops) and `sheet.py` / `grid.py` build contact sheets; `herolab.py` renders pose variants from `realm-test.html` (env `CROP`, `COLS`, `HX`, `HY`); `reach.js` / `legs.js` probe `Hero.rig` in node (arm reach, knee bend side); `head/headart.py` previews the hand-authored head bitmaps; `throttle8.py` (CPU x4 frame stats), `initprof.py` (CPU profile of a realm init), `initlog.py` (scene init cost per zone crossing), `effprobe.py` (typical push speed).
