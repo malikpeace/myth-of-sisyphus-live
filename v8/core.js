@@ -239,7 +239,7 @@
   V8.emissive = new Uint8Array(256); V8.gradeK = 1; V8.gpal = null;
   V8.analysePalette = function (pal) {
     var sum = 0, cnt = 0, i, name, rr;
-    V8.emissive.fill(0);
+    V8.emissive.fill(0); V8.emissive[243] = 1;                       // the hero's rim glint stays bright
     for (name in pal.ramps) {
       rr = pal.ramps[name];
       var em = V8.emissiveRe.test(name) ? (/sun/i.test(name) ? 2 : 1) : 0;       // 2 = the sun: it becomes a moon in the night look
@@ -251,7 +251,8 @@
     var gp = V8.gpal || (V8.gpal = new PX.Palette()), k = look === "void" ? Math.max(0.65, V8.gradeK) : V8.gradeK, em = V8.emissive;
     for (var i = 0; i < 256; i++) {
       var c = pal.rgb[i], e = gp.rgb[i], r = c[0], g = c[1], b = c[2];
-      if (i < 1 || i > 199) { e[0] = r; e[1] = g; e[2] = b; continue; }
+      if (i < 1 || i > 243 || i === 200) { e[0] = r; e[1] = g; e[2] = b; continue; }              // scene ramps + the actor (hero, stone) are graded; markers/text (244..254) are not
+      var kg = i > 199 ? k * 0.62 : k;
       var nr, ng, nb;
       if (look === "void") {
         var l = 0.3 * r + 0.59 * g + 0.11 * b;
@@ -261,7 +262,7 @@
       } else if (em[i] === 2) { var ls = 0.3 * r + 0.59 * g + 0.11 * b; nr = ls * 0.84; ng = ls * 0.93; nb = ls * 1.04; }      // the sun -> a pale moon
       else if (em[i]) { nr = r * 0.92; ng = g * 0.94; nb = b; }
       else { nr = r * 0.40 + 8; ng = g * 0.48 + 12; nb = b * 0.70 + 30; }
-      e[0] = r + (nr - r) * k; e[1] = g + (ng - g) * k; e[2] = b + (nb - b) * k;
+      e[0] = r + (nr - r) * kg; e[1] = g + (ng - g) * kg; e[2] = b + (nb - b) * kg;
     }
     gp.dirty = true;
     return gp;
