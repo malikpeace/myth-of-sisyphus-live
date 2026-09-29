@@ -178,6 +178,60 @@
     }
   };
 
+  // ---- thumbnails: a realm rendered at game scale into its own framebuffer, then reduced by a WHOLE factor with a block-mode filter
+  // (the most common palette index in each block), so the card is a real little pixel painting in the realm's own colours. ----
+  V8._thumbs = {};
+  V8.thumbnail = function (id, w, h, opts) {
+    opts = opts || {};
+    var R = V8.realms[id]; if (!R || !R.backdrop || !R.ground) return "";
+    var key = id + "|" + w + "x" + h + "|" + (opts.alt || 0) + "|" + (opts.f || 0) + "|" + (opts.t || 0);
+    if (V8._thumbs[key] !== undefined) return V8._thumbs[key];
+    var th = R.thumb || {}, f = opts.f || th.f || Math.max(2, Math.round(300 / Math.max(h, 1) * 0.72)), W = w * f, H = h * f;
+    var alt = opts.alt != null ? opts.alt : (th.alt || 0), zoom = opts.zoom || th.zoom || 0.74, slope = opts.slope != null ? opts.slope : (th.slope == null ? 0.02 : th.slope);
+    var ratio = th.ratio || 0.72, ax = Math.round(W * 0.42), ay = Math.round(H * ratio), hz = Math.round(H * (ratio - 0.04));
+    var ztx = Math.round(ax * (1 - zoom)), zty = Math.round(ay * (1 - zoom)), lip = new Int16Array(W), x, y;
+    for (x = 0; x < W; x++) { var xl = (x - ztx) / zoom; lip[x] = Math.round(zty + (ay - slope * (xl - ax)) * zoom); }
+    var S = { w: W, h: H, zoom: zoom, ztx: ztx, zty: zty, altitude: alt, scroll: alt * 7.2, tSec: opts.t == null ? 2.0 : opts.t, reduced: true, anchorX: ax, anchorY: ay, horizonY: hz, lip: lip, slope: slope,
+      openingT: 1, realmId: id, windGust: 0, gameState: "title", pull: 0, bestM: 0, oldBestPassed: false, cairns: [], adj: 1, mythic: null, mode: "endless", score: 0, dailyTarget: 0, fx: null, dots: null };
+    var fb = new PX.Frame(W, H), pal = new PX.Palette(), out = "";
+    try {
+      if (R.init) R.init(pal, S);
+      V8.markerColors(pal);
+      if (R.palette) R.palette(pal, S);
+      R.backdrop(fb, S, pal); R.ground(fb, S, pal);
+      var sm = new PX.Frame(w, h), cnt = new Uint16Array(256), seen = new Uint8Array(256), list = [], best, bi, n, k, i, j;
+      for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+        list.length = 0;
+        for (j = 0; j < f; j++) for (i = 0; i < f; i++) { k = fb.d[(y * f + j) * W + x * f + i]; if (!seen[k]) { seen[k] = 1; cnt[k] = 0; list.push(k); } cnt[k]++; }
+        best = -1; bi = 0;
+        for (n = 0; n < list.length; n++) { k = list[n]; if (cnt[k] > best) { best = cnt[k]; bi = k; } seen[k] = 0; }
+        sm.d[y * w + x] = bi;
+      }
+      var cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      sm.present(cv.getContext("2d"), pal);
+      out = cv.toDataURL("image/png");
+    } catch (e) { out = ""; try { console.error(e); } catch (_) {} }
+    V8._thumbs[key] = out;
+    V8.key = "";                                            // the realm was initialised for the thumbnail: make the main renderer re-init next frame
+    return out;
+  };
+
+  // queued, one realm per timer tick (each realm init is tens of ms) so the menu never hitches while cards fill in
+  V8._tq = []; V8._tbusy = false;
+  V8.thumbnailAsync = function (id, w, h, cb, opts) {
+    var pending = { id: id, w: w, h: h, cb: cb, opts: opts };
+    V8._tq.push(pending);
+    (function pump() {
+      if (V8._tbusy || !V8._tq.length) return;
+      V8._tbusy = true;
+      setTimeout(function () {
+        var t = V8._tq.shift();
+        try { t.cb(V8.thumbnail(t.id, t.w, t.h, t.opts)); } catch (e) { try { console.error(e); } catch (_) {} }
+        V8._tbusy = false; pump();
+      }, 40);
+    })();
+  };
+
   V8.ensure = function (S) {
     var key = S.realmId + "|" + S.w + "x" + S.h;
     if (V8.key === key && V8.fb) return;

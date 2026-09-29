@@ -1,0 +1,21 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#101418;color:#ddd;font:12px monospace">
+<script src="../px.js"></script><script src="../rock.js"></script><script src="../hero.js"></script><script src="../actor.js"></script>
+<script src="../scenery.js"></script><script src="../core.js"></script><script src="../overlays.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const ids = (q.get('realms') || 'hills').split(',');
+const w = parseInt(q.get('w') || '82'), h = parseInt(q.get('h') || '38'), z = parseInt(q.get('z') || '4');
+window.__errs = []; window.addEventListener('error', e => __errs.push(String(e.message) + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno));
+let left = ids.length;
+ids.forEach(id => { const s = document.createElement('script'); s.src = '../realms/' + id + '.js'; s.onload = s.onerror = () => { if (--left === 0) go(); }; document.body.appendChild(s); });
+function go() {
+  const wrap = document.createElement('div'); wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;padding:8px'; document.body.appendChild(wrap);
+  const t0 = performance.now();
+  ids.forEach(id => {
+    const t1 = performance.now(), url = V8.thumbnail(id, w, h, {f: q.get('f') ? parseInt(q.get('f')) : 0});
+    const box = document.createElement('div'); box.innerHTML = '<div>' + id + ' ' + (performance.now() - t1).toFixed(0) + 'ms</div>';
+    const im = new Image(); im.src = url; im.style.cssText = 'image-rendering:pixelated;width:' + (w * z) + 'px;height:' + (h * z) + 'px;display:block'; box.appendChild(im); wrap.appendChild(box);
+  });
+  document.title = 'ready ' + (performance.now() - t0).toFixed(0);
+}
+</script>

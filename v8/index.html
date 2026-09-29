@@ -12607,6 +12607,44 @@
     if (!selectedRealm && gameState === "title" && REALM_MENU_ENABLED && V8.has("hills")) return "hills";
     return null;
   }
+  // Legacy modes (rush / daily / timed / resolve / classic endless / summit) OPEN in the new Hills, then hand over to the old painted
+  // zones through a short mist crossing (a dithered whiteout, swap at the peak, dither back out). Extend the table as zones get rebuilt.
+  var V8_LEGACY_SEGMENTS = [{ to: 700, id: "hills" }];   // visual metres -> V8 scene; beyond the table the legacy painted world draws
+  var V8_CROSS_SECONDS = 1.5, v8Want, v8Cross = null, v8MistA = 0, v8MistPat = [];
+  function v8LegacyWant() {
+    if (!V8_REALMS || selectedRealm || gameState === "title" || customize.look !== "classic") return null;
+    var m = visualMeters();
+    for (var i = 0; i < V8_LEGACY_SEGMENTS.length; i++) if (m < V8_LEGACY_SEGMENTS[i].to && V8.has(V8_LEGACY_SEGMENTS[i].id)) return V8_LEGACY_SEGMENTS[i].id;
+    return null;
+  }
+  function v8SceneNow() {
+    var id = v8RealmId();
+    if (selectedRealm || gameState === "title") { v8Want = undefined; v8Cross = null; return { id: id, mist: 0 }; }
+    var want = v8LegacyWant();
+    if (v8Want === undefined) v8Want = want;
+    if (!v8Cross && want !== v8Want) { if (REDUCED) v8Want = want; else v8Cross = { t0: tSec, from: v8Want, to: want }; }
+    if (v8Cross) {
+      var t = (tSec - v8Cross.t0) / V8_CROSS_SECONDS;
+      if (t >= 1) { v8Want = v8Cross.to; v8Cross = null; }
+      else if (t < 0.5) return { id: v8Cross.from, mist: t / 0.5 };
+      else return { id: v8Cross.to, mist: 1 - (t - 0.5) / 0.5 };
+    }
+    return { id: v8Want, mist: 0 };
+  }
+  function v8MistPattern(level) {                                    // a 4x4 Bayer tile with `level` of its 16 cells lit
+    if (v8MistPat[level]) return v8MistPat[level];
+    var t = document.createElement("canvas"); t.width = 4; t.height = 4;
+    var tg = t.getContext("2d"), im = tg.createImageData(4, 4), B = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    for (var y = 0; y < 4; y++) for (var x = 0; x < 4; x++) { var o = (y * 4 + x) * 4; im.data[o] = 222; im.data[o + 1] = 234; im.data[o + 2] = 242; im.data[o + 3] = B[y][x] < level ? 255 : 0; }
+    tg.putImageData(im, 0, 0);
+    return (v8MistPat[level] = g.createPattern(t, "repeat"));
+  }
+  function applyV8Mist() {
+    var a = v8MistA; v8MistA = 0;
+    if (a <= 0.02) return;
+    var level = Math.max(1, Math.min(16, Math.round(a * 16)));
+    g.save(); g.fillStyle = v8MistPattern(level); g.fillRect(0, 0, VW, VH); g.restore();
+  }
   function v8Geometry() {
     var boulderScale = boulderScaleNow(), brad = Math.round(BOULDER_R * BASE_SCALE * boulderScale);
     var growT = clamp01((boulderScale - 1) / (BOULDER_GROW_MAX - 1)), blx = Math.round((19 - 11 * growT) * BASE_SCALE) + brad;
@@ -12654,6 +12692,7 @@
     S.dots = []; v8Dust(day, g0, ztx, zty, zoom, S.dots);
     V8.render(g, S, P);
     updateControlHintNearRock(g0.blx, g0.bly, g0.brad, ztx, zty, zoom);
+    applyV8Mist();
     drawHudLayers(day);
   }
   if (window.V8) V8.onEvent = function (name, arg) { if (name === "strike") duskStrike(arg); };
@@ -13717,7 +13756,7 @@
     var shakeY = Math.round(Math.sin(tSec * 63.0 + 1.7) * shakeAmp * 0.55);
     var openingT = gameState === "title" ? 0 : (gameState === "intro" ? smooth01(introPan) : 1);
     var openingDrop = Math.round((1 - openingT) * VH * (REALM_MENU_ENABLED?0.15:0.62));
-    var v8id = v8RealmId();
+    var v8sc = v8SceneNow(), v8id = v8sc.id; v8MistA = v8sc.mist;
     if (v8id) {
       try { v8DrawRealm(day, zoom, shakeX, shakeY, openingT, openingDrop, pullA, v8id); return; }
       catch (v8e) { window.__v8err = String(v8e && v8e.stack || v8e); V8_REALMS = false; try { console.error(v8e); } catch (_) {} }
@@ -14725,6 +14764,7 @@
       g.fillStyle = vig;
       g.fillRect(0, 0, VW, VH);
     }
+    applyV8Mist();
     drawHudLayers(day);
   }
 
