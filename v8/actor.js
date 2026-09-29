@@ -115,7 +115,12 @@
     if (J && !P.hideHero) {
       Hero.draw(comp, { map: map, z: z, s: s, lod: lod, light: P.light, lightK: P.sunK, look: P.look, cosmetic: P.cosmetic, tSec: P.tSec, wp: P.wp, activity: P.activity, windLean: P.windLean, pushTime: P.pushTime, reduced: P.reduced, playing: P.playing }, J);
     }
-    return { comp: comp, pal: pal, minx: minx, miny: miny, w: w, h: h, rc: rc, rcF: rcF, Rpx: Rpx, rx: rx, ry: ry, J: J, map: map };
+    var ap = P.appear == null ? 1 : P.appear;
+    if (ap < 0.999) {                                                     // menu / intro: the man and the stone dissolve in and out through an ordered dither
+      var cd = comp.d, B4 = PX.BAYER4, cy, cx;
+      for (cy = 0; cy < h; cy++) for (cx = 0; cx < w; cx++) { var oi = cy * w + cx; if (cd[oi] && !(B4[(miny + cy) & 3][(minx + cx) & 3] + 0.5 < ap)) cd[oi] = 0; }
+    }
+    return { comp: comp, pal: pal, minx: minx, miny: miny, w: w, h: h, rc: rc, rcF: rcF, Rpx: Rpx, rx: rx, ry: ry, J: J, map: map, appear: ap };
   }
 
   // ---- legacy RGB canvas output ----
@@ -153,10 +158,11 @@
   //   shade1 / shade2: Uint8Array(256) LUTs (one / two steps darker along each palette ramp)
   function frameFb(fb, pal, P, shade1, shade2) {
     var R = prepare(P); if (!R) return null;
-    if (!P.noShadow && !P.reduced) {
-      var strong = (P.sunK == null ? 0.5 : P.sunK) > 0.18, d = fb.d, w = fb.w, h = fb.h;
+    if (!P.noShadow && !P.reduced && R.appear > 0.02) {
+      var strong = (P.sunK == null ? 0.5 : P.sunK) > 0.18, d = fb.d, w = fb.w, h = fb.h, apr = R.appear, B4s = PX.BAYER4;
       shadowRun(P, { x: R.rcF[0], y: R.rcF[1] }, R.Rpx, function (x, y, lvl) {
         if (x < 0 || y < 0 || x >= w || y >= h) return;
+        if (apr < 0.999 && !(B4s[y & 3][x & 3] + 0.5 < apr)) return;
         var o = y * w + x, v = d[o];
         d[o] = (lvl === 2 && strong) ? shade2[v] : shade1[v];
       });

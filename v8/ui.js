@@ -50,7 +50,8 @@ var PIXEL_GLYPHS = {"32":[3,0],"33":[2,1,1,1,1,1,1,0,1],"34":[4,3,5,5,0,0,0,0,0]
     var k = Math.max(2, Math.min(4, Math.floor(mw * 0.92 / 54), Math.floor(gh / 50)));
     var topk = k >= 4 ? 2 : 1;
     var splash = Math.round(Math.max(150, Math.min(360, ch * 0.32)) / p) * p;
-    if (gh < 280) splash = Math.round(Math.max(56, Math.min(120, ch * 0.22)) / p) * p;
+    if (gh < 280) splash = Math.round(Math.max(30, Math.min(64, ch * 0.13)) / p) * p;                 // short (landscape phones): title + ENTER sit high, clear of the man
+    else if (cw / ch > 1.25) splash = Math.round(Math.max(110, Math.min(280, ch * 0.20)) / p) * p;      // wide screens: lift the title + ENTER so they clear the man standing at the bottom
     var wcls = gw < 190 ? "xs" : gw < 260 ? "s" : gw < 420 ? "m" : "l";
     // two-column dialogs on short screens: whole-pixel columns (left column divisible for its 3 buttons)
     var dw = Math.min(mw, 318), avail = dw - 12 - 10;
