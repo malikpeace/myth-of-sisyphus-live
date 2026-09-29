@@ -36,6 +36,8 @@
     } else {
       ink = PX.mix([7, 6, 12], A, 0.045);
       T = [ink, PX.mix(ink, A, 0.16), PX.mix(PX.mix(ink, A, 0.30), C, 0.16 * kk), PX.mix(ink, C, 0.48 * kk + 0.04)];   // dark, backlit: sky fill lifts upward planes to cool slate, the sun paints only the rim
+      var dkT = clamp01((0.22 - bgL) / 0.16);                                                                          // the whole surround is near-black: a pure silhouette would vanish, so he turns moonlit slate a step above the dark
+      if (dkT > 0) { T[1] = PX.mix(T[1], PX.mix([52, 50, 78], A, 0.2), dkT); T[2] = PX.mix(T[2], PX.mix([92, 90, 126], A, 0.2), dkT); T[3] = PX.mix(T[3], PX.mix([150, 152, 192], A, 0.15), dkT); }
       cloth = PX.mix(ink, [172, 86, 54], 0.30 + 0.12 * bright); hair = PX.mix(ink, [92, 76, 66], 0.30 + 0.25 * kk);
       sash = PX.mix(ink, [150, 52, 40], 0.42); sandal = PX.mix(ink, [70, 48, 34], 0.5); outCol = ink;
     }
@@ -123,9 +125,14 @@
     if (bkk < 0.999) {
       var stepReach = 6.4 * s * (1 - wl * 0.4) * (1 + (P.groove || 0) * 0.3), stepLift = 3.5 * s;
       for (var leg = 0; leg < 2; leg++) {
-        var ph = (P.wp + leg * 0.5) * 6.2832, fwd = Math.cos(ph), sw = Math.sin(ph), lift = Math.max(0, sw) * stepLift * P.activity;
-        var ankle = reach({ x: hip.x - (7.4 - stumble * 1.0) * s - fwd * stepReach, y: ankleY - lift }, lift < 0.01);
-        var ang = (sw > 0 ? -0.6 * fwd : -0.55 * Math.max(0, (fwd - 0.55) / 0.45)) * P.activity;
+        // one stride: the swing carries the foot forward on an arc (leaving and landing at the ground's own speed), the stance pins it to the
+        // ground: it slides back at a CONSTANT speed, so the planted foot does not skate over the grass
+        var fr = P.wp + leg * 0.5; fr -= Math.floor(fr);
+        var fx, lift = 0, fwd, un;
+        if (fr < 0.5) { un = fr * 2; fx = stepReach * (-8 * un * un * un + 12 * un * un - 2 * un - 1); lift = Math.sin(un * Math.PI) * stepLift * P.activity; fwd = Math.cos(un * Math.PI); }
+        else { un = (fr - 0.5) * 2; fx = stepReach * (1 - 2 * un); fwd = -1 + 2 * un; }
+        var ankle = reach({ x: hip.x - (7.4 - stumble * 1.0) * s + fx, y: ankleY - lift }, lift < 0.01);
+        var ang = (fr < 0.5 ? -0.6 * fwd : -0.55 * Math.max(0, (fwd - 0.55) / 0.45)) * P.activity;          // toe-off, toe up into the contact
         wl0.push({ foot: ankle, far: leg === 1, plant: lift < 0.01, ang: ang });
       }
     }
@@ -259,6 +266,7 @@
   function draw(sp, P, J) {
     var z = P.z, s = P.s, lod = P.lod, L2 = P.light || [-0.4, -0.8], k = P.lightK == null ? 0.6 : P.lightK;
     var isColor = P.look === "color", cos = P.cosmetic, i;
+    var rimOn = k > 0.06 || (!isColor && P.bgLum != null && P.bgLum < 0.2);                                           // the silhouette keeps its rim in the dark (a moonlit edge) even when the sun is gone
     var minR = lod < 0.3 ? 1.0 : lod < 0.6 ? 0.85 : 0.55, hz = s * z;
     function A(x, y) { return P.map(x, y); }
     function M(x, y) { var q = P.map(x, y); return { x: q[0], y: q[1] }; }
@@ -281,13 +289,13 @@
     function tone(far) {
       return function (x, y, u, v) {
         var dot = u * L2[0] + v * L2[1], c;
-        if (lod < 0.16) return dot > 0.25 && k > 0.05 ? (far ? SLOT.T2 : SLOT.RIM) : SLOT.T1;
+        if (lod < 0.16) return dot > 0.25 && (k > 0.05 || rimOn) ? (far ? SLOT.T2 : SLOT.RIM) : SLOT.T1;
         if (isColor) {
           var d = Math.max(dot, (u * FL[0] + v * FL[1]) * 0.5);
           if (dot >= 0.74 && k > 0.06 && !far) return SLOT.RIM;
           c = d >= 0.50 ? 3 : d >= -0.10 ? 2 : d >= -0.56 ? 1 : 0;
         } else {
-          if (dot > 0.66 && k > 0.06) return far ? SLOT.T2 : SLOT.RIM;
+          if (dot > 0.66 && rimOn) return far ? SLOT.T2 : SLOT.RIM;
           c = dot >= 0.10 ? 2 : dot >= -0.42 ? 1 : 0;
         }
         if (far) c = Math.max(1, c - 1);                                    // the far limb is skin in shadow, never a black trouser leg
@@ -406,7 +414,7 @@
 
     // ---- head: a hand-authored bitmap chosen by size (see HEADS), tilted a little with the neck ----
     var hu = dirL(Math.sin(J.ht), -Math.cos(J.ht)), hf = dirL(Math.cos(J.ht), Math.sin(J.ht));
-    stampHead(sp, pickHead(hr), head.x, head.y, Math.max(-0.5, Math.min(0.5, Math.atan2(hu[0], -hu[1]))), isColor, L2, k > 0.06);
+    stampHead(sp, pickHead(hr), head.x, head.y, Math.max(-0.5, Math.min(0.5, Math.atan2(hu[0], -hu[1]))), isColor, L2, rimOn);
     if (cosm === "headband" && lod > 0.45) { var hb0 = [head.x - hf[0] * hr * 0.95 + hu[0] * hr * 0.42, head.y - hf[1] * hr * 0.95 + hu[1] * hr * 0.42], hb1 = [head.x + hf[0] * hr * 0.8 + hu[0] * hr * 0.42, head.y + hf[1] * hr * 0.8 + hu[1] * hr * 0.42]; PX.capsule(sp, hb0[0], hb0[1], hb1[0], hb1[1], Math.max(0.6, 0.6 * hz), Math.max(0.6, 0.6 * hz), function () { return SLOT.BAND; }); }
     if (cosm === "laurel" && lod > 0.45) for (var li = -2; li <= 2; li++) sp.set(head.x + li * 1.6 * hz, head.y - hr * 1.05 - (Math.abs(li) % 2) * hz * 0.8, SLOT.LAUREL);
 
@@ -445,9 +453,10 @@
   // a pale kilt patch, two skinny legs, an arm to the stone and a glint of sun.
   function drawSimple(sp, P, J, legs, hip, sh, shB, neck, head, hr, tone, R, minR) {
     var s = P.s, z = P.z, L2 = P.light || [-0.4, -0.8], k = P.lightK == null ? 0.6 : P.lightK, i, isColor = P.look === "color";
+    var rimOn = k > 0.03 || (!isColor && P.bgLum != null && P.bgLum < 0.2);
     function Rm(u, lo) { return Math.max(lo, u * z); }
     function m2(p) { var q = P.map(p.x, p.y); return { x: q[0], y: q[1] }; }
-    function lim(far) { return function (x, y, u, v) { var d = u * L2[0] + v * L2[1]; return far ? SLOT.T1 : (d > 0.4 && k > 0.05 ? SLOT.T3 : (d > -0.2 ? SLOT.T2 : SLOT.T1)); }; }
+    function lim(far) { return function (x, y, u, v) { var d = u * L2[0] + v * L2[1]; return far ? SLOT.T1 : (d > 0.4 && rimOn ? SLOT.T3 : (d > -0.2 ? SLOT.T2 : SLOT.T1)); }; }
     for (i = 0; i < legs.length; i++) {
       var lg = legs[i];
       PX.capsule(sp, hip.x, hip.y, lg.knee.x, lg.knee.y, Rm(3.5 * s, 1.15), Rm(2.5 * s, 1.0), lim(lg.far));
@@ -464,7 +473,7 @@
     PX.disc(sp, hx, hy, hh, function (x, y, u, v) { return (v < -0.05 || u < -0.35) ? (isColor ? SLOT.HAIR : SLOT.T0) : (isColor ? SLOT.T2 : SLOT.T1); });
     sp.set(hx + hh * 0.62, hy + hh * 0.2, isColor ? SLOT.T1 : SLOT.T0);                                          // a dark pixel for the eye / face line
     if (isColor) outlinePass(sp);
-    if (k > 0.03) { sp.set(hx + L2[0] * hh, hy + L2[1] * hh, SLOT.GLINT); sp.set(sh.x + L2[0] * Rm(5 * s, 2), sh.y + L2[1] * Rm(5 * s, 2), SLOT.GLINT); }
+    if (rimOn) { sp.set(hx + L2[0] * hh, hy + L2[1] * hh, SLOT.GLINT); sp.set(sh.x + L2[0] * Rm(5 * s, 2), sh.y + L2[1] * Rm(5 * s, 2), SLOT.GLINT); }
   }
 
   // ---------- public ----------
