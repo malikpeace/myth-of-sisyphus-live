@@ -41,7 +41,7 @@
     p[SLOT.T0] = T[0]; p[SLOT.T1] = T[1]; p[SLOT.T2] = T[2]; p[SLOT.T3] = T[3];
     p[SLOT.RIM] = k > 0.06 ? PX.mix(T[3], rim, clamp01(0.35 + kk * 0.7)) : T[3];
     p[SLOT.CLOTH] = cloth; p[SLOT.CLOTHHI] = PX.mix(cloth, C, 0.30 * kk + 0.10); p[SLOT.CLOTHSH] = PX.mix(cloth, T[0], 0.32); p[SLOT.CLOTHDEEP] = PX.mix(cloth, T[0], 0.62);
-    p[SLOT.HAIR] = hair; p[SLOT.HAIRHI] = PX.mix(hair, C, 0.5 * kk + 0.1); p[SLOT.HAIRLO] = PX.mix(hair, [8, 6, 10], 0.5); p[SLOT.BEARD] = PX.mix(hair, T[1], 0.22);
+    p[SLOT.HAIR] = hair; p[SLOT.HAIRHI] = PX.mix(hair, PX.mix(C, [176, 112, 64], 0.55), 0.34 * kk + 0.08);   // a warm chestnut sheen, never grey p[SLOT.HAIRLO] = PX.mix(hair, [8, 6, 10], 0.5); p[SLOT.BEARD] = PX.mix(hair, T[1], 0.22);
     p[SLOT.SASH] = sash; p[SLOT.SANDAL] = sandal; p[SLOT.BELT] = PX.mix(T[0], [72, 48, 34], 0.5); p[SLOT.OUT] = outCol;
     p[SLOT.EYE] = [16, 12, 14];
     p[SLOT.WRAP] = [214, 208, 190]; p[SLOT.BAND] = [188, 52, 52]; p[SLOT.LAUREL] = [158, 176, 96]; p[SLOT.AURA] = [150, 132, 230];
@@ -236,6 +236,7 @@
       PX.limb(sp, e.x, e.y, h.x, h.y, FA_F, FA_B, t, 1);
       PX.disc(sp, e.x, e.y, R(2.35 * s), t);                                                                            // a round elbow
       PX.disc(sp, h.x + 0.4 * hz, h.y, R(1.75 * s), t);
+      if (lod > 0.5) { var wr = lp(e, h, 0.70), wcl = far ? SLOT.CLOTHSH : SLOT.CLOTH; PX.disc(sp, wr.x, wr.y, R(1.75 * s), function (x, y, u, v) { return (u * L2[0] + v * L2[1]) > 0.15 && !far ? SLOT.CLOTHHI : (far ? SLOT.CLOTHDEEP : wcl); }); }   // linen wrist wraps
       if (cosm === "wraps" && lod > 0.45) { var wp2 = lp(e, h, 0.72); PX.disc(sp, wp2.x, wp2.y, R(2.1 * s), function () { return SLOT.WRAP; }); }
     }
 
