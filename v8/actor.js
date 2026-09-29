@@ -9,6 +9,7 @@
   var PX = root.PX, Rock = root.Rock, Hero = root.Hero;
   var clamp01 = PX.clamp01;
   var comp = new PX.Sprite(1, 1), cv = null, shCv = null, shIm = null;
+  var HERO_SCALE = 1.14;                                                   // the man is drawn 20% larger than the game's base figure (the stone keeps its size): more pixels to model a body with
   var ACTOR_BASE = 200;                                                   // framebuffer palette indices 201..243 belong to the actor
 
   var RAMPS = {
@@ -70,7 +71,7 @@
 
   // builds everything for one frame (stone sprite, hero rig, composited indexed sprite, slot palette)
   function prepare(P) {
-    var z = P.z, s = P.s, cs = Math.cos(P.theta), sn = Math.sin(P.theta);
+    var z = P.z, s = P.s * HERO_SCALE, cs = Math.cos(P.theta), sn = Math.sin(P.theta);
     var ox = P.ox, oy = P.oy;
     function map(lx, ly) { return [ox + z * (lx * cs + ly * sn), oy + z * (-lx * sn + ly * cs)]; }
     var sfig = s * z, lod = clamp01((sfig - 0.34) / 0.52);

@@ -8,7 +8,7 @@ const w = parseInt(q.get('w') || '480'), h = parseInt(q.get('h') || '300');
 const alt = parseFloat(q.get('alt') || '0'), zoom = parseFloat(q.get('zoom') || '0.74'), slope = parseFloat(q.get('slope') || '0.03');
 const ratio = parseFloat(q.get('ratio') || (w / h > 1.0 ? '0.68' : '0.60')), open = parseFloat(q.get('open') || '1');
 const t = parseFloat(q.get('t') || '3');
-window.__errs = []; window.addEventListener('error', e => __errs.push(String(e.message) + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno));
+window.HERO_DEBUG = q.get('dbg') === '1'; window.__errs = []; window.addEventListener('error', e => __errs.push(String(e.message) + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno));
 const src = document.createElement('script'); src.src = '../realms/' + realm + '.js';
 src.onerror = () => { document.title = 'error: cannot load realms/' + realm + '.js'; };
 src.onload = function () {

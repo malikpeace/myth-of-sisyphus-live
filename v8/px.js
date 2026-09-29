@@ -129,6 +129,22 @@
     }
   };
   PX.disc = function (sp, cx, cy, r, shade) { PX.capsule(sp, cx, cy, cx, cy, r, r, shade); };
+  // profiled limb: an axis p0 -> p1 with a different half-width on each side and along its length (a muscle silhouette instead of a tube).
+  //   front(t), back(t) -> half-width in px toward / away from the FRONT normal; front normal = fs * rot90(axis) (fs = +1 or -1, screen y down).
+  //   shade(x, y, u, v, t): (u, v) is the screen-space surface normal (0 on the axis-facing side .. 1 at the silhouette edge), t = 0..1 along the axis.
+  PX.limb = function (sp, x0, y0, x1, y1, front, back, shade, fs) {
+    var vx = x1 - x0, vy = y1 - y0, L = Math.sqrt(vx * vx + vy * vy) || 1e-6, ux = vx / L, uy = vy / L, sg = fs < 0 ? -1 : 1, nx = -uy * sg, ny = ux * sg, i, mw = 0;
+    for (i = 0; i <= 8; i++) { var tt = i / 8, a = front(tt), b = back(tt); if (a > mw) mw = a; if (b > mw) mw = b; }
+    var minx = Math.floor(Math.min(x0, x1) - mw - 1), maxx = Math.ceil(Math.max(x0, x1) + mw + 1), miny = Math.floor(Math.min(y0, y1) - mw - 1), maxy = Math.ceil(Math.max(y0, y1) + mw + 1);
+    for (var y = miny; y <= maxy; y++) for (var x = minx; x <= maxx; x++) {
+      var dx = x + 0.5 - x0, dy = y + 0.5 - y0, along = dx * ux + dy * uy, lat = dx * nx + dy * ny;
+      var tc = along < 0 ? 0 : along > L ? 1 : along / L, e = along - tc * L, r = lat >= 0 ? front(tc) : back(tc);
+      var d2 = e * e + lat * lat; if (d2 > r * r) continue;
+      var v = lat / r, ax = e / r, nu = nx * v + ux * ax, nv = ny * v + uy * ax;
+      var sl = shade(x, y, nu, nv, tc); if (sl) sp.set(x, y, sl);
+    }
+  };
+
   // filled polygon (even-odd) with per-pixel shade(x, y) -> slot
   PX.poly = function (sp, pts, shade) {
     var miny = 1e9, maxy = -1e9, n = pts.length, k, y;

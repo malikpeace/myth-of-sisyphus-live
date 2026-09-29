@@ -1871,7 +1871,7 @@
   #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
   @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
-<link rel="stylesheet" href="v8/ui.css?v=v8-09290125">
+<link rel="stylesheet" href="v8/ui.css?v=v8-09290152">
 </head>
 <body>
   <div id="stage">
@@ -2064,36 +2064,36 @@
     </details>
   </div>
 
-<script src="v8/px.js?v=v8-09290125"></script>
-<script src="v8/rock.js?v=v8-09290125"></script>
-<script src="v8/hero.js?v=v8-09290125"></script>
-<script src="v8/actor.js?v=v8-09290125"></script>
-<script src="v8/scenery.js?v=v8-09290125"></script>
-<script src="v8/core.js?v=v8-09290125"></script>
-<script src="v8/overlays.js?v=v8-09290125"></script>
-<script src="v8/realms/hills.js?v=v8-09290125"></script>
-<script src="v8/realms/_bridge.js?v=v8-09290125"></script>
-<script src="v8/realms/waterfalls.js?v=v8-09290125"></script>
-<script src="v8/realms/moon-rome.js?v=v8-09290125"></script>
-<script src="v8/realms/sunset-rome.js?v=v8-09290125"></script>
-<script src="v8/realms/snow.js?v=v8-09290125"></script>
-<script src="v8/realms/blossom.js?v=v8-09290125"></script>
-<script src="v8/realms/dusk.js?v=v8-09290125"></script>
-<script src="v8/realms/galaxy.js?v=v8-09290125"></script>
-<script src="v8/realms/canyon.js?v=v8-09290125"></script>
-<script src="v8/realms/storm.js?v=v8-09290125"></script>
-<script src="v8/realms/volcanic.js?v=v8-09290125"></script>
-<script src="v8/realms/aurora.js?v=v8-09290125"></script>
-<script src="v8/realms/bones.js?v=v8-09290125"></script>
-<script src="v8/realms/obsidian.js?v=v8-09290125"></script>
-<script src="v8/realms/void.js?v=v8-09290125"></script>
-<script src="v8/endless-journey.js?v=v8-09290125"></script>
-<script src="v8/endless-scenery.js?v=v8-09290125"></script>
-<script src="v8/realm-architecture.js?v=v8-09290125"></script>
-<script src="v8/realm-catalog.js?v=v8-09290125"></script>
-<script src="v8/realm-dusk.js?v=v8-09290125"></script>
-<script src="v8/realm-scenes.js?v=v8-09290125"></script>
-<script src="v8/ui.js?v=v8-09290125"></script>
+<script src="v8/px.js?v=v8-09290152"></script>
+<script src="v8/rock.js?v=v8-09290152"></script>
+<script src="v8/hero.js?v=v8-09290152"></script>
+<script src="v8/actor.js?v=v8-09290152"></script>
+<script src="v8/scenery.js?v=v8-09290152"></script>
+<script src="v8/core.js?v=v8-09290152"></script>
+<script src="v8/overlays.js?v=v8-09290152"></script>
+<script src="v8/realms/hills.js?v=v8-09290152"></script>
+<script src="v8/realms/_bridge.js?v=v8-09290152"></script>
+<script src="v8/realms/waterfalls.js?v=v8-09290152"></script>
+<script src="v8/realms/moon-rome.js?v=v8-09290152"></script>
+<script src="v8/realms/sunset-rome.js?v=v8-09290152"></script>
+<script src="v8/realms/snow.js?v=v8-09290152"></script>
+<script src="v8/realms/blossom.js?v=v8-09290152"></script>
+<script src="v8/realms/dusk.js?v=v8-09290152"></script>
+<script src="v8/realms/galaxy.js?v=v8-09290152"></script>
+<script src="v8/realms/canyon.js?v=v8-09290152"></script>
+<script src="v8/realms/storm.js?v=v8-09290152"></script>
+<script src="v8/realms/volcanic.js?v=v8-09290152"></script>
+<script src="v8/realms/aurora.js?v=v8-09290152"></script>
+<script src="v8/realms/bones.js?v=v8-09290152"></script>
+<script src="v8/realms/obsidian.js?v=v8-09290152"></script>
+<script src="v8/realms/void.js?v=v8-09290152"></script>
+<script src="v8/endless-journey.js?v=v8-09290152"></script>
+<script src="v8/endless-scenery.js?v=v8-09290152"></script>
+<script src="v8/realm-architecture.js?v=v8-09290152"></script>
+<script src="v8/realm-catalog.js?v=v8-09290152"></script>
+<script src="v8/realm-dusk.js?v=v8-09290152"></script>
+<script src="v8/realm-scenes.js?v=v8-09290152"></script>
+<script src="v8/ui.js?v=v8-09290152"></script>
 <script>
 (function () {
   "use strict";
@@ -2738,7 +2738,7 @@
     look: "classic",
     fx: "calm",
     sound: savedSoundPref === "off" ? "off" : "on",
-    hero: (params.get("hero") || storageGet("sisyphus8.hero", "shadow")) === "color" ? "color" : "shadow",
+    hero: (params.get("hero") || storageGet("sisyphus8.hero3", "color")) === "shadow" ? "shadow" : "color",   // the redesigned figure defaults to the colour look (hero3 = fresh key so old saves do not force the dark one)
     pixels: (params.get("pixels") || storageGet("sisyphus8.pixels", "fine")) === "chunky" ? "chunky" : "fine"
   };
   // Restore the saved visual style (look) + fx across sessions — the choice was
@@ -3331,6 +3331,7 @@
       var v = this.getAttribute("data-value");
       customize[k] = v;
       storageSet("sisyphus5." + k, v);
+      if (k === "hero") storageSet("sisyphus8.hero3", v);
       refreshChoices();
       refreshLegacyLine();
       if (k === "pixels") { if (window.Rock) Rock.clear(); resize(); }
