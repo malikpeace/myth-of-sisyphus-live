@@ -233,6 +233,40 @@
     })();
   };
 
+  // ---- Look setting (night / void) for every scene: a per-frame graded COPY of the palette (scene ramps 1..199 only; the actor, markers and
+  // text keep their own colours). Emissive ramps (sun, moon, stars, lamps, embers, lava, crystals...) are spared so light still glows. ----
+  V8.emissiveRe = /sun|moon|star|lamp|window|glow|ember|lava|fire|flame|spark|crystal|light|aurora|neon|glint|halo|magma|bolt|flash|sparkle|lantern|torch/i;
+  V8.emissive = new Uint8Array(256); V8.gradeK = 1; V8.gpal = null;
+  V8.analysePalette = function (pal) {
+    var sum = 0, cnt = 0, i, name, rr;
+    V8.emissive.fill(0);
+    for (name in pal.ramps) {
+      rr = pal.ramps[name];
+      var em = V8.emissiveRe.test(name) ? (/sun/i.test(name) ? 2 : 1) : 0;       // 2 = the sun: it becomes a moon in the night look
+      for (i = 0; i < rr.n; i++) { V8.emissive[rr.base + i] = em; if (!em) { var c = pal.rgb[rr.base + i]; sum += 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]; cnt++; } }
+    }
+    V8.gradeK = PX.clamp01(((cnt ? sum / cnt : 100) - 38) / 80);       // already-dark scenes (night, dusk) are graded less
+  };
+  V8.gradeInto = function (pal, look) {
+    var gp = V8.gpal || (V8.gpal = new PX.Palette()), k = look === "void" ? Math.max(0.65, V8.gradeK) : V8.gradeK, em = V8.emissive;
+    for (var i = 0; i < 256; i++) {
+      var c = pal.rgb[i], e = gp.rgb[i], r = c[0], g = c[1], b = c[2];
+      if (i < 1 || i > 199) { e[0] = r; e[1] = g; e[2] = b; continue; }
+      var nr, ng, nb;
+      if (look === "void") {
+        var l = 0.3 * r + 0.59 * g + 0.11 * b;
+        if (em[i] === 2) { nr = l * 0.86; ng = l * 0.8; nb = l * 1.0; }
+        else if (em[i]) { nr = l * 0.55 + r * 0.35; ng = l * 0.55 + g * 0.3; nb = l * 0.6 + b * 0.4; }
+        else { nr = l * 0.46 + 10; ng = l * 0.38 + 7; nb = l * 0.64 + 26; }
+      } else if (em[i] === 2) { var ls = 0.3 * r + 0.59 * g + 0.11 * b; nr = ls * 0.84; ng = ls * 0.93; nb = ls * 1.04; }      // the sun -> a pale moon
+      else if (em[i]) { nr = r * 0.92; ng = g * 0.94; nb = b; }
+      else { nr = r * 0.40 + 8; ng = g * 0.48 + 12; nb = b * 0.70 + 30; }
+      e[0] = r + (nr - r) * k; e[1] = g + (ng - g) * k; e[2] = b + (nb - b) * k;
+    }
+    gp.dirty = true;
+    return gp;
+  };
+
   V8.ensure = function (S) {
     var key = S.realmId + "|" + S.w + "x" + S.h;
     if (V8.key === key && V8.fb) return;
@@ -243,6 +277,7 @@
     if (V8.realm.init) V8.realm.init(V8.pal, S);
     V8.markerColors(V8.pal);
     V8.buildShade(V8.pal);
+    V8.analysePalette(V8.pal);
   };
 
   // A = actor parameters (see actor.js) or null. Returns the light the realm is casting (for HUD tinting etc.)
@@ -265,7 +300,7 @@
     V8.wind(fb, S);
     V8.pullOverlay(fb, S);
     if (V8.mythicPost) V8.mythicPost(fb, S, R);
-    fb.present(g, pal);
+    fb.present(g, (S.look === "noir" || S.look === "void") ? V8.gradeInto(pal, S.look) : pal);
     V8.stats.ms = performance.now() - t0;
     return res;
   };
