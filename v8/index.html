@@ -1875,7 +1875,7 @@
   #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
   @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
-<link rel="stylesheet" href="v8/ui.css?v=v8-09290052">
+<link rel="stylesheet" href="v8/ui.css?v=v8-09290056">
 </head>
 <body>
   <div id="stage">
@@ -2068,36 +2068,36 @@
     </details>
   </div>
 
-<script src="v8/px.js?v=v8-09290052"></script>
-<script src="v8/rock.js?v=v8-09290052"></script>
-<script src="v8/hero.js?v=v8-09290052"></script>
-<script src="v8/actor.js?v=v8-09290052"></script>
-<script src="v8/scenery.js?v=v8-09290052"></script>
-<script src="v8/core.js?v=v8-09290052"></script>
-<script src="v8/overlays.js?v=v8-09290052"></script>
-<script src="v8/realms/hills.js?v=v8-09290052"></script>
-<script src="v8/realms/_bridge.js?v=v8-09290052"></script>
-<script src="v8/realms/waterfalls.js?v=v8-09290052"></script>
-<script src="v8/realms/moon-rome.js?v=v8-09290052"></script>
-<script src="v8/realms/sunset-rome.js?v=v8-09290052"></script>
-<script src="v8/realms/snow.js?v=v8-09290052"></script>
-<script src="v8/realms/blossom.js?v=v8-09290052"></script>
-<script src="v8/realms/dusk.js?v=v8-09290052"></script>
-<script src="v8/realms/galaxy.js?v=v8-09290052"></script>
-<script src="v8/realms/canyon.js?v=v8-09290052"></script>
-<script src="v8/realms/storm.js?v=v8-09290052"></script>
-<script src="v8/realms/volcanic.js?v=v8-09290052"></script>
-<script src="v8/realms/aurora.js?v=v8-09290052"></script>
-<script src="v8/realms/bones.js?v=v8-09290052"></script>
-<script src="v8/realms/obsidian.js?v=v8-09290052"></script>
-<script src="v8/realms/void.js?v=v8-09290052"></script>
-<script src="v8/endless-journey.js?v=v8-09290052"></script>
-<script src="v8/endless-scenery.js?v=v8-09290052"></script>
-<script src="v8/realm-architecture.js?v=v8-09290052"></script>
-<script src="v8/realm-catalog.js?v=v8-09290052"></script>
-<script src="v8/realm-dusk.js?v=v8-09290052"></script>
-<script src="v8/realm-scenes.js?v=v8-09290052"></script>
-<script src="v8/ui.js?v=v8-09290052"></script>
+<script src="v8/px.js?v=v8-09290056"></script>
+<script src="v8/rock.js?v=v8-09290056"></script>
+<script src="v8/hero.js?v=v8-09290056"></script>
+<script src="v8/actor.js?v=v8-09290056"></script>
+<script src="v8/scenery.js?v=v8-09290056"></script>
+<script src="v8/core.js?v=v8-09290056"></script>
+<script src="v8/overlays.js?v=v8-09290056"></script>
+<script src="v8/realms/hills.js?v=v8-09290056"></script>
+<script src="v8/realms/_bridge.js?v=v8-09290056"></script>
+<script src="v8/realms/waterfalls.js?v=v8-09290056"></script>
+<script src="v8/realms/moon-rome.js?v=v8-09290056"></script>
+<script src="v8/realms/sunset-rome.js?v=v8-09290056"></script>
+<script src="v8/realms/snow.js?v=v8-09290056"></script>
+<script src="v8/realms/blossom.js?v=v8-09290056"></script>
+<script src="v8/realms/dusk.js?v=v8-09290056"></script>
+<script src="v8/realms/galaxy.js?v=v8-09290056"></script>
+<script src="v8/realms/canyon.js?v=v8-09290056"></script>
+<script src="v8/realms/storm.js?v=v8-09290056"></script>
+<script src="v8/realms/volcanic.js?v=v8-09290056"></script>
+<script src="v8/realms/aurora.js?v=v8-09290056"></script>
+<script src="v8/realms/bones.js?v=v8-09290056"></script>
+<script src="v8/realms/obsidian.js?v=v8-09290056"></script>
+<script src="v8/realms/void.js?v=v8-09290056"></script>
+<script src="v8/endless-journey.js?v=v8-09290056"></script>
+<script src="v8/endless-scenery.js?v=v8-09290056"></script>
+<script src="v8/realm-architecture.js?v=v8-09290056"></script>
+<script src="v8/realm-catalog.js?v=v8-09290056"></script>
+<script src="v8/realm-dusk.js?v=v8-09290056"></script>
+<script src="v8/realm-scenes.js?v=v8-09290056"></script>
+<script src="v8/ui.js?v=v8-09290056"></script>
 <script>
 (function () {
   "use strict";
@@ -10590,24 +10590,18 @@
     if (runStartBest >= 80 && !oldBestPassed) y += 43;
     var w = 138, h = 29;
     g.save();
-    g.globalAlpha = 0.82;
-    g.fillStyle = css(bg, lum(day.sky[2]) > 0.42 ? 0.30 : 0.24);
+    g.globalAlpha = 0.9;
+    g.fillStyle = css(bg, lum(day.sky[2]) > 0.42 ? 0.78 : 0.70);
     g.fillRect(x, y, w, h);
-    g.strokeStyle = css(accent, 0.30 + challengePulse * 0.18);
-    g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    g.font = "700 8px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-    g.textBaseline = "top";
-    g.textAlign = "left";
-    g.fillStyle = css(ink, 0.82);
-    g.fillText(challengeHudLabel(sharedChallengeKind), x + 9, y + 6);
-    g.textAlign = "right";
-    g.fillText(left > 0 ? String(left).padStart(4, "0") + "m" : "passed", x + w - 9, y + 6);
-    g.fillStyle = css(ink, 0.20);
-    g.fillRect(x + 9, y + h - 8, w - 18, 2);
-    g.fillStyle = css(accent, 0.68 + challengePulse * 0.18);
-    g.fillRect(x + 9, y + h - 8, Math.max(2, Math.round((w - 18) * clamp01(current / target))), 2);
+    g.fillStyle = css(accent, 0.55 + challengePulse * 0.25);                           // 1-px pixel frame
+    g.fillRect(x, y, w, 1); g.fillRect(x, y + h - 1, w, 1); g.fillRect(x, y, 1, h); g.fillRect(x + w - 1, y, 1, h);
+    pxText(String(challengeHudLabel(sharedChallengeKind)).toUpperCase(), x + 8, y + 5, 1, css(ink, 0.95), null, "left", "top");
+    pxText(left > 0 ? String(left).padStart(4, "0") + "m" : "passed", x + w - 8, y + 5, 1, css(ink, 0.95), null, "right", "top");
+    g.fillStyle = css(ink, 0.22);
+    g.fillRect(x + 8, y + h - 8, w - 16, 2);
+    g.fillStyle = css(accent, 0.9);
+    g.fillRect(x + 8, y + h - 8, Math.max(2, Math.round((w - 16) * clamp01(current / target))), 2);
     g.restore();
-    g.textAlign = "start";
   }
 
   function drawMilestoneFlash(day) {
@@ -10627,14 +10621,10 @@
     g.fillRect(x + 11, y + 22, 20, 4);
     g.fillRect(x + 15, y + 16, 17, 5);
     g.fillRect(x + 19, y + 11, 11, 4);
-    g.textAlign = "left";
-    g.textBaseline = "top";
-    g.font = "700 9px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-    g.fillStyle = css([248, 250, 252], 0.82 * a);
-    g.fillText("RECORD MARK", x + 42, y + 7);
-    g.font = "700 8px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-    g.fillStyle = css([222, 228, 236], 0.60 * a);
-    g.fillText(milestoneFlashText || "progress saved", x + 42, y + 20);
+    g.save(); g.globalAlpha = Math.min(1, a * 1.2);
+    pxText("RECORD MARK", x + 42, y + 7, 1, "#f8fafc", "rgba(8,10,16,0.9)", "left", "top");
+    pxText(String(milestoneFlashText || "progress saved").toUpperCase(), x + 42, y + 19, 1, "rgb(206,214,226)", "rgba(8,10,16,0.9)", "left", "top");
+    g.restore();
   }
 
   function drawDailyTargetMarker(wxL, wxR, day) {
@@ -12649,6 +12639,22 @@
       else return { id: v8Cross.to, mist: 1 - (t - 0.5) / 0.5 };
     }
     return { id: v8Want, mist: 0 };
+  }
+  var v8PatCache = {};
+  function v8DitherPattern(rgb, level) {                             // 4x4 Bayer tile in one colour with `level` (1..16) of its 16 cells lit
+    var key = rgb[0] + "," + rgb[1] + "," + rgb[2] + "|" + level;
+    if (v8PatCache[key]) return v8PatCache[key];
+    var t = document.createElement("canvas"); t.width = 4; t.height = 4;
+    var tg = t.getContext("2d"), im = tg.createImageData(4, 4), B = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+    for (var y = 0; y < 4; y++) for (var x = 0; x < 4; x++) { var o = (y * 4 + x) * 4; im.data[o] = rgb[0]; im.data[o + 1] = rgb[1]; im.data[o + 2] = rgb[2]; im.data[o + 3] = B[y][x] < level ? 255 : 0; }
+    tg.putImageData(im, 0, 0);
+    return (v8PatCache[key] = g.createPattern(t, "repeat"));
+  }
+  // bitmap type on the canvas: the UI kit's font when present (PixelUI.drawText), the old smooth font as a fallback
+  function pxText(str, x, y, size, color, shadow, align, baseline, outline) {
+    if (window.PixelUI && PixelUI.drawText) return PixelUI.drawText(g, str, x, y, { size: size, color: color, shadow: shadow, outline: outline, align: align || "left", baseline: baseline || "top" });
+    g.save(); g.font = "700 " + (size * 8) + "px ui-monospace, SF Mono, Menlo, Consolas, monospace"; g.textAlign = align || "left"; g.textBaseline = baseline || "top";
+    if (shadow) { g.fillStyle = shadow; g.fillText(str, x + size, y + size); } g.fillStyle = color; g.fillText(str, x, y); g.restore(); return str.length * 6 * size;
   }
   function v8MistPattern(level) {                                    // a 4x4 Bayer tile with `level` of its 16 cells lit
     if (v8MistPat[level]) return v8MistPat[level];
@@ -14798,50 +14804,41 @@
     g.save();
     g.textAlign = "center";
     g.textBaseline = "middle";
-    // fever / combo edge glow (top + sides), builds with the combo
+    // fever / combo edge glow (top + bottom), builds with the combo: three dither steps per edge instead of a smooth gradient
     if (rushEdgeGlow > 0.01) {
       var gcol = rushFever > 0.5 ? [120, 230, 255] : [240, 200, 90];
-      var ga = rushEdgeGlow * (0.18 + 0.10 * Math.sin(tSec * 6));
-      var grd = g.createLinearGradient(0, 0, 0, VH);
-      grd.addColorStop(0, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + "," + (ga * 0.9).toFixed(3) + ")");
-      grd.addColorStop(0.22, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + ",0)");
-      grd.addColorStop(0.8, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + ",0)");
-      grd.addColorStop(1, "rgba(" + gcol[0] + "," + gcol[1] + "," + gcol[2] + "," + (ga * 0.7).toFixed(3) + ")");
-      g.fillStyle = grd;
-      g.fillRect(0, 0, VW, VH);
+      var ga = rushEdgeGlow * (0.18 + 0.10 * Math.sin(tSec * 6)), lv = Math.max(1, Math.round(ga * 15)), bandH = Math.round(VH * 0.04);
+      for (var eb = 0; eb < 3; eb++) {
+        var l2 = Math.max(0, Math.round(lv * (1 - eb * 0.45))); if (l2 <= 0) continue;
+        g.fillStyle = v8DitherPattern(gcol, Math.min(16, l2));
+        g.fillRect(0, eb * bandH, VW, bandH);
+        g.fillRect(0, VH - (eb + 1) * bandH, VW, bandH);
+      }
     }
     // combo multiplier number
     if (comboCount >= 2) {
       var tier = comboCount >= 25 ? [120, 230, 255] : (comboCount >= 12 ? [240, 200, 90] : [150, 220, 150]);
       var pop = clamp01(lastJudgeT / 0.75);
-      var sz = 16 + Math.min(comboCount, 60) * 0.16 + pop * 4 + rushFever * 4;
-      var cyTop = Math.max(30, boulderSY - 64);
-      g.font = "800 " + sz.toFixed(1) + "px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-      g.lineWidth = 3;
-      g.strokeStyle = "rgba(0,0,0,0.55)";
-      g.strokeText("x" + comboCount, boulderSX, cyTop);
-      g.fillStyle = "rgba(" + tier[0] + "," + tier[1] + "," + tier[2] + ",0.96)";
-      g.fillText("x" + comboCount, boulderSX, cyTop);
-      g.font = "700 7px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-      g.fillStyle = "rgba(" + tier[0] + "," + tier[1] + "," + tier[2] + ",0.7)";
-      g.fillText("COMBO", boulderSX, cyTop + sz * 0.62);
+      var ps = (comboCount >= 12 ? 3 : 2) + (pop > 0.6 ? 1 : 0);
+      var cyTop = Math.max(24, boulderSY - 64 - 7 * ps);
+      pxText("x" + comboCount, Math.round(boulderSX), Math.round(cyTop), ps, css(tier, 0.98), null, "center", "top", "rgba(8,10,16,0.9)");
+      pxText("COMBO", Math.round(boulderSX), Math.round(cyTop + 8 * ps + 3), 1, css(tier, 0.8), "rgba(8,10,16,0.8)", "center", "top");
     }
     // floating per-tap judgment labels
+    var popsDrawn = 0;                                             // bitmap labels stack into a smear at a fast tap rate: show only the two newest
     for (var i = judgePops.length - 1; i >= 0; i--) {
       var p = judgePops[i];
       var age = tSec - p.t0;
       if (age < 0 || age > 0.7) { judgePops.splice(i, 1); continue; }
+      if (popsDrawn++ >= 2) continue;
       var k = clamp01(age / 0.7);
       var col = JUDGE_COL[String(p.kind)] || [220, 220, 220];
       var alpha = (1 - k) * (p.kind >= 2 ? 0.96 : 0.9);
       var rise = 8 + k * 30;
-      var js = (p.kind >= 3 ? 12 : 10) + (1 - clamp01(age / 0.18)) * 4;
-      g.font = "800 " + js.toFixed(1) + "px ui-monospace, SF Mono, Menlo, Consolas, monospace";
-      g.lineWidth = 2.5;
-      g.strokeStyle = "rgba(0,0,0," + (alpha * 0.5).toFixed(3) + ")";
-      g.strokeText(JUDGE_TEXT[String(p.kind)] || "", p.x, p.y - 26 - rise);
-      g.fillStyle = "rgba(" + col[0] + "," + col[1] + "," + col[2] + "," + alpha.toFixed(3) + ")";
-      g.fillText(JUDGE_TEXT[String(p.kind)] || "", p.x, p.y - 26 - rise);
+      var js = p.kind >= 3 ? 2 : 1;
+      g.globalAlpha = alpha;
+      pxText(JUDGE_TEXT[String(p.kind)] || "", Math.round(p.x), Math.round(p.y - 26 - rise), js, css(col, 1), null, "center", "middle", "rgba(8,10,16,0.85)");
+      g.globalAlpha = 1;
     }
     g.restore();
   }

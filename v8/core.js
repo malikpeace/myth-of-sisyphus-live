@@ -198,6 +198,7 @@
       if (R.init) R.init(pal, S);
       V8.markerColors(pal);
       if (R.palette) R.palette(pal, S);
+      V8.buildShade(pal);                                  // realms that lean on the shared shade tables get their own palette's (the main renderer re-inits afterwards)
       R.backdrop(fb, S, pal); R.ground(fb, S, pal);
       var sm = new PX.Frame(w, h), cnt = new Uint16Array(256), seen = new Uint8Array(256), list = [], best, bi, n, k, i, j;
       for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
