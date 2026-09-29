@@ -8,7 +8,7 @@
 (function (root) {
   "use strict";
   var PX = root.PX, Sc = root.Sc, V8 = root.V8, clamp = PX.clamp, clamp01 = PX.clamp01, B4 = PX.BAYER4, TAU = Math.PI * 2;
-  var R = { rock: { mat: "obsidian", style: "granite" }, noShadow: true, noBirds: true, noThunder: true, thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.8 } }, I = {};
+  var R = { rock: { mat: "obsidian", style: "granite" }, noShadow: true, noBirds: true, noThunder: true, heroLook: "shadow", thumb: { alt: 0, zoom: 0.74, slope: 0.02, ratio: 0.8 } }, I = {};
   var ST = { built: "", skyKey: "", lastT: -1e9, next: 0, sStart: -99, sX: 0.5, sSeed: 1, flash: 0, force: null, hold: null, bolt: null, boltKey: "", G: {}, U: 1 };
   var BP = new Float32Array(16);                                    // Bayer thresholds in (0,1): BP[((y & 3) << 2) | (x & 3)]
   (function () { for (var i = 0; i < 16; i++) BP[i] = B4[i >> 2][i & 3] + 0.5; })();
