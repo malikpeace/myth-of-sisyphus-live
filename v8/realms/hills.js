@@ -19,7 +19,7 @@
     I.mist = pal.ramp("mist", H(["#3f6f77", "#4d7f86", "#5e9297", "#72a5a8", "#88b8b8", "#a2c9c6"]));
     I.forestFar = pal.ramp("forestFar", H(["#4a7d84", "#5a9096", "#6ea3a7"]));
     I.forestMid = pal.ramp("forestMid", H(["#2f5d5a", "#3a6f68", "#4a8377"]));
-    I.pine = pal.ramp("pine", H(["#0d1f15", "#14301f", "#1e4428", "#2b5a34", "#3b7442"]));
+    I.pine = pal.ramp("pine", H(["#0d1f15", "#14301f", "#1e4428", "#2b5a34", "#3b7442", "#5d954c", "#93bb5b"]));
     I.trunk = pal.ramp("trunk", H(["#3a241a", "#583824"]));
     I.grass = pal.ramp("grass", H(["#172d18", "#25451d", "#366323", "#4f8428", "#70a72e", "#9ac23b", "#c0d85a"]));
     I.soil = pal.ramp("soil", H(["#120c0a", "#1d1210", "#2c1a15", "#43291f", "#5d3a29", "#7c5238"]));
@@ -33,6 +33,8 @@
     I.terra = pal.ramp("terra", H(["#5a2a1c", "#8c4a2c", "#b8683a", "#dc9256"]));
     I.metal = pal.ramp("metal", H(["#1c1f22", "#34393d", "#545b60", "#7b848a"]));
     I.bush = pal.ramp("bush", H(["#10261a", "#1a3a22", "#25522c", "#357038", "#4c8f44", "#6cae4f"]));
+    I.abyss = pal.ramp("abyss", H(["#0a0d18", "#0f1526", "#151d38", "#1d2a4c", "#28396a"]));
+    I.crystal = pal.ramp("crystal", H(["#241a4d", "#4630a0", "#6d4fd6", "#9f86f2", "#d8cbff"]));
     I.ink = pal.ramp("ink", H(["#080b0d"]));
     R.pal = pal;
     built = "";
@@ -113,6 +115,90 @@
     }
   }
 
+  // a cluster of chunky faceted amethyst shards on a dark rock lump, with a dithered halo that lifts the surrounding dark
+  function crystalCluster(fb, cx, cy, seed, zoom) {
+    var rnd = PX.rng(seed | 0), w = fb.w, h = fb.h, d = fb.d, k = Math.max(0.8, zoom * 1.35), R = Math.round(20 * k), i, x, y;
+    for (y = -R; y <= R; y++) for (x = -R; x <= R; x++) {
+      var px = cx + x, py = cy + y; if (px < 0 || py < 0 || px >= w || py >= h) continue;
+      var dist = Math.sqrt(x * x + y * y * 1.2); if (dist > R) continue;
+      var o = d[py * w + px], deepish = (o >= I.deep && o <= I.deep + 4) || (o >= I.abyss && o <= I.abyss + 4);
+      if (!deepish) continue;
+      var a = (1 - dist / R) * 0.95; if (PX.BAYER4[py & 3][px & 3] + 0.5 > a) continue;
+      d[py * w + px] = I.abyss + (a > 0.6 ? 3 : a > 0.32 ? 2 : 1);
+    }
+    var mr = Math.round(6 * k);                                                 // the rock lump the shards grow from
+    for (y = -Math.round(mr * 0.6); y <= 2; y++) for (x = -mr; x <= mr; x++) if ((x * x) / (mr * mr) + (y * y) / (mr * mr * 0.36) <= 1) fb.set(cx + x, cy + y, I.abyss + ((y < 0 && x < 0) ? 2 : 1));
+    var n = 3 + Math.floor(rnd() * 2), order = [];                               // 3-4 chunky hexagonal spires: one tall centre, satellites leaning away
+    for (i = 0; i < n; i++) order.push(i);
+    for (i = 0; i < n; i++) {
+      var f = n === 1 ? 0 : (i / (n - 1)) * 2 - 1, main = i === Math.floor(n / 2);
+      var ang = f * 0.5 + (rnd() - 0.5) * 0.18, len = Math.round((main ? 20 + rnd() * 8 : 11 + rnd() * 9) * k), hw = Math.max(2.4, (main ? 4.4 : 3.2 + rnd() * 1.2) * k), bx = cx + Math.round(f * 5.5 * k), sa = Math.sin(ang), ca = Math.cos(ang);
+      var tipAt = 0.78;
+      for (var t = 0; t <= len; t++) {
+        var u = t / len, half = u < tipAt ? hw * (1 - 0.16 * u / tipAt) : hw * 0.84 * (1 - (u - tipAt) / (1 - tipAt)) + 0.2, hi = Math.ceil(half);
+        for (var s = -hi; s <= hi; s++) {
+          var sx = Math.round(bx + sa * t + ca * s), sy = Math.round(cy - ca * t + sa * s);
+          var rel = s / (half + 0.01), tone = rel < -0.3 ? 3 : (rel < 0.28 ? 2 : 1);   // left face lit, middle mid, right face shaded
+          if (u > tipAt) tone = rel < 0 ? 4 : 3;                                        // the pyramid tip catches the light
+          if (rel > -0.36 && rel < -0.2 && u < tipAt) tone = 4;                         // sharp ridge highlight between the two lit faces
+          if (rel > 0.88 || t < 1 || (u > 0.99 && s === 0)) tone = 0;                   // dark edge on the shaded side and at the base
+          fb.set(sx, sy, I.crystal + tone);
+        }
+      }
+    }
+  }
+
+  // a foreground pine: a bark-textured trunk with irregular, drooping needle boughs, rim-lit from the sun side and
+  // dissolving (dithered) over the hero so it frames him instead of hiding him
+  function fgPine(fb, cx, topY, baseY, seed, hero, sway, k) {
+    var w = fb.w, h = fb.h, d = fb.d, rnd = PX.rng(seed | 0), tw = Math.max(3, Math.round((5 + rnd() * 2) * k)), y, x, dx;
+    function seeThrough(px, py) {                                             // true = draw; a clear oval around the hero, dissolving outward
+      var ex = (px - hero.x) / hero.rx, ey = (py - hero.y) / hero.ry, dist = Math.sqrt(ex * ex + ey * ey);
+      if (dist >= 1.3) return true;
+      if (dist < 0.62) return false;
+      return PX.BAYER4[py & 3][px & 3] + 0.5 < (dist - 0.62) / 0.68;
+    }
+    // trunk
+    for (y = Math.max(0, topY); y < Math.min(h, baseY); y++) {
+      var lean = Math.round(Math.sin(y * 0.011 + seed) * 1.6 * k), flare = y > baseY - 22 * k ? Math.round((y - (baseY - 22 * k)) / (5 * k)) : 0;
+      for (dx = -tw - flare; dx <= tw + flare; dx++) {
+        var px = cx + lean + dx; if (px < 0 || px >= w || !seeThrough(px, y)) continue;
+        var rel = (dx + tw) / (2 * tw + 0.001), tone = rel < 0.16 ? 3 : rel < 0.42 ? 2 : rel < 0.78 ? 1 : 0;
+        if (PX.h2(px * 3 + (dx < 0 ? 1 : 0), (y >> 2) + seed) > 0.86) tone = Math.max(0, tone - 1);     // bark ridges
+        if (Math.abs(dx) > tw) tone = 0;
+        d[y * w + px] = tone >= 3 ? I.soil + 5 : (tone === 2 ? I.trunk + 1 : (tone === 1 ? I.trunk : I.soil));
+      }
+    }
+    // boughs, bottom to top; tiers are uneven, each side reaches a different length, tips droop in separate needle fingers
+    var ty = baseY - Math.round((20 + rnd() * 12) * k), tier = 0;
+    while (ty > topY - 24) {
+      var up = clamp01((baseY - ty) / (h * 1.7)), scaleT = k * (1.15 - 0.5 * up), WL = Math.round((26 + 30 * rnd()) * scaleT), WR = Math.round((26 + 30 * rnd()) * scaleT);
+      var Rt = Math.round((7 + rnd() * 5) * k), Dt = Math.round((12 + rnd() * 9) * k), ph = rnd() * 6.28, fp = 0.55 + rnd() * 0.4;
+      for (dx = -WL; dx <= WR; dx++) {
+        var u = dx < 0 ? -dx / WL : dx / WR, sw = Math.round(sway * u * 1.4), px2 = cx + dx + sw;
+        if (px2 < 0 || px2 >= w) continue;
+        var wave = Math.abs(Math.sin(dx * fp + ph)), gap = wave < 0.16 && u > 0.35;                 // gaps between needle fingers near the tips
+        var finger = Math.floor(3.4 * wave * (0.4 + u) + PX.h1((dx + 300) * 7 + seed + tier) * 2.4);
+        var yTop = ty - Math.round((1 - u) * Rt) + Math.round(u * u * 4), yBot = ty + Math.round(Dt * (0.25 + 0.75 * Math.pow(u, 0.8))) + finger - (gap ? 3 : 0);
+        for (y = yTop; y <= yBot; y++) {
+          if (y < 0 || y >= h || !seeThrough(px2, y)) continue;
+          var v = (y - yTop) / Math.max(1, yBot - yTop), tone, litSide = dx < 0;
+          tone = v < 0.14 ? 4 : v < 0.34 ? 3 : v < 0.56 ? 2 : v < 0.8 ? 1 : 0;
+          if (litSide && u > 0.3 && v < 0.6) tone = Math.min(6, tone + 1);
+          if (!litSide && v < 0.55) tone = Math.max(0, tone - 1);
+          var nz = PX.h2(px2, y + 40 * tier);
+          if (nz > 0.84 && v > 0.12) tone = Math.max(0, tone - 1); else if (nz < 0.08 && v < 0.65) tone = Math.min(6, tone + 1);
+          if (y === yTop && u > 0.15) tone = Math.min(6, tone + 1);          // rim light along the crest
+          if (y >= yBot - 1) tone = Math.max(0, tone - 1);                    // shadowed fingertips
+          d[y * w + px2] = I.pine + tone;
+        }
+      }
+      // a couple of bare branch stubs poke out between tiers
+      if (rnd() < 0.7) { var sy2 = ty + Math.round(Dt * 1.05), sl = Math.round((5 + rnd() * 6) * k), sd = rnd() < 0.5 ? -1 : 1; for (var q = 1; q <= sl; q++) { var qx = cx + sd * (tw + q), qy = sy2 - (q >> 1); if (qx >= 0 && qx < w && qy >= 0 && qy < h && seeThrough(qx, qy)) d[qy * w + qx] = q === 1 ? I.trunk + 1 : I.trunk; } }
+      ty -= Math.round((15 + rnd() * 14) * k); tier++;
+    }
+  }
+
   R.ground = function (fb, S, pal) {
     var w = fb.w, h = fb.h, d = fb.d, zoom = S.zoom, sc = S.scroll, lipA = S.lip, adj = S.adj || 1;
     var G = I.grass, x, y;
@@ -175,7 +261,9 @@
         } else {                                                             // the deep: near-black, violet glints, a few embers
           var ex = (du - b3);
           var lvd = 2.6 - ex / 130 + (PX.h2(wx >> 1, dd >> 1) - 0.5) * 1.1 + bay * 0.7;
-          idx = I.deep + clamp(Math.floor(lvd), 0, 4);
+          var bandN = Math.sin(du * 0.085 + PX.vnoise(wxF * 0.017, du * 0.03, 9) * 7.5);       // wavy world-locked strata in the dark
+          if (bandN > 0.35) idx = I.abyss + clamp(Math.floor(lvd + (bandN - 0.35) * 1.6), 0, 3);   // cool blue-black seams
+          else idx = I.deep + clamp(Math.floor(lvd), 0, 4);
           var eh = PX.h2(wx, dd + 500);
           if (eh > 0.9975) idx = I.ember + (eh > 0.9992 ? 3 : 2); else if (eh > 0.995) idx = I.ember;
         }
@@ -222,6 +310,33 @@
         var lsx = Math.round(S.ztx + (lwx - sc) * zoom); if (lsx < -14 || lsx > w + 14) continue;
         var lsy = Math.round(lipA[clamp(lsx, 0, w - 1)] + ldu * zoom); if (lsy < 2 || lsy > h - 2) continue;
         drawRelic(fb, RELICS[Math.floor(PX.h2(lc, lr + 84) * RELICS.length) % RELICS.length], lsx, lsy, PX.h2(lc, lr + 85) > 0.5);
+      }
+    }
+    // the deep is not empty: glowing crystal clusters and slow magma veins
+    var dcell = 200, wl7 = (0 - S.ztx) / zoom + sc - dcell, wr7 = (w - S.ztx) / zoom + sc + dcell;
+    for (var dc = Math.floor(wl7 / dcell); dc <= Math.ceil(wr7 / dcell); dc++) {
+      for (var dr = 0; dr < 2; dr++) {
+        if (PX.h2(dc * 5 + dr, 121) < 0.56) continue;
+        var dwx = dc * dcell + PX.h2(dc, dr + 122) * dcell, ddu = rockDu + 50 + dr * 150 + PX.h2(dc, dr + 123) * 110;
+        var dsx = Math.round(S.ztx + (dwx - sc) * zoom); if (dsx < -26 || dsx > w + 26) continue;
+        var dsy = Math.round(lipA[clamp(dsx, 0, w - 1)] + ddu * zoom); if (dsy < -22 || dsy > h + 22) continue;
+        crystalCluster(fb, dsx, dsy, dc * 7 + dr, zoom);
+      }
+    }
+    var vcell = 190, wl8 = (0 - S.ztx) / zoom + sc - vcell, wr8 = (w - S.ztx) / zoom + sc + vcell, pulse = S.reduced ? 0 : Math.floor(S.tSec * 5);
+    for (var vc = Math.floor(wl8 / vcell); vc <= Math.ceil(wr8 / vcell); vc++) {
+      if (PX.h2(vc, 131) < 0.42) continue;
+      var vwx = vc * vcell + PX.h2(vc, 132) * vcell, vsx = Math.round(S.ztx + (vwx - sc) * zoom); if (vsx < -50 || vsx > w + 50) continue;
+      var vx = vsx, vy = lipA[clamp(vsx, 0, w - 1)] + Math.round((rockDu + 30 + PX.h2(vc, 133) * 150) * zoom), vlen = Math.round((46 + 70 * PX.h2(vc, 134)) * zoom * 1.25), vdir = PX.h2(vc, 135) < 0.5 ? -1 : 1;
+      for (var vs = 0; vs < vlen; vs++) {
+        var vr = PX.h2(vc * 41 + vs, 136);
+        if (vr < 0.55) vx += vdir; else if (vr < 0.72) vx -= vdir;
+        if (PX.h2(vc * 23 + vs, 137) < 0.62) vy += 1;
+        if (vx < 0 || vx >= w || vy < 0 || vy >= h) continue;
+        var hot = ((vs + pulse) % 11) === 0;
+        fb.set(vx, vy, hot ? I.ember + 3 : (vs & 1 ? I.ember + 1 : I.ember));
+        if (hot || (vs & 3) === 0) { fb.set(vx - 1, vy, I.ember); fb.set(vx + 1, vy, I.ember); }
+        else if ((vs & 3) === 2) fb.set(vx, vy + 1, I.ember);
       }
     }
     // flowers with stems, tufts and bushes on the meadow (world-locked; kept clear of the hero)
@@ -276,16 +391,16 @@
 
   // foreground: giant crisp pines sweeping past in front of him (dithered see-through where they'd hide him), and drifting pollen
   R.front = function (fb, S, pal) {
-    var w = fb.w, h = fb.h, zoom = S.zoom, fs = S.scroll * 1.45, cell = 1150;
+    var w = fb.w, h = fb.h, zoom = S.zoom, fs = S.scroll * 1.45, cell = 1500, pk = clamp(w / 480, 0.66, 1.2);
     if (S.altitude > 110) {
-      var heroX = Math.round(S.ztx + S.anchorX * zoom), heroY = S.lip[Math.max(0, Math.min(w - 1, heroX))];
-      var k0 = Math.floor(((0 - S.ztx) / zoom + fs) / cell) - 1, k1 = Math.ceil(((w - S.ztx) / zoom + fs) / cell) + 1;
+      var heroX = Math.round(S.ztx + S.anchorX * zoom), heroY = S.lip[Math.max(0, Math.min(w - 1, heroX))], sxw = S.stoneX || 40, srr = S.stoneR || 30;
+      var hero = { x: Math.round(S.ztx + (S.anchorX + sxw * 0.5) * zoom), y: heroY - Math.round(srr * zoom), rx: (sxw * 0.5 + srr + 34) * zoom + 12, ry: (srr + 26) * zoom + 12 };
+      var k0 = Math.floor(((0 - S.ztx) / zoom + fs) / cell) - 1, k1 = Math.ceil(((w - S.ztx) / zoom + fs) / cell) + 1, sway = S.reduced ? 0 : (S.windGust || 0) * 4;
       for (var k = k0; k <= k1; k++) {
         if (PX.h1(k * 9 + 4) < 0.5) continue;
-        var fx = k * cell + PX.h1(k * 3 + 2) * 500, sx = Math.round(S.ztx + (fx - fs) * zoom);
-        if (sx < -100 || sx > w + 100) continue;
-        var th = Math.round(h * (0.95 + 0.5 * PX.h1(k * 5 + 1)));
-        Sc.pine(fb, sx, h + 8, th, k * 17 + 3, { dark: I.pine, mid: I.pine + 1, light: I.pine + 2, trunk: I.trunk }, { slim: 0.30, light: -1, hole: { x0: heroX - 40, x1: heroX + 60, y0: heroY - 80, y1: heroY + 30 } });
+        var fx = k * cell + 300 + PX.h1(k * 3 + 2) * 700, sx = Math.round(S.ztx + (fx - fs) * zoom);
+        if (sx < -90 * pk || sx > w + 90 * pk) continue;
+        fgPine(fb, sx, -6, h + 8, k * 17 + 3, hero, sway, pk);
       }
     }
     if (!S.reduced) for (var m = 0; m < 14; m++) {                            // pollen / dust motes catching the light
