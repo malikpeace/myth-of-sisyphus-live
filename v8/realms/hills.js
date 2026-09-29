@@ -45,16 +45,16 @@
   function mtnPal(base, snowD) { return { rockDeep: base, rockS: base + 1, rockM: base + 2, rockL: base + 3, snowS: base + 4, snowL: base + 5, snowH: base + 6, snowD: snowD == null ? base + 4 : snowD }; }
 
   function buildScene(S) {
-    var k = S.w + "x" + S.h; if (built === k) return; built = k;
+    var adj = S.adj || 1, k = S.w + "x" + S.h + "|" + adj; if (built === k) return; built = k;         // Chunky: fixed-size art shrinks by adj so it keeps its on-screen size
     var Hm = clamp(Math.round(S.h * 0.40), 100, 170);
     ST.far = Sc.mountainStrip({ L: 1280, H: Math.round(Hm * 0.78), seed: 11, peaks: 20, hMin: 0.45, hMax: 0.9, sharp: 1.22, snow: 0.55, gullies: 4, pal: mtnPal(I.far) });
     ST.mid = Sc.mountainStrip({ L: 1152, H: Hm, seed: 23, peaks: 14, hMin: 0.5, hMax: 1.0, sharp: 1.14, snow: 0.5, gullies: 6, pal: mtnPal(I.mid, I.mid + 3) });
     ST.near = Sc.mountainStrip({ L: 1024, H: Math.round(Hm * 0.5), seed: 37, peaks: 10, hMin: 0.35, hMax: 0.8, sharp: 1.32, snow: 0.06, gullies: 3, pal: { rockDeep: I.near, rockS: I.near + 1, rockM: I.near + 2, rockL: I.near + 3, snowS: I.near + 3, snowL: I.near + 4, snowH: I.near + 4, snowD: I.near + 2 } });
-    ST.fFar = Sc.forestRidge({ L: 1000, H: 70, seed: 5, amp: 6, spacing: 3, hMin: 7, hMax: 15, pal: { body: I.forestFar, bodyL: I.forestFar + 1, pineD: I.forestFar, pineM: I.forestFar + 1, pineL: I.forestFar + 2 }, fadeIdx: I.mist + 3, fadeRows: 16 });
-    ST.fMid = Sc.forestRidge({ L: 900, H: 74, seed: 9, amp: 8, spacing: 4, hMin: 10, hMax: 22, pal: { body: I.forestMid, bodyL: I.forestMid + 1, pineD: I.forestMid, pineM: I.forestMid + 1, pineL: I.forestMid + 2 }, fadeIdx: I.mist + 2, fadeRows: 14 });
+    ST.fFar = Sc.forestRidge({ L: 1000, H: Math.round(70 * adj), seed: 5, amp: Math.round(6 * adj), spacing: Math.max(2, Math.round(3 * adj)), hMin: Math.max(4, Math.round(7 * adj)), hMax: Math.max(8, Math.round(15 * adj)), pal: { body: I.forestFar, bodyL: I.forestFar + 1, pineD: I.forestFar, pineM: I.forestFar + 1, pineL: I.forestFar + 2 }, fadeIdx: I.mist + 3, fadeRows: 16 });
+    ST.fMid = Sc.forestRidge({ L: 900, H: Math.round(74 * adj), seed: 9, amp: Math.round(8 * adj), spacing: Math.max(2, Math.round(4 * adj)), hMin: Math.max(6, Math.round(10 * adj)), hMax: Math.max(12, Math.round(22 * adj)), pal: { body: I.forestMid, bodyL: I.forestMid + 1, pineD: I.forestMid, pineM: I.forestMid + 1, pineL: I.forestMid + 2 }, fadeIdx: I.mist + 2, fadeRows: 14 });
     CL = [];
     for (var i = 0; i < 10; i++) {
-      var w = 30 + Math.round(PX.h1(i * 3 + 1) * 56), h = 10 + Math.round(PX.h1(i * 5 + 2) * 10);
+      var w = Math.max(16, Math.round((30 + Math.round(PX.h1(i * 3 + 1) * 56)) * adj)), h = Math.max(7, Math.round((10 + Math.round(PX.h1(i * 5 + 2) * 10)) * adj));
       CL.push({ sp: Sc.cloudSprite(101 + i * 17, w, h, [I.cloud + 3, I.cloud + 2, I.cloud + 1, I.cloud]), x: PX.h1(i * 7 + 3) * 900, y: 0.10 + PX.h1(i * 11 + 4) * 0.34, v: 0.9 + PX.h1(i * 13 + 5) * 1.6 });
     }
   }
