@@ -31,7 +31,10 @@ var PIXEL_GLYPHS = {"32":[3,0],"33":[2,1,1,1,1,1,1,0,1],"34":[4,3,5,5,0,0,0,0,0]
     return { l: parseFloat(cs.paddingLeft) || 0, r: parseFloat(cs.paddingRight) || 0, t: parseFloat(cs.paddingTop) || 0 };
   }
 
+  var fontsOk = !(document.fonts && document.fonts.ready);
+  var readyQueued = false;
   function layout() {
+    if (!(parseFloat(getComputedStyle(root).getPropertyValue("--px")) > 0)) return;      // wait for the game to size its grid (the first layout used to run at the default and jump a moment later)
     var p = px();
     var ss = document.getElementById("startscreen");
     var cw = (ss && ss.clientWidth) || root.clientWidth || window.innerWidth;
@@ -74,7 +77,10 @@ var PIXEL_GLYPHS = {"32":[3,0],"33":[2,1,1,1,1,1,1,0,1],"34":[4,3,5,5,0,0,0,0,0]
     vars.textContent = ":root{--mw:" + mw + ";--win:" + win + ";--mx:" + mx + "px;--mxr:" + mxr + "px;--logo-k:" + k +
       ";--logo-top-k:" + topk + ";--splash-y:" + splash + "px;--d2a:" + d2a + ";--d2b:" + (avail - d2a) + ";--p2a:" + p2a +
       ";--p2b:" + (avail - p2a) + ";--ss-pt:" + ptSplash + "px;--ss-pt-menu:" + ptMenu + "px}";
-    root.setAttribute("data-px-ready", "");
+    if (fontsOk && !root.hasAttribute("data-px-ready") && !readyQueued) {                  // reveal only once the bitmap font has loaded AND the sizes have settled (a frame later, so no transition plays)
+      readyQueued = true;
+      requestAnimationFrame(function () { requestAnimationFrame(function () { root.setAttribute("data-px-ready", ""); }); });
+    }
     root.setAttribute("data-px-cols", String(cols));
     root.setAttribute("data-px-w", wcls);
     root.setAttribute("data-px-h", gh < 280 && mw >= 250 ? "short" : "tall");      // two-column dialogs need the width too
@@ -433,7 +439,7 @@ var PIXEL_GLYPHS = {"32":[3,0],"33":[2,1,1,1,1,1,1,0,1],"34":[4,3,5,5,0,0,0,0,0]
       new MutationObserver(scheduleThumbs).observe(rc, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
       if (window.ResizeObserver) new ResizeObserver(scheduleThumbs).observe(rc);
     }
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { relayout(); scheduleCrisp(); });
+    if (document.fonts && document.fonts.ready) Promise.all([document.fonts.load ? document.fonts.load("16px SisyphusPx").catch(function () {}) : 0, document.fonts.ready]).then(function () { fontsOk = true; lastKey = ""; layout(); relayout(); scheduleCrisp(); });
     // re-run the crisp pass whenever a panel opens or a centred label changes its text
     var lateCrisp = 0;
     var crispObs = new MutationObserver(function () { scheduleCrisp(); clearTimeout(lateCrisp); lateCrisp = setTimeout(scheduleCrisp, 260); });

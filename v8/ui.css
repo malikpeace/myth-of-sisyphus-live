@@ -150,6 +150,9 @@ html body :is(#gameover .gameover-panel, #againpanel .again-panel, #postcard .po
   text-align: center;
 }
 /* dithered scrims instead of alpha blur */
+/* the menu waits for ui.js to size it to the game grid: no first-paint layout jump (a 1.4 s failsafe in index.html sets the flag anyway) */
+html:not([data-px-ready]) body #startscreen { visibility: hidden !important; }
+html:not([data-px-ready]) body #startscreen, html:not([data-px-ready]) body #startscreen * { transition: none !important; animation: none !important; }
 html body #pausescreen { background: var(--img-d50) 0 0 / var(--tex4); }
 html body #againpanel { background: var(--img-d25) 0 0 / var(--tex4); }
 html body #gameover { background: var(--img-d75) 0 0 / var(--tex4); }
