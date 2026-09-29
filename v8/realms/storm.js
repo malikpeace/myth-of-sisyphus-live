@@ -486,12 +486,12 @@
   };
 
   // ---------- lightning: a clock, a palette flash, a forked bolt with a dithered afterglow ----------
-  function flashAt(a) {                                                   // a = seconds since the strike began: hard flash, dip, return stroke, long decay
-    if (a < 0 || a > 0.9) return 0;
+  function flashAt(a) {                                                   // a = seconds since the strike began: hard flash, dip, return stroke, long decay (two strokes >= ~0.27 s apart: never a strobe)
+    if (a < 0 || a > 0.95) return 0;
     if (a < 0.07) return 1;
-    if (a < 0.14) return 0.2;
-    if (a < 0.25) return 0.86;
-    return 0.86 * Math.pow(1 - (a - 0.25) / 0.65, 1.7);
+    if (a < 0.27) return 0.30 - 0.14 * (a - 0.07) / 0.20;
+    if (a < 0.35) return 0.74;
+    return 0.74 * Math.pow(1 - (a - 0.35) / 0.60, 1.7);
   }
   function flickAt(a) {
     if (a < 0 || a > 0.55) return 0;

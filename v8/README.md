@@ -10,7 +10,7 @@ V7 (painted plates) is untouched at `/v7/`; V5, V6 and the main link are untouch
 - **Seven realms built entirely in code** (no image plates): The Hills, The Falls, Moonlit Rome, Sunset Rome, The Snow, The Blossom, The Dusk. Each frame uses ~70-130 colours (V7 used 5,000-12,000).
 - **The endless journey** (Endless, Rush, Timed, Daily, Resolve, Summit) walks through all 14 zones as V8 scenes (see `ZONES.md`); a dithered mist crossing hides each hand-over.
 - **Pixel UI:** one bitmap font (SisyphusPx), stepped-corner panels, buttons, dialogs, HUD and realm cards painted by the realms themselves.
-- **Settings:** Theme (classic / night / void = palette grades over every scene), Hero look, Pixels (Fine = today's grid, Chunky = 1.5x bigger pixels), Sound.
+- **Settings:** Theme (classic / night / void = palette grades over every scene), Hero look, Pixels (Fine = today's grid, Chunky = 1.33-1.5x bigger pixels), Sound.
 - **Living details:** bird flocks, eagle / wind / watcher / thunder events, footprints, the 1000 m quote sign, Daily target sign, old-best afterglow, pull-back labels, wind streaks, particles - all palette-locked.
 - **Share card:** a whole-number upscale of the live frame with stepped-dither bands, the UI font and the realm ladder.
 - **Fast:** ~0.2 MB gzip to first play (legacy painted art only loads if a legacy frame is ever drawn).

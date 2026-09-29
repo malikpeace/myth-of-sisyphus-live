@@ -347,7 +347,8 @@
     var rr = Math.round(r * 3.6);                                                            // a thin 22-degree halo ring in dither
     for (y = -rr - 1; y <= rr + 1; y++) for (x = -rr - 1; x <= rr + 1; x++) {
       var dr = Math.sqrt(x * x + y * y); if (Math.abs(dr - rr) > 0.7 || ((x + y) & 1)) continue;
-      var px = sx + x, py = sy + y; if (px < 0 || py < 0 || px >= w || py >= h) continue; d[py * w + px] = LIFT[LIFT[d[py * w + px]]];
+      var ang = Math.atan2(y, x); if (Math.sin(ang * 5 + 1.3) + Math.sin(ang * 3 - 0.4) < -0.15) continue;             // a broken arc (a perfect 1-px circle read as a construction line)
+      var px = sx + x, py = sy + y; if (px < 0 || py < 0 || px >= w || py >= h) continue; d[py * w + px] = LIFT[d[py * w + px]];
     }
   }
 

@@ -89,12 +89,12 @@
   function toward(c, t, k) { c[0] += (t[0] - c[0]) * k; c[1] += (t[1] - c[1]) * k; c[2] += (t[2] - c[2]) * k; return c; }
 
   // ---------- lightning ----------
-  function flashAt(a) {
-    if (a < 0 || a > 0.72) return 0;
-    if (a < 0.06) return 1;
-    if (a < 0.13) return 0.2;
-    if (a < 0.21) return 0.82;
-    return 0.82 * Math.pow(1 - (a - 0.21) / 0.51, 1.6);
+  function flashAt(a) {                                                          // two strokes at least ~0.27 s apart (never more than 3 flashes a second): a flicker, not a strobe
+    if (a < 0 || a > 0.86) return 0;
+    if (a < 0.07) return 1;
+    if (a < 0.27) return 0.30 - 0.14 * (a - 0.07) / 0.20;
+    if (a < 0.35) return 0.72;
+    return 0.72 * Math.pow(1 - (a - 0.35) / 0.51, 1.7);
   }
   function startStrike(S, t, storm, forceBolt) {
     ST.sStart = t; ST.sSeed = ((t * 1000) | 0) ^ 0x5bd1;

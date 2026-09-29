@@ -284,11 +284,12 @@
     var scw = 24, sch = 20, wl3 = (0 - S.ztx) / zoom + sc - scw, wr3 = (w - S.ztx) / zoom + sc + scw, rowMax = Math.ceil(((h - 0) / zoom) / sch) + 2;
     for (var sc0 = Math.floor(wl3 / scw); sc0 <= Math.ceil(wr3 / scw); sc0++) {
       for (var sr = 4; sr < 4 + rowMax; sr++) {
-        var sh = PX.h2(sc0 * 3 + 1, sr * 5 + 2); if (sh < 0.83) continue;
-        var swx = sc0 * scw + PX.h2(sc0, sr + 41) * scw, sdu = sr * sch + PX.h2(sc0, sr + 43) * sch;
+        var sh = PX.h2(sc0 * 3 + 1, sr * 5 + 2), dens = (0.05 + 0.34 * PX.vnoise(sc0 * 0.23, sr * 0.21, 6.1)) * (zoom < 0.4 ? 0.55 : 1);      // clustered, not a lattice: dense patches and bare rock in between
+        if (sh < 1 - dens) continue;
+        var swx = sc0 * scw + (PX.h2(sc0, sr + 41) * 2.6 - 0.8) * scw, sdu = sr * sch + (PX.h2(sc0, sr + 43) * 2.6 - 0.8) * sch;
         var ssx = Math.round(S.ztx + (swx - sc) * zoom); if (ssx < -8 || ssx > w + 8) continue;
         var ssy = Math.round(lipA[clamp(ssx, 0, w - 1)] + sdu * zoom); if (ssy < 4 || ssy > h + 4) continue;
-        var rr = Math.max(1.6, (3 + 3.5 * PX.h2(sc0, sr + 47)) * zoom * 1.2), sd = swx < 0 ? 0 : 0;
+        var rr = Math.max(1.6, (2.4 + 6.2 * PX.h2(sc0, sr + 47) * PX.h2(sc0, sr + 48)) * zoom * 1.25), sd = swx < 0 ? 0 : 0;
         var base = sdu > (rockDu - 30) ? I.rockbed : I.stone;
         for (var by = -Math.ceil(rr); by <= Math.ceil(rr); by++) for (var bx = -Math.ceil(rr * 1.3); bx <= Math.ceil(rr * 1.3); bx++) {
           var ex2 = bx / 1.3, dist2 = ex2 * ex2 + by * by; if (dist2 > rr * rr) continue;
@@ -394,8 +395,12 @@
       var bx0 = ((PX.h1(bf * 9 + 2) * w * 1.4 + S.tSec * (6 + bf * 3) - sc * zoom * 0.0) % (w + 40)) - 20, by0 = lipA[clamp(Math.round(bx0), 0, w - 1)] - 10 - 12 * PX.h1(bf * 5 + 1) + Math.sin(S.tSec * 2 + bf * 2) * 5;
       var wf = Math.floor(S.tSec * 8 + bf) % 3, col = bf === 0 ? I.flower + 4 : (bf === 1 ? I.flower + 1 : I.flower);
       var bxr = Math.round(bx0), byr = Math.round(by0);
-      fb.set(bxr, byr, I.ink);
-      if (wf === 0) { fb.set(bxr - 1, byr - 1, col); fb.set(bxr + 1, byr - 1, col); } else if (wf === 1) { fb.set(bxr - 1, byr, col); fb.set(bxr + 1, byr, col); } else { fb.set(bxr - 1, byr + 1, col); fb.set(bxr + 1, byr + 1, col); }
+      if (Math.abs(bxr - heroX) < 46 * zoom + 12) continue;                                       // (never hovering at the man's head: two yellow dots read as eyes)
+      var wc2 = bf === 0 ? I.flower + 1 : (bf === 1 ? I.flower + 4 : I.flower);                       // a second, paler wing tone
+      fb.set(bxr, byr, I.ink); fb.set(bxr, byr + 1, I.ink);                                            // a two-pixel body
+      if (wf === 0) { fb.set(bxr - 1, byr - 1, col); fb.set(bxr + 1, byr - 1, col); fb.set(bxr - 2, byr - 2, wc2); fb.set(bxr + 2, byr - 2, wc2); }        // wings up
+      else if (wf === 1) { fb.set(bxr - 1, byr, col); fb.set(bxr + 1, byr, col); fb.set(bxr - 2, byr, wc2); fb.set(bxr + 2, byr, wc2); }              // level
+      else { fb.set(bxr, byr - 1, col); fb.set(bxr - 1, byr + 1, col); fb.set(bxr + 1, byr + 1, col); }                                        // closing
     }
   };
 
