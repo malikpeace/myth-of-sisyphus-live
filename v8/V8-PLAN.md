@@ -31,16 +31,13 @@ and rasterised there; colours come from palette ramps only.
 
 ## Milestones
 - [x] M1  New hero + rock in every realm and mode (Settings: hero look). Verified desktop/phone, all modes.
-- [x] M2  V8 realm pipeline (indexed framebuffer + palette) LIVE; Hills rebuilt in code (strata, roots, relics, bushes/ferns/flowers,
-          butterflies, pollen, slope pines, organic foreground pines, amethyst crystals + magma veins in the deep).
-          Shared overlays (`overlays.js`): bird flocks, mythic events (eagle/thunder/wind/watcher), footprints, 1000 m quote sign, Daily target.
-          Pixel share card (whole-number upscale, stepped-dither bands, bitmap type, pixel ladder). Hero anatomy/tone/kilt/outline pass.
-          Legacy modes open in the new Hills (0-700 m) and cross into the painted zones through a dithered mist crossing.
-          `V8.thumbnail(id,w,h)` / `V8.thumbnailAsync` paint realm cards from the realm itself (block-mode reduction).
-- [~] M3  Falls, Moon Rome, Snow, Sunset Rome, Blossom, Dusk ported to the pipeline (parallel workers; integrate + review each)
-- [~] M4  Pixel UI kit (bitmap font TTF, panels, cards) - worker building; hook `V8.thumbnail` into ui.js `thumbs()` on integration
-- [ ] M5  Chunky (`S.adj`) pass across realms, polish, performance, full QA matrix
-- [ ] Stretch: legacy deep zones as scenes (extend `V8_LEGACY_SEGMENTS` in index.html as each is rebuilt)
+- [x] M2  V8 realm pipeline (indexed framebuffer + palette) + The Hills in code, shared overlays (birds, mythic events, footprints, signs, afterglow), pixel share card, legacy modes start in the new Hills.
+- [x] M3  All seven realms built in code: Hills, Falls, Moonlit Rome, Sunset Rome (shared masonry `realms/_bridge.js`), Snow, Blossom, Dusk.
+- [x] M4  Pixel UI kit (SisyphusPx bitmap font, panels, buttons, cards, HUD, dialogs) + realm cards painted by the realms + canvas HUD text in the same face.
+- [x] M5  Fine/Chunky, Night/Void looks as palette grades over every scene, lazy legacy art (first load ~0.2 MB gz), cache-busting, fuzz + matrix QA, iOS Safari check.
+- [x] Journey: all 14 zones of the endless climb are V8 scenes (`V8_LEGACY_SEGMENTS`, mist crossing, zone-name banner): hills, falls, above-the-clouds (snow), night sky (galaxy), canyon, sunset rome, storm pass, moonlit ruins, ash fields (volcanic), aurora, bone fields, obsidian, elysium (blossom), the void. Wave-2 zone scenes were built by parallel workers (see `ZONES.md`).
+- [x] Hero redesign (owner: "the character model looks TERRIBLE"): six-head athletic figure, spine leaning into the stone, arms at near-full reach, profiled muscles, round joints, face with hairline/brow/eye/nose/beard, kilt + sash + baldric + wrist wraps + sandals, cast shadows, ink outline, chunky small-size figure, summit cheer with clenched fists; colour look is the default (shadow look in Settings).
+- [~] Ongoing: independent art-director review pass, final polish of wave-2 zones.
 
 ## QA
 `tools/serve.py` (sturdy static server) + `tools/cdp.py` (dependency-free headless-Chrome driver; its `canvas`
