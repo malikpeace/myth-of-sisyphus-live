@@ -58,6 +58,15 @@
   // ---------- the rig (local frame: x forward, y DOWN, floor at y = 0; all lengths scale with s) ----------
   // Proportions (units of s): thigh 10.3 + shin 9.9 + foot 2.3, torso 13.6, neck 2.3, head radius 3.75, upper arm 8.2 + forearm 7.8.
   var THIGH = 11.2, SHIN = 10.6, FOOT = 2.3, TORSO = 13.2, UARM = 8.2, FARM = 7.8, HEADR = 3.9;
+  function leanInOf(P, s) {                                            // giant stone: the whole body steps in so a bent arm reaches it
+    var giantT = smooth01(clamp01((P.ratio - 1.6) / 1.2)), leanIn = 0, ax = P.manBaseX || 0;
+    if (giantT > 0.001) {
+      var estShY = -29.2 * s, estRel = clamp(estShY - 1 * s - P.bly, -P.brad + 3, P.brad - 3);
+      var estHalf = Math.sqrt(Math.max(0, P.brad * P.brad - estRel * estRel)), chordX = P.blx - estHalf - 1 * s;
+      leanIn = Math.min(14 * s, Math.max(0, (chordX - (ax + 9.2 * s)) - 15 * s) * giantT * 0.72);
+    }
+    return { giantT: giantT, leanIn: leanIn };
+  }
   function rig(P) {
     var s = P.s, brace = P.brace, stumble = P.stumble, pd = P.pushDrive, wl = P.windLean || 0, gY = 0;
     var ax = P.manBaseX || 0;
@@ -130,8 +139,9 @@
   // summit cheer pose (he lets go, stands, jumps): port of the game's own pose curve, on the new skeleton
   function rigCheer(P) {
     var s = P.s, release = P.cheer.release, armsUp = P.cheer.arms, jump = P.cheer.jump, bx = P.manBaseX || 0;
-    var jy = jump * 22 * s, hip = { x: bx, y: -jy - 20.6 * s };
-    var lean = lerp(0.62, 0.05, release), ht = lean * 0.4 - armsUp * 0.12;
+    var li0 = P.ratio != null ? leanInOf(P, s).leanIn : 0;                 // he lets go where he stood (leaning in on the stone) and steps back to stand
+    var jy = jump * 22 * s, hip = { x: bx + li0 * (1 - smooth01(clamp01(release * 1.25))), y: -jy - 20.6 * s };
+    var lean = lerp(0.62, 0.05, release), ht = lean * 0.3 - armsUp * 0.32;
     var sh = { x: hip.x + Math.sin(lean) * TORSO * s, y: hip.y - Math.cos(lean) * TORSO * s };
     var legs = [], L1 = THIGH * s, L2 = SHIN * s;
     for (var leg = 0; leg < 2; leg++) {
@@ -144,14 +154,15 @@
     var arms = [];
     for (var arm = 0; arm < 2; arm++) {
       var d = arm === 0 ? -1 : 1;
-      var fwdHX = hip.x + 16 * s, fwdHY = sh.y - 1 * s, sideHX = hip.x + d * 5 * s, sideHY = hip.y + 2 * s;
-      var upHX = sh.x + d * 9 * s, upHY = sh.y - 20 * s;
+      var shp0 = arm === 0 ? { x: sh.x + 0.7 * s, y: sh.y - 0.8 * s } : sh;
+      var fwdHX = shp0.x + 20.5 * s, fwdHY = shp0.y + 3.5 * s, sideHX = hip.x + d * 5 * s, sideHY = hip.y + 2 * s;      // gripping (the push pose) -> arms hanging
+      var upHX = sh.x + d * 11.5 * s, upHY = sh.y - 18.5 * s;                                                              // cheering: a wide V, the head between the fists
       var hX = lerp(lerp(fwdHX, sideHX, release), upHX, armsUp), hY = lerp(lerp(fwdHY, sideHY, release), upHY, armsUp);
-      var shp = arm === 0 ? { x: sh.x + 0.7 * s, y: sh.y - 0.8 * s } : sh;
-      var el = PX.ik2(shp.x, shp.y, hX, hY, UARM * s, FARM * s, d < 0 ? -1 : 1);
+      var shp = shp0, elSide = armsUp > 0.5 ? (d < 0 ? -1 : 1) : (release > 0.5 ? 1 : -1);
+      var el = PX.ik2(shp.x, shp.y, hX, hY, UARM * s, FARM * s, elSide);
       arms.push({ hand: { x: hX, y: hY }, elbow: el, far: arm === 0 });
     }
-    return { hip: hip, sh: sh, shB: { x: sh.x + 0.7 * s, y: sh.y - 0.8 * s }, neck: neck, head: head, headR: headR, legs: legs, arms: arms, cheer: true, idle: 0, brace: 0, lean: lean, ht: ht };
+    return { hip: hip, sh: sh, shB: { x: sh.x + 0.7 * s, y: sh.y - 0.8 * s }, neck: neck, head: head, headR: headR, legs: legs, arms: arms, cheer: true, idle: 0, brace: 0, lean: lean, ht: ht, armsUp: armsUp };
   }
 
   // ---------- rasteriser ----------
@@ -247,7 +258,7 @@
       PX.limb(sp, shoulder.x, shoulder.y, e.x, e.y, UA_F, UA_B, t, 1);
       PX.limb(sp, e.x, e.y, h.x, h.y, FA_F, FA_B, t, 1);
       PX.disc(sp, e.x, e.y, R(2.35 * s), t);                                                                            // a round elbow
-      PX.disc(sp, h.x + 0.4 * hz, h.y, R(1.75 * s), t);
+      PX.disc(sp, h.x + 0.4 * hz, h.y, R((J.cheer && J.armsUp > 0.5 ? 2.15 : 1.75) * s), t);
       if (lod > 0.5) { var wr = lp(e, h, 0.70), wcl = far ? SLOT.CLOTHSH : SLOT.CLOTH; PX.disc(sp, wr.x, wr.y, R(1.75 * s), function (x, y, u, v) { return (u * L2[0] + v * L2[1]) > 0.15 && !far ? SLOT.CLOTHHI : (far ? SLOT.CLOTHDEEP : wcl); }); }   // linen wrist wraps
       if (cosm === "wraps" && lod > 0.45) { var wp2 = lp(e, h, 0.72); PX.disc(sp, wp2.x, wp2.y, R(2.1 * s), function () { return SLOT.WRAP; }); }
     }
@@ -308,9 +319,9 @@
       var hairBack = ((lf + 0.34) / 0.92) * ((lf + 0.34) / 0.92) + ((lu - 0.05) / 1.12) * ((lu - 0.05) / 1.12) <= 1 && lu > -0.34;      // hair covers the back of the skull, down to the nape
       if (!(skull || jaw || hairBack)) continue;
       var nxn = rx2 / (hr * 1.1), nyn = ry2 / (hr * 1.1), dS = nxn * L2[0] + nyn * L2[1], dF = isColor ? (nxn * FL[0] + nyn * FL[1]) * 0.5 : 0, dd = Math.max(dS, dF), slot;
-      var hairTop = lu > 0.44 - Math.max(0, lf - 0.2) * 0.26 && lf < 0.92;                                                          // the hairline slopes back from the brow
-      var beard = lu < -0.36 && lf > -0.22 && lf < 1.0 && (jaw || skull);                                                              // chin + jaw only
-      if (hairTop || (hairBack && lf < -0.12 && lu > -0.34)) slot = dS > 0.84 && k > 0.05 ? SLOT.HAIRHI : (dd > -0.30 ? SLOT.HAIR : SLOT.HAIRLO);
+      var hairTop = lu > 0.36 - Math.max(0, lf - 0.05) * 0.34 && lf < 0.92;                                                          // the hairline slopes back from the brow
+      var beard = lu < -0.44 && lf > -0.06 && lf < 0.98 && (jaw || skull);                                                              // chin + jaw only
+      if (hairTop || (hairBack && lf < -0.40 && lu > -0.25)) slot = dS > 0.84 && k > 0.05 ? SLOT.HAIRHI : (dd > -0.30 ? SLOT.HAIR : SLOT.HAIRLO);
       else if (beard) slot = dS > 0.80 && k > 0.06 ? SLOT.HAIRHI : (dd > -0.35 ? SLOT.BEARD : SLOT.HAIR);
       else if (skull || jaw) slot = tone(false)(px2, py, nxn, nyn);
       else continue;

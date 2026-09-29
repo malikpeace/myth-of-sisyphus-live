@@ -82,7 +82,7 @@
     var rcF = map(P.blx + (P.lurchX || 0), P.bly), rc = { x: Math.round(rcF[0]), y: Math.round(rcF[1]) };
     var stone = Rock.get({ rx: rx, ry: ry, angle: P.roll, lightDx: P.light[0], lightDy: P.light[1], style: P.rockStyle || "granite" });
     var J = null;
-    if (P.mode === "cheer") J = Hero.rigCheer({ s: s, cheer: P.cheer, manBaseX: P.manBaseX });
+    if (P.mode === "cheer") J = Hero.rigCheer({ s: s, cheer: P.cheer, manBaseX: P.manBaseX, ratio: P.ratio, brad: P.brad, blx: P.blx, bly: P.bly });
     else J = Hero.rig({ s: s, brace: P.brace, stumble: P.stumble, pushDrive: P.pushDrive, windLean: P.windLean, wp: P.wp, activity: P.activity, effort: P.effort, slideEffort: P.slideEffort,
                         tSec: P.tSec, reduced: P.reduced, playing: P.playing, groove: P.groove, ratio: P.ratio, brad: P.brad, blx: P.blx, bly: P.bly, manBaseX: P.manBaseX });
     var heroShadow = null;
