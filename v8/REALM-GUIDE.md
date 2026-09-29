@@ -65,6 +65,7 @@ Optional fields on your realm object (set them in `R.init`, they are palette IND
 - `R.footprint = { col: idx, hi: idx }` footprint colour + its 1-px lit rim (default: the pixel under it darkened two ramp steps / lightened one).
 - `R.markerIdx` overrides the cairn/flag/pole/sign palette slots (see MARK in core.js) if your world needs different stones.
 - `R.noShadow` skips the hero/stone ground shadow (Dusk).
+- `R.noBirds = true` silences the engine's flocks, eagle and old-best bird (you draw your own); `R.noThunder = true` silences the engine's generic thunder flash + bolt (you have your own lightning, e.g. Dusk/Storm).
 Signs use fixed marker slots 247/248 (post) + 253/254 (paper/ink) so they are readable everywhere; do not overwrite 244..254 in your palette.
 Do NOT draw your own bird flocks / eagle / footprints any more (they would double up). Ambient realm life (petals, embers, snow, fireflies, fish) is yours.
 `V8.thumbnail(id, w, h)` renders your realm into the menu card (it builds a synthetic S: `gameState:"title"`, `reduced:true`, `adj:1`,

@@ -68,6 +68,7 @@
     var m = S.mythic; if (!m || !m.type || S.reduced) return;
     var w = fb.w, h = fb.h, p = m.p, fade = Math.sin(p * Math.PI), col = R.birdIdx == null ? 0 : R.birdIdx, hz = S.horizonY || h * 0.5;
     if (m.type === "eagle") {
+      if (R.noBirds) return;
       var ex = Math.round(w + 30 - p * (w + 80)), ey = Math.round(24 + PX.h1(m.seed * 2.2 + 1) * Math.max(24, hz * 0.42));
       eagle(fb, ex, ey, Math.sin(p * 9) * 0.5 - 0.05, col);
       bird(fb, ex + 22, ey + 11, 1, 1 + ((p * 14) & 1), col);
@@ -100,7 +101,7 @@
 
   // thunder: a brief flash lifting the whole frame along its ramps + a small forked bolt in the sky
   V8.mythicPost = function (fb, S, R) {
-    var m = S.mythic; if (!m || m.type !== "thunder" || S.reduced) return;
+    var m = S.mythic; if (!m || m.type !== "thunder" || S.reduced || R.noThunder) return;
     var w = fb.w, h = fb.h, d = fb.d, p = m.p, x, y;
     if (p < 0.34) {
       var a = (1 - p) * 0.5, big = p < 0.12;
