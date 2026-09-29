@@ -37,7 +37,9 @@ and rasterised there; colours come from palette ramps only.
 - [x] M5  Fine/Chunky, Night/Void looks as palette grades over every scene, lazy legacy art (first load ~0.2 MB gz), cache-busting, fuzz + matrix QA, iOS Safari check.
 - [x] Journey: all 14 zones of the endless climb are V8 scenes (`V8_LEGACY_SEGMENTS`, mist crossing, zone-name banner): hills, falls, above-the-clouds (snow), night sky (galaxy), canyon, sunset rome, storm pass, moonlit ruins, ash fields (volcanic), aurora, bone fields, obsidian, elysium (blossom), the void. Wave-2 zone scenes were built by parallel workers (see `ZONES.md`).
 - [x] Hero redesign (owner: "the character model looks TERRIBLE"): six-head athletic figure, spine leaning into the stone, arms at near-full reach, profiled muscles, round joints, face with hairline/brow/eye/nose/beard, kilt + sash + baldric + wrist wraps + sandals, cast shadows, ink outline, chunky small-size figure, summit cheer with clenched fists; colour look is the default (shadow look in Settings).
-- [~] Ongoing: independent art-director review pass, final polish of wave-2 zones.
+- [x] Hero pass 3 (2026-09-29 night): the figure read as a meerkat/kangaroo because the leg IK bent the knees BACKWARD - fixed (knees forward, elbows down); hand-authored bitmap heads (5 sizes) with jaw beard, no hair tail; slope-aware lean, thinner limbs, longer legs, straight-armed diagonal push against giants; constant-speed stance so planted feet do not skate (cadence 0.16); stone spin = ground speed / radius; moonlit-slate silhouette on near-black surrounds (Dusk).
+- [x] Perf: zone scenes are cached across revisits (8 realms used to discard their baked caches on every init) and the heavy ones are pre-built one per idle tick on the gate / menu / pause screen (`V8.warm`); 4x CPU throttle: 4-8 ms/frame average in every scene.
+- [~] Ongoing: three independent review passes (hero states, world tour, UI flows) and their fixes.
 
 ## QA
 `tools/serve.py` (sturdy static server) + `tools/cdp.py` (dependency-free headless-Chrome driver; its `canvas`
@@ -45,5 +47,5 @@ step saves the game's NATIVE pixels) + `tools/start8.py` (start helpers, waits o
 Test URL: `http://127.0.0.1:8811/v8/?qa=1&qaRealmArt=1&qaRealm=hills` then click ENTER -> START.
 
 ## Polish backlog
-- Hero anatomy pass (shoulders, cloth shape, hand detail, more expressive walk); giant-stone facet variety;
+- Hero: hand-drawn hands/feet bitmaps, inner contour lines between limbs, per-part 3-tone shading; giant-stone facet variety;
   Dusk stone/hero palette (blacker, rim stronger); dither/palette-lock pass for gradients, glow, vignette.

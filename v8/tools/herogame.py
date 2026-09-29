@@ -13,7 +13,7 @@ def cap(port, realm, alts, dev, prefix, look="", n=4, secs=5.0, host="http://127
     Game.__init__.__defaults__  # noqa
     G = Game.__new__(Game); G.port, G.w, G.h = port, w, h
     with G:
-        extra = ("&hero=" + look) if look else ""
+        extra = (("&" + look) if "=" in look else ("&hero=" + look)) if look else ""      # LOOK may be a look name or raw extra params (e.g. pixels=chunky)
         G.start(realm, extra, host)
         for alt in alts:
             if alt: ev(G.ws, "window.__sisyphusQa.setAltitude(%s);1" % alt)
