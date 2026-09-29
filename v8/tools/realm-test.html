@@ -35,6 +35,15 @@ src.onload = function () {
     tSec: t, pushTime: 3, reduced: false, playing: true, cosmetic: q.get('cos') || 'none', look: q.get('look') || 'shadow',
     light: [dx, dy], sunK: L.k, sunCol: L.col, ambient: L.ambient, bright: L.bright, ground: L.ground, rockMat: RL.rock.mat, rockStyle: RL.rock.style,
     lipAt: (sx) => lip[Math.max(0, Math.min(w - 1, Math.round(sx)))] };
+  if (q.get('prof')) {                                        // per-stage timing (ms per call, averaged): ?prof=1
+    V8.ensure(S); const R2 = V8.realm, fb2 = V8.fb, pal2 = V8.pal, N = 60, tm = {};
+    const time = (name, fn) => { const s = performance.now(); for (let i = 0; i < N; i++) fn(); tm[name] = +((performance.now() - s) / N).toFixed(2); };
+    time('backdrop', () => R2.backdrop(fb2, S, pal2)); time('ground', () => R2.ground(fb2, S, pal2));
+    time('markers', () => V8.markers(fb2, S, pal2, R2)); time('front', () => R2.front && R2.front(fb2, S, pal2, null));
+    time('actor', () => V8Actor.frameFb(fb2, pal2, A, V8.shade1, V8.shade2)); time('present', () => fb2.present(g, pal2));
+    time('all', () => V8.render(g, S, A));
+    document.title = 'ready ' + JSON.stringify(tm); return;
+  }
   const t0 = performance.now(); for (let i = 0; i < 20; i++) V8.render(g, S, A);
   document.title = 'ready ' + ((performance.now() - t0) / 20).toFixed(2) + 'ms/frame';
 };

@@ -235,6 +235,9 @@
       // per-column layer boundaries wobble so strata are wavy, never ruler-straight
       var b1 = topDu + 9 * Math.sin(wxF * 0.021 + 1.3) + 5 * Math.sin(wxF * 0.057), b2 = clayDu + 12 * Math.sin(wxF * 0.017 + 4.1) + 6 * Math.sin(wxF * 0.049 + 2), b3 = rockDu + 14 * Math.sin(wxF * 0.013 + 0.4) + 7 * Math.sin(wxF * 0.041);
       var y0 = Math.max(0, lip);
+      // value-noise lattice cached along the column (the noise only changes cell every ~20-35 du): clay bands and the deep's blue seams
+      var cnx = wxF * 0.04, cix = Math.floor(cnx), cfx = cnx - cix; cfx = cfx * cfx * (3 - 2 * cfx); var cIy = -1e9, cV0 = 0, cV1 = 0;
+      var dnx = wxF * 0.017, dix = Math.floor(dnx), dfx = dnx - dix; dfx = dfx * dfx * (3 - 2 * dfx); var dIy = -1e9, dV0 = 0, dV1 = 0;
       for (y = y0; y < h; y++) {
         var dd = y - lip, du = dd / zoom, idx, bay = PX.BAYER4[y & 3][x & 3];
         if (du < grassDu) {
@@ -249,7 +252,10 @@
           idx = I.soil + clamp(Math.floor(sl), 0, 5);
           if (PX.h2(wx, dd + 900) > 0.985) idx = I.soil;                     // specks
         } else if (du < b2) {                                                // clay: warmer, banded
-          var band = 0.9 * Math.sin(du * 0.36 + PX.vnoise(wxF * 0.04, du * 0.05, 3) * 5) + (PX.h2(wx >> 1, (dd >> 1) + 70) - 0.5) * 1.1;
+          var cny = du * 0.05, ciy = Math.floor(cny);
+          if (ciy !== cIy) { cIy = ciy; var ca0 = PX.ihash(cix, ciy, 3), cb0 = PX.ihash(cix + 1, ciy, 3), ca1 = PX.ihash(cix, ciy + 1, 3), cb1 = PX.ihash(cix + 1, ciy + 1, 3); cV0 = ca0 + (cb0 - ca0) * cfx; cV1 = ca1 + (cb1 - ca1) * cfx; }
+          var cfy = cny - ciy; cfy = cfy * cfy * (3 - 2 * cfy);
+          var band = 0.9 * Math.sin(du * 0.36 + (cV0 + (cV1 - cV0) * cfy) * 5) + (PX.h2(wx >> 1, (dd >> 1) + 70) - 0.5) * 1.1;
           idx = I.clay + clamp(Math.floor(3.0 + band + bay * 0.8 - (du - b1) / 90), 0, 5);
         } else if (du < b3) {                                                // bedrock: masonry-like blocks with 1-px joints
           var rowH = 15, bi = Math.floor((du - b2) / rowH), off = (bi & 1) ? 13 : 0, bw = 28;
@@ -262,7 +268,10 @@
         } else {                                                             // the deep: near-black, violet glints, a few embers
           var ex = (du - b3);
           var lvd = 2.6 - ex / 130 + (PX.h2(wx >> 1, dd >> 1) - 0.5) * 1.1 + bay * 0.7;
-          var bandN = Math.sin(du * 0.085 + PX.vnoise(wxF * 0.017, du * 0.03, 9) * 7.5);       // wavy world-locked strata in the dark
+          var dny = du * 0.03, diy = Math.floor(dny);
+          if (diy !== dIy) { dIy = diy; var da0 = PX.ihash(dix, diy, 9), db0 = PX.ihash(dix + 1, diy, 9), da1 = PX.ihash(dix, diy + 1, 9), db1 = PX.ihash(dix + 1, diy + 1, 9); dV0 = da0 + (db0 - da0) * dfx; dV1 = da1 + (db1 - da1) * dfx; }
+          var dfy = dny - diy; dfy = dfy * dfy * (3 - 2 * dfy);
+          var bandN = Math.sin(du * 0.085 + (dV0 + (dV1 - dV0) * dfy) * 7.5);                  // wavy world-locked strata in the dark
           if (bandN > 0.35) idx = I.abyss + clamp(Math.floor(lvd + (bandN - 0.35) * 1.6), 0, 3);   // cool blue-black seams
           else idx = I.deep + clamp(Math.floor(lvd), 0, 4);
           var eh = PX.h2(wx, dd + 500);
