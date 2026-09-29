@@ -1871,7 +1871,7 @@
   #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
   @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
-<link rel="stylesheet" href="v8/ui.css?v=v8-09290256">
+<link rel="stylesheet" href="v8/ui.css?v=v8-09290337">
 </head>
 <body>
   <div id="stage">
@@ -2064,36 +2064,36 @@
     </details>
   </div>
 
-<script src="v8/px.js?v=v8-09290256"></script>
-<script src="v8/rock.js?v=v8-09290256"></script>
-<script src="v8/hero.js?v=v8-09290256"></script>
-<script src="v8/actor.js?v=v8-09290256"></script>
-<script src="v8/scenery.js?v=v8-09290256"></script>
-<script src="v8/core.js?v=v8-09290256"></script>
-<script src="v8/overlays.js?v=v8-09290256"></script>
-<script src="v8/realms/hills.js?v=v8-09290256"></script>
-<script src="v8/realms/_bridge.js?v=v8-09290256"></script>
-<script src="v8/realms/waterfalls.js?v=v8-09290256"></script>
-<script src="v8/realms/moon-rome.js?v=v8-09290256"></script>
-<script src="v8/realms/sunset-rome.js?v=v8-09290256"></script>
-<script src="v8/realms/snow.js?v=v8-09290256"></script>
-<script src="v8/realms/blossom.js?v=v8-09290256"></script>
-<script src="v8/realms/dusk.js?v=v8-09290256"></script>
-<script src="v8/realms/galaxy.js?v=v8-09290256"></script>
-<script src="v8/realms/canyon.js?v=v8-09290256"></script>
-<script src="v8/realms/storm.js?v=v8-09290256"></script>
-<script src="v8/realms/volcanic.js?v=v8-09290256"></script>
-<script src="v8/realms/aurora.js?v=v8-09290256"></script>
-<script src="v8/realms/bones.js?v=v8-09290256"></script>
-<script src="v8/realms/obsidian.js?v=v8-09290256"></script>
-<script src="v8/realms/void.js?v=v8-09290256"></script>
-<script src="v8/endless-journey.js?v=v8-09290256"></script>
-<script src="v8/endless-scenery.js?v=v8-09290256"></script>
-<script src="v8/realm-architecture.js?v=v8-09290256"></script>
-<script src="v8/realm-catalog.js?v=v8-09290256"></script>
-<script src="v8/realm-dusk.js?v=v8-09290256"></script>
-<script src="v8/realm-scenes.js?v=v8-09290256"></script>
-<script src="v8/ui.js?v=v8-09290256"></script>
+<script src="v8/px.js?v=v8-09290337"></script>
+<script src="v8/rock.js?v=v8-09290337"></script>
+<script src="v8/hero.js?v=v8-09290337"></script>
+<script src="v8/actor.js?v=v8-09290337"></script>
+<script src="v8/scenery.js?v=v8-09290337"></script>
+<script src="v8/core.js?v=v8-09290337"></script>
+<script src="v8/overlays.js?v=v8-09290337"></script>
+<script src="v8/realms/hills.js?v=v8-09290337"></script>
+<script src="v8/realms/_bridge.js?v=v8-09290337"></script>
+<script src="v8/realms/waterfalls.js?v=v8-09290337"></script>
+<script src="v8/realms/moon-rome.js?v=v8-09290337"></script>
+<script src="v8/realms/sunset-rome.js?v=v8-09290337"></script>
+<script src="v8/realms/snow.js?v=v8-09290337"></script>
+<script src="v8/realms/blossom.js?v=v8-09290337"></script>
+<script src="v8/realms/dusk.js?v=v8-09290337"></script>
+<script src="v8/realms/galaxy.js?v=v8-09290337"></script>
+<script src="v8/realms/canyon.js?v=v8-09290337"></script>
+<script src="v8/realms/storm.js?v=v8-09290337"></script>
+<script src="v8/realms/volcanic.js?v=v8-09290337"></script>
+<script src="v8/realms/aurora.js?v=v8-09290337"></script>
+<script src="v8/realms/bones.js?v=v8-09290337"></script>
+<script src="v8/realms/obsidian.js?v=v8-09290337"></script>
+<script src="v8/realms/void.js?v=v8-09290337"></script>
+<script src="v8/endless-journey.js?v=v8-09290337"></script>
+<script src="v8/endless-scenery.js?v=v8-09290337"></script>
+<script src="v8/realm-architecture.js?v=v8-09290337"></script>
+<script src="v8/realm-catalog.js?v=v8-09290337"></script>
+<script src="v8/realm-dusk.js?v=v8-09290337"></script>
+<script src="v8/realm-scenes.js?v=v8-09290337"></script>
+<script src="v8/ui.js?v=v8-09290337"></script>
 <script>
 (function () {
   "use strict";
@@ -12689,11 +12689,20 @@
     tg.putImageData(im, 0, 0);
     return (v8MistPat[level] = g.createPattern(t, "repeat"));
   }
+  var v8MistRGB = [222, 234, 242];
+  function v8SampleHorizon() {                                       // the colour of the haze at the horizon of the scene just drawn: the mist between two places is made of it
+    try {
+      var fb = V8.fb, pal = V8.pal; if (!fb || !pal) return;
+      var y = Math.max(2, Math.min(fb.h - 3, Math.round(HORIZON) - 6)), r = 0, gg = 0, b = 0, n = 0;
+      for (var k = 1; k <= 5; k++) { var e = pal.rgb[fb.d[y * fb.w + Math.round(fb.w * k / 6)]]; if (e) { r += e[0]; gg += e[1]; b += e[2]; n++; } }
+      if (n) v8MistRGB = [Math.round((r / n * 0.62 + 255 * 0.38) / 12) * 12, Math.round((gg / n * 0.62 + 255 * 0.38) / 12) * 12, Math.round((b / n * 0.62 + 255 * 0.38) / 12) * 12];
+    } catch (e) {}
+  }
   function applyV8Mist() {
     var a = v8MistA; v8MistA = 0;
     if (a <= 0.02) return;
-    var level = Math.max(1, Math.min(16, Math.round(a * 16)));
-    g.save(); g.fillStyle = v8MistPattern(level); g.fillRect(0, 0, VW, VH); g.restore();
+    var level = Math.max(1, Math.min(13, Math.round(a * 13)));       // never fully opaque: a hint of the scene always shows through
+    g.save(); g.fillStyle = v8DitherPattern(v8MistRGB, level); g.fillRect(0, 0, VW, VH); g.restore();
   }
   function v8Geometry() {
     var boulderScale = boulderScaleNow(), brad = Math.round(BOULDER_R * BASE_SCALE * boulderScale);
@@ -12743,6 +12752,7 @@
     var P = v8LookActor(v8ActorParams(day, g0, ztx, zty, zoom, light));
     S.dots = []; v8Dust(day, g0, ztx, zty, zoom, S.dots);
     V8.render(g, S, P);
+    if (v8MistA < 0.02 || (v8Cross && (tSec - v8Cross.t0) / V8_CROSS_SECONDS > 0.5 && !v8Cross.sampled)) { v8SampleHorizon(); if (v8Cross) v8Cross.sampled = true; }
     updateControlHintNearRock(g0.blx, g0.bly, g0.brad, ztx, zty, zoom);
     applyV8Mist();
     drawHudLayers(day);
@@ -14842,29 +14852,27 @@
         g.fillRect(0, VH - (eb + 1) * bandH, VW, bandH);
       }
     }
-    // combo multiplier number
-    if (comboCount >= 2) {
+    // one tidy stack above the man: the combo number, COMBO, then the newest judgement (the pull-back labels take the space while they are up)
+    var pullHide = pullAmt() > 0.25, stackY = Math.max(24, boulderSY - 64);
+    if (comboCount >= 2 && !pullHide) {
       var tier = comboCount >= 25 ? [120, 230, 255] : (comboCount >= 12 ? [240, 200, 90] : [150, 220, 150]);
-      var pop = clamp01(lastJudgeT / 0.75);
-      var ps = (comboCount >= 12 ? 3 : 2) + (pop > 0.6 ? 1 : 0);
+      var ps = comboCount >= 12 ? 3 : 2;
       var cyTop = Math.max(24, boulderSY - 64 - 7 * ps);
       pxText("x" + comboCount, Math.round(boulderSX), Math.round(cyTop), ps, css(tier, 0.98), null, "center", "top", "rgba(8,10,16,0.9)");
       pxText("COMBO", Math.round(boulderSX), Math.round(cyTop + 8 * ps + 3), 1, css(tier, 0.8), "rgba(8,10,16,0.8)", "center", "top");
+      stackY = cyTop + 8 * ps + 16;
     }
-    // floating per-tap judgment labels
-    var popsDrawn = 0;                                             // bitmap labels stack into a smear at a fast tap rate: show only the two newest
+    // the newest per-tap judgement only (older ones just expire): overlapping bitmap words read as a smear
+    var newest = null;
     for (var i = judgePops.length - 1; i >= 0; i--) {
-      var p = judgePops[i];
-      var age = tSec - p.t0;
+      var p = judgePops[i], age = tSec - p.t0;
       if (age < 0 || age > 0.7) { judgePops.splice(i, 1); continue; }
-      if (popsDrawn++ >= 2) continue;
-      var k = clamp01(age / 0.7);
-      var col = JUDGE_COL[String(p.kind)] || [220, 220, 220];
-      var alpha = (1 - k) * (p.kind >= 2 ? 0.96 : 0.9);
-      var rise = 8 + k * 30;
-      var js = p.kind >= 3 ? 2 : 1;
-      g.globalAlpha = alpha;
-      pxText(JUDGE_TEXT[String(p.kind)] || "", Math.round(p.x), Math.round(p.y - 26 - rise), js, css(col, 1), null, "center", "middle", "rgba(8,10,16,0.85)");
+      if (!newest) newest = p;
+    }
+    if (newest && !pullHide) {
+      var k = clamp01((tSec - newest.t0) / 0.7), col = JUDGE_COL[String(newest.kind)] || [220, 220, 220];
+      g.globalAlpha = (1 - k * k) * (newest.kind >= 2 ? 0.98 : 0.92);
+      pxText(JUDGE_TEXT[String(newest.kind)] || "", Math.round(boulderSX), Math.round(stackY - k * 6), newest.kind >= 3 ? 2 : 1, css(col, 1), null, "center", "top", "rgba(8,10,16,0.85)");
       g.globalAlpha = 1;
     }
     g.restore();
@@ -14998,8 +15006,11 @@
     // Extend by at most one logical pixel instead of rounding down. Rounding down
     // left a 1-2 CSS-pixel strip uncovered on some iPhone standalone viewport
     // measurements; extending keeps integer scaling and crops the harmless excess.
-    var nextVW = Math.max(160, Math.ceil(winW / displayScale));
-    var nextVH = Math.max(220, Math.ceil(winH / displayScale));
+    // The world wants at least 160 x 220 game pixels, but never more than a few rows/columns beyond what the screen shows: Chunky on a landscape phone
+    // used to keep 220 rows at 3x (660 css px) inside a 430 px viewport and push the man off the bottom of the screen.
+    var seeW = Math.ceil(winW / displayScale), seeH = Math.ceil(winH / displayScale);
+    var nextVW = Math.max(seeW, Math.min(160, seeW + 12));
+    var nextVH = Math.max(seeH, Math.min(220, seeH + 30));
     var nextRES = displayScale;
     // Skip when nothing changed: reassigning canvas.width/height WIPES the canvas,
     // so the many launch-time resize ticks (rAF/load/delays/observer) were each

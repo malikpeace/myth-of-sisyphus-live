@@ -584,6 +584,7 @@
       for (var x = xa; x < xb; x++) {
         var v = sd[srow + x]; if (!v) continue;
         if (hy >= 0) { var tx = x + dx, hx = (tx - hole.cx) / hole.rx, q = hx * hx + hy; if (q < 1 && DITH[((ty & 3) << 2) | (tx & 3)] + 0.5 < 0.78 * (1 - q * q)) continue; }
+        var dv = d[drow + x]; if (dv > 200 && dv < 244) continue;             // never paint over the man or the stone: the tree stands BEHIND them
         d[drow + x] = lut[v];
       }
     }
@@ -956,7 +957,7 @@
     K.windAcc += (S.windGust || 0) * dt * 70;
     var heroX = Math.round(S.ztx + S.anchorX * zoom), heroY = S.lip[clamp(heroX, 0, w - 1)];
     var hole = { cx: heroX + Math.round(16 * zoom), cy: heroY - Math.round(30 * zoom), rx: Math.round(62 * zoom) + 14, ry: Math.round(58 * zoom) + 14 };
-    giants(fb, S, hole);
+    giants(fb, S, null);                                                        // (the hero-shaped see-through window is gone: the actor pixels are protected instead)
     petals(fb, S, t);
   };
 
