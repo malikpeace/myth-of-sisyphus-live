@@ -15,7 +15,7 @@
   // slot numbers in the shared actor sprite (rock owns 1..13)
   var SLOT = { T0: 16, T1: 17, T2: 18, T3: 19, RIM: 20, F0: 21, F1: 22, F2: 23, F3: 24, CLOTH: 25, CLOTHHI: 26, CLOTHSH: 27,
     HAIR: 28, HAIRHI: 29, BEARD: 30, EYE: 31, WRAP: 32, BAND: 33, LAUREL: 34, AURA: 35, BRONZE: 36, SWEAT: 37,
-    DIRT0: 38, DIRT1: 39, DIRT2: 40, CAPE: 41, CAPEHI: 42, GLINT: 43 };
+    DIRT0: 38, DIRT1: 39, DIRT2: 40, CAPE: 41, CAPEHI: 42, GLINT: 43, BELT: 14, OUT: 15 };
 
   // ---------- palette for the figure ----------
   // o: look ("shadow"|"color"), cosmetic, ambient [r,g,b] (sky tone), sunCol [r,g,b], sunK 0..1, bright 0..1 (how lit the world is), ground [r,g,b]
@@ -23,15 +23,19 @@
     var p = [], A = o.ambient || [90, 100, 130], C = o.sunCol || [255, 226, 176], k = clamp01(o.sunK == null ? 0.6 : o.sunK);
     var kk = Math.pow(k, 0.7), bright = clamp01(o.bright == null ? 0.7 : o.bright);
     var T, cloth, hair;
+    var outCol;
     if (o.look === "color") {
       var f = 0.42 + 0.58 * bright;
-      var base = [[70, 43, 32], [118, 74, 49], [168, 116, 76], [218, 172, 124]].map(function (c) { return [c[0] * f, c[1] * f, c[2] * f]; });
+      var base = [[64, 35, 40], [114, 66, 50], [174, 113, 72], [230, 173, 113]].map(function (c) { return [c[0] * f, c[1] * f, c[2] * f]; });
       T = [PX.mix(base[0], A, 0.12), PX.mix(base[1], A, 0.08), PX.mix(base[2], C, 0.14 * kk), PX.mix(base[3], C, 0.26 * kk)];
-      cloth = PX.mix([206, 194, 164], A, 0.16 + 0.3 * (1 - bright)); hair = PX.mix([42, 28, 20], A, 0.1);
+      cloth = PX.mix([214, 202, 172], A, 0.14 + 0.3 * (1 - bright)); hair = PX.mix([46, 30, 22], A, 0.1);
+      outCol = PX.mix([26, 16, 20], A, 0.08);
     } else {
       var ink = PX.mix([7, 6, 12], A, 0.045);
-      T = [ink, PX.mix(ink, A, 0.075), PX.mix(ink, C, 0.20 * kk + 0.03), PX.mix(ink, C, 0.48 * kk + 0.04)];
-      cloth = PX.mix(ink, [176, 80, 50], 0.62 + 0.30 * bright); hair = PX.mix(ink, [86, 72, 64], 0.30 + 0.25 * kk);
+      // dark, backlit: sky fill lifts the upward planes into cool slate, the sun paints only the rim
+      T = [ink, PX.mix(ink, A, 0.16), PX.mix(PX.mix(ink, A, 0.30), C, 0.16 * kk), PX.mix(ink, C, 0.48 * kk + 0.04)];
+      cloth = PX.mix(ink, [172, 86, 54], 0.30 + 0.12 * bright); hair = PX.mix(ink, [92, 76, 66], 0.30 + 0.25 * kk);
+      outCol = ink;
     }
     if (o.cosmetic === "bronze") T = T.map(function (c) { return PX.mix(c, [96, 112, 88], 0.55); });
     var rim = PX.mix(C, [255, 255, 255], 0.22);
@@ -39,7 +43,8 @@
     p[SLOT.T0] = T[0]; p[SLOT.T1] = T[1]; p[SLOT.T2] = T[2]; p[SLOT.T3] = T[3];
     p[SLOT.RIM] = k > 0.06 ? PX.mix(T[3], rim, clamp01(0.35 + kk * 0.7)) : T[3];
     p[SLOT.F0] = far(T[0]); p[SLOT.F1] = far(T[1]); p[SLOT.F2] = far(T[2]); p[SLOT.F3] = far(T[3]);
-    p[SLOT.CLOTH] = cloth; p[SLOT.CLOTHHI] = PX.mix(cloth, C, 0.30 * kk + 0.12); p[SLOT.CLOTHSH] = PX.mix(cloth, T[0], 0.5);
+    p[SLOT.CLOTH] = cloth; p[SLOT.CLOTHHI] = PX.mix(cloth, C, 0.34 * kk + 0.12); p[SLOT.CLOTHSH] = PX.mix(cloth, T[0], 0.55);
+    p[SLOT.BELT] = o.look === "color" ? PX.mix([90, 56, 40], A, 0.1 + 0.2 * (1 - bright)) : PX.mix(T[0], [70, 46, 32], 0.5); p[SLOT.OUT] = outCol;
     p[SLOT.HAIR] = hair; p[SLOT.HAIRHI] = PX.mix(hair, C, 0.5 * kk + 0.1);
     p[SLOT.BEARD] = PX.mix(hair, T[1], 0.4);
     p[SLOT.EYE] = [14, 10, 12];
@@ -125,6 +130,7 @@
 
   // ---------- rasteriser ----------
   var sprite = null;
+  function isBody(v) { return (v >= 16 && v <= 34) || v === 14; }
   function draw(sp, P, J) {
     // P.map(lx,ly) -> [sx,sy]; P.z = px per local unit
     var z = P.z, s = P.s, lod = P.lod, L2 = P.light || [-0.4, -0.8], k = P.lightK == null ? 0.6 : P.lightK;
@@ -138,7 +144,7 @@
       return function (x, y, u, v) {
         var dot = u * L2[0] + v * L2[1], c;
         if (lod < 0.35) return dot > 0.25 && k > 0.05 ? (far ? SLOT.F3 : SLOT.RIM) : (far ? SLOT.F1 : SLOT.T1);
-        if (dot > 0.68) c = 3; else if (dot > 0.2) c = 2; else if (dot > -0.45) c = 1; else c = 0;
+        if (dot > 0.66) c = 3; else if (dot > 0.1) c = 2; else if (dot > -0.42) c = 1; else c = 0;
         if (c === 3 && !isColor && k > 0.06) return far ? SLOT.F3 : SLOT.RIM;
         return (far ? SLOT.F0 : SLOT.T0) + c;
       };
@@ -167,19 +173,25 @@
       var cape = [A(J.sh.x - 2 * s, J.sh.y + 1 * s), A(J.hip.x - 4 * s, J.hip.y + 2 * s), A(J.hip.x - (17 + J.brace * 4) * s, -3 * s), A(J.hip.x - 6 * s, -2 * s)];
       PX.poly(sp, cape, function (x, y) { return ((x + y) & 3) === 0 ? SLOT.CAPEHI : SLOT.CAPE; });
     }
-    // ---- draw order: far limbs, torso, near leg, loincloth, near arm + shoulder, head (last so nothing hides it) ----
+    // local-frame helpers: one local unit forward / down in screen pixels (so bulges follow the slope), and gravity-hung cloth
+    var o0 = A(0, 0), o1 = A(1, 0), o2 = A(0, 1), fwdV = [o1[0] - o0[0], o1[1] - o0[1]], dnV = [o2[0] - o0[0], o2[1] - o0[1]];
+    function off(p, ax, ay) { return { x: p.x + fwdV[0] * ax + dnV[0] * ay, y: p.y + fwdV[1] * ax + dnV[1] * ay }; }
+    function lp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
+    // ---- draw order: far limbs, torso, near leg, kilt, shoulder + near arm, head (last so nothing hides it) ----
     var i;
     function leg(l, far) {
       var shade = shadeFn(far);
-      PX.capsule(sp, hip.x, hip.y, l.knee.x, l.knee.y, R(3.6 * s), R(2.8 * s), shade);
-      PX.capsule(sp, l.knee.x, l.knee.y, l.foot.x, l.foot.y, R(2.8 * s), R(1.9 * s), shade);
-      PX.capsule(sp, l.foot.x - 1.6 * z * s, l.foot.y - 0.9 * z * s, l.foot.x + 3.6 * z * s, l.foot.y - 0.9 * z * s, R(1.35 * s), R(1.2 * s), shade);
+      PX.capsule(sp, hip.x, hip.y, l.knee.x, l.knee.y, R(4.1 * s), R(2.95 * s), shade);                  // thigh: strong at the hip
+      PX.capsule(sp, l.knee.x, l.knee.y, l.foot.x, l.foot.y, R(2.95 * s), R(1.8 * s), shade);            // shin
+      if (lod > 0.45) { var cc = off(lp(l.knee, l.foot, 0.3), -0.85 * s, 0); PX.disc(sp, cc.x, cc.y, R(2.95 * s), shade); }   // calf bulge on the back of the leg
+      var t0 = off(l.foot, -1.5 * s, -0.9 * s), t1 = off(l.foot, 3.9 * s, -0.9 * s);
+      PX.capsule(sp, t0.x, t0.y, t1.x, t1.y, R(1.45 * s), R(1.15 * s), shade);                           // sandal: heel and toe
     }
     function arm(shoulder, elbow, hand, far) {
       var shade = shadeFn(far), e = M(elbow.x, elbow.y), h = M(hand.x, hand.y);
-      PX.capsule(sp, shoulder.x, shoulder.y, e.x, e.y, R(2.75 * s), R(2.3 * s), shade);
-      PX.capsule(sp, e.x, e.y, h.x, h.y, R(2.3 * s), R(1.7 * s), shade);
-      if (lod > 0.35) PX.disc(sp, h.x + 0.4 * z * s, h.y, R(1.85 * s), shade);
+      PX.capsule(sp, shoulder.x, shoulder.y, e.x, e.y, R(3.05 * s), R(2.45 * s), shade);                 // upper arm
+      PX.capsule(sp, e.x, e.y, h.x, h.y, R(2.5 * s), R(1.7 * s), shade);                                 // forearm: full at the elbow, tapering to the wrist
+      if (lod > 0.35) PX.disc(sp, h.x + 0.4 * z * s, h.y, R(1.9 * s), shade);
       if (cos === "wraps" && lod > 0.45) {
         var wx = e.x + (h.x - e.x) * 0.72, wy = e.y + (h.y - e.y) * 0.72;
         PX.disc(sp, wx, wy, R(2.1 * s), function () { return SLOT.WRAP; });
@@ -188,40 +200,62 @@
     for (i = 0; i < legs.length; i++) if (legs[i].far) leg(legs[i], true);
     if (J.cheer) { J.arms.forEach(function (a) { if (a.far) arm(sh, a.elbow, a.hand, true); }); }
     else arm(shB, J.elbow2, J.hand2, true);
-    // torso: broad chest tapering to the waist
-    PX.capsule(sp, hip.x, hip.y, sh.x, sh.y, R(3.8 * s), R(5.2 * s), shadeFn(false));
+    // torso: broad chest tapering to a narrow waist, a pectoral mass in front and a trapezius hump behind the neck
+    PX.capsule(sp, hip.x, hip.y, sh.x, sh.y, R(3.5 * s), R(5.0 * s), shadeFn(false));
+    if (lod > 0.4) {
+      var ch = off(lp(hip, sh, 0.7), 0.8 * s, 0.2 * s); PX.disc(sp, ch.x, ch.y, R(4.3 * s), shadeFn(false));
+      var tz = off(lp(hip, sh, 0.92), -1.7 * s, -0.5 * s); PX.disc(sp, tz.x, tz.y, R(3.4 * s), shadeFn(false));
+    }
     if (J.idle > 0.02 && lod > 0.5) PX.disc(sp, hip.x + (sh.x - hip.x) * 0.58, hip.y + (sh.y - hip.y) * 0.58, R((1.4 + J.idle * 0.5) * s), shadeFn(false));
     for (i = 0; i < legs.length; i++) if (!legs[i].far) leg(legs[i], false);
-    // loincloth: a front flap hanging from the waist, over the thighs
+    // kilt: a belted wrap over both thighs; the belt follows the hips, the cloth hangs straight down by gravity, hem torn into teeth
     if (lod > 0.3) {
-      var sway = Math.sin(P.tSec * 2.4 + P.wp * 6.28) * 0.9 * s * (P.reduced ? 0 : 1) * (0.4 + P.activity), wl2 = (P.windLean || 0) * 2.2 * s;
-      var cl = [A(J.hip.x - 0.4 * s, J.hip.y - 1.6 * s), A(J.hip.x + 5.4 * s, J.hip.y - 1.6 * s),
-                A(J.hip.x + 5.0 * s + sway * 0.5 - wl2 * 0.5, J.hip.y + 7.6 * s), A(J.hip.x + 0.2 * s + sway - wl2, J.hip.y + 8.2 * s)];
-      var top = Math.min(cl[0][1], cl[1][1]);
+      var hz = z * s, sway = Math.sin(P.tSec * 2.4 + P.wp * 6.28) * 0.9 * (P.reduced ? 0 : 1) * (0.4 + P.activity), wl2 = (P.windLean || 0) * 2.2;
+      var tl = A(J.hip.x - 3.5 * s, J.hip.y - 2.0 * s), tr = A(J.hip.x + 4.9 * s, J.hip.y - 2.0 * s), drop = 10.6 * hz, span = tr[0] - tl[0];
+      var cl = [tl, tr, [tr[0] + (1.5 + sway * 0.6 - wl2 * 0.6) * hz, tr[1] + drop * 0.90], [tr[0] - 1.7 * hz + (sway * 0.8 - wl2 * 0.8) * hz, tr[1] + drop * 1.10],
+                [tl[0] + span * 0.56 + (sway * 0.9 - wl2 * 0.9) * hz, tl[1] + drop * 0.94], [tl[0] + span * 0.30 + (sway - wl2) * hz, tl[1] + drop * 1.12], [tl[0] - 0.6 * hz + (sway - wl2) * hz, tl[1] + drop * 0.98]];
+      var top = Math.min(tl[1], tr[1]);
       PX.poly(sp, cl, function (x, y) {
-        var e = y - top;
-        if (e < 1.05 * z * s + 0.4) return SLOT.CLOTHSH;                                   // waistband
-        return e > 6.4 * z * s ? SLOT.CLOTHHI : ((((x * 3 + y) % 7) + 7) % 7 === 0 ? SLOT.CLOTHSH : SLOT.CLOTH);
+        var e = y - top, col = (x - tl[0]) / Math.max(1, span);
+        if (e < 1.35 * hz + 0.2) return SLOT.BELT;                                                        // the belt
+        if (e < 1.35 * hz + 1.2 && col > 0.42 && col < 0.55) return SLOT.CLOTHHI;                           // buckle glint
+        var fold = 0.36 + (e / (10 * hz)) * 0.05, fold2 = 0.68 + (e / (10 * hz)) * 0.04;
+        if (Math.abs(col - fold) < 0.55 / Math.max(2, span) || Math.abs(col - fold2) < 0.55 / Math.max(2, span)) return SLOT.CLOTHSH;   // two vertical folds
+        if (col < 0.2 || e > 8.6 * hz) return e > 8.6 * hz && col > 0.5 ? SLOT.CLOTHSH : SLOT.CLOTHHI;
+        return col > 0.84 ? SLOT.CLOTHSH : SLOT.CLOTH;
       });
     }
     // shoulder mass, then the near arm
-    PX.disc(sp, sh.x + 0.3 * z * s, sh.y + 0.5 * z * s, R(3.7 * s), shadeFn(false));
+    PX.disc(sp, sh.x + 0.3 * z * s, sh.y + 0.5 * z * s, R(3.8 * s), shadeFn(false));
     if (J.cheer) { J.arms.forEach(function (a) { if (!a.far) arm(sh, a.elbow, a.hand, false); }); }
     else arm(sh, J.elbow, J.hand, false);
     // neck + head last: hair, beard, face
-    PX.capsule(sp, neck.x, neck.y, head.x - 0.2 * z * s, head.y + hr * 0.55, R(1.9 * s), R(2.1 * s), shadeFn(false));
+    PX.capsule(sp, neck.x, neck.y, head.x - 0.2 * z * s, head.y + hr * 0.55, R(2.0 * s), R(2.2 * s), shadeFn(false));
     PX.disc(sp, head.x, head.y, hr, function (x, y, u, v) {
       var dot = u * L2[0] + v * L2[1];
       if (lod < 0.35) return dot > 0.2 && k > 0.05 ? SLOT.RIM : SLOT.T1;
-      if (v < -0.2 && u < 0.5) return dot > 0.62 ? SLOT.HAIRHI : SLOT.HAIR;                       // hair cap
-      if (u > 0.2 && v > 0.2) return SLOT.BEARD;                                                    // beard along the jaw
-      if (isColor && u > 0.35 && v > -0.35 && v < -0.05 && lod > 0.7) return SLOT.EYE;
+      if ((v < -0.05 && u < 0.62) || u < -0.42) return dot > 0.55 ? SLOT.HAIRHI : SLOT.HAIR;      // full hair over the crown and down the back of the head
+      if (u > 0.05 && v > 0.32) return SLOT.BEARD;                                                   // beard along the jaw
+      if (isColor && u > 0.44 && u < 0.78 && v > 0.0 && v < 0.2 && lod > 0.7) return SLOT.EYE;
       return dot > 0.55 ? SLOT.T3 : dot > 0.0 ? SLOT.T2 : SLOT.T1;
     });
-    if (lod > 0.55) sp.set(head.x + hr + 0.4, head.y + hr * 0.05, isColor ? SLOT.T2 : (k > 0.06 ? SLOT.T3 : SLOT.T1));   // the nose: a face in profile, looking at the stone
+    if (lod > 0.55) sp.set(head.x + hr + 0.4, head.y + hr * 0.12, isColor ? SLOT.T2 : (k > 0.06 ? SLOT.T3 : SLOT.T1));   // the nose: a face in profile, looking at the stone
     if (cos === "headband" && lod > 0.45) PX.capsule(sp, head.x - hr * 0.9, head.y - hr * 0.25, head.x + hr * 0.7, head.y - hr * 0.25, Math.max(0.6, 0.6 * z * s), Math.max(0.6, 0.6 * z * s), function () { return SLOT.BAND; });
     if (cos === "laurel" && lod > 0.45) for (var li = -2; li <= 2; li++) sp.set(head.x + li * 1.6 * z * s, head.y - hr - (Math.abs(li) % 2) * z * s * 0.8, SLOT.LAUREL);
-
+    // selective outline (colour look): a dark 1-px edge on the shaded side; the sunlit side keeps its bright rim
+    if (isColor && lod > 0.45) {
+      var sw = sp.w, sh2 = sp.h, sd = sp.d, mark = [];
+      for (var oy = 0; oy < sh2; oy++) for (var ox = 0; ox < sw; ox++) {
+        var oo = oy * sw + ox; if (sd[oo] !== 0) continue;
+        var hit = false, nb;
+        if (ox > 0 && isBody(sd[oo - 1]) && L2[0] < 0.3) hit = true;                 // body pixel to the left: this is its right edge
+        else if (ox < sw - 1 && isBody(sd[oo + 1]) && -L2[0] < 0.3) hit = true;
+        else if (oy > 0 && isBody(sd[oo - sw]) && L2[1] < 0.3) hit = true;           // body pixel above: its lower edge
+        else if (oy < sh2 - 1 && isBody(sd[oo + sw]) && -L2[1] < 0.3) hit = true;
+        if (hit) mark.push(oo);
+      }
+      for (var mi = 0; mi < mark.length; mi++) sd[mark[mi]] = SLOT.OUT;
+    }
     // a rim glint so a tiny figure never disappears into the scenery
     if (lod < 0.5 && k > 0.03) {
       var gx = head.x + L2[0] * hr, gy = head.y + L2[1] * hr; sp.set(gx, gy, SLOT.GLINT);

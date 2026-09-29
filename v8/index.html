@@ -6283,6 +6283,7 @@
   }
   window.__sisyphusDebug = function () {
     return {
+      heroX: Math.round(curCamZtx + ANCHOR_X * curCamZoom), heroY: Math.round(curCamZty + ANCHOR_Y * curCamZoom), camZoom: Number((curCamZoom || 0).toFixed(3)),
 	      state: gameState,
 	      mode: playMode,
 	      burden: currentBurden,

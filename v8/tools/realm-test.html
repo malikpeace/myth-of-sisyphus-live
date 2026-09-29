@@ -30,7 +30,8 @@ src.onload = function () {
   const ox = ztx + ANCHOR_X * zoom, oy = zty + (ANCHOR_Y + 3) * zoom;
   const rcx = ox + zoom * (blx * Math.cos(theta) + bly * Math.sin(theta)), rcy = oy + zoom * (-blx * Math.sin(theta) + bly * Math.cos(theta));
   let dx = L.x - rcx, dy = L.y - rcy; const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
-  const A = { z: zoom, s, ox, oy, theta, blx, bly, brad, ratio: brad / (28 * s), roll: t * 2.1, squash: 0, lurchX: 0, manBaseX: 0, mode: 'push', wp: t * 0.78, activity: 1, effort: 0.9, slideEffort: 0, brace: 0, stumble: 0, pushDrive: 0, windLean: 0, groove: 0,
+  const A = { z: zoom, s, ox, oy, theta, blx, bly, brad, ratio: brad / (28 * s), roll: t * 2.1, squash: 0, lurchX: 0, manBaseX: 0, mode: q.get('mode') || 'push', wp: t * 0.78, activity: parseFloat(q.get('act') || '1'), effort: 0.9, slideEffort: 0, brace: parseFloat(q.get('brace') || '0'), stumble: parseFloat(q.get('stumble') || '0'), pushDrive: parseFloat(q.get('pd') || '0'), windLean: parseFloat(q.get('wl') || '0'), groove: 0,
+    cheer: { release: parseFloat(q.get('rel') || '1'), arms: parseFloat(q.get('arms') || '1'), jump: parseFloat(q.get('jump') || '0.4') },
     tSec: t, pushTime: 3, reduced: false, playing: true, cosmetic: q.get('cos') || 'none', look: q.get('look') || 'shadow',
     light: [dx, dy], sunK: L.k, sunCol: L.col, ambient: L.ambient, bright: L.bright, ground: L.ground, rockMat: RL.rock.mat, rockStyle: RL.rock.style,
     lipAt: (sx) => lip[Math.max(0, Math.min(w - 1, Math.round(sx)))] };
