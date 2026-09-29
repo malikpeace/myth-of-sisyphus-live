@@ -22,13 +22,16 @@ Simulation/physics are untouched. New drawing code lives in separate modules:
 - `hero.js`   the figure: the game's own rig (walk, brace, stumble, push-drive, wind lean, giant lean-in, hands
               on the stone) rasterised natively with shaded capsules; LOD down to a speck; cosmetics.
 - `actor.js`  composes stone + hero + dithered shadow into one indexed sprite, palette per frame.
+- `scenery.js` shared generators: dithered sky bands, cloud sprites, mountain ranges (ridges/wedges/snow), forested ridges, pines.
+- `core.js`   the realm pipeline: indexed framebuffer + palette (named ramps, shade tables), markers (cairns, best flag).
+- `realms/*.js` one module per realm (palette, backdrop, ground, front, light). Add a realm by registering with `V8.register`.
 - `index.html` glue: `v8ActorPass()` builds the parameters each frame and replaces the old coarse-buffer actor.
 Rule: nothing is ever resampled. Skeletons/centres are mapped to screen pixels (slope rotation + camera zoom)
 and rasterised there; colours come from palette ramps only.
 
 ## Milestones
 - [x] M1  New hero + rock in every realm and mode (Settings: hero look). Verified desktop/phone, all modes.
-- [ ] M2  V8 realm pipeline (indexed framebuffer + palette animation) + Hills scene at reference quality
+- [~] M2  V8 realm pipeline (indexed framebuffer + palette) LIVE; Hills scene rebuilt in code (first pass in the game; art polish ongoing: underground strata, props, title composition, foreground pines)
 - [ ] M3  Falls, Moon Rome, Snow, Sunset Rome, Blossom, Dusk ported to the pipeline
 - [ ] M4  Pixel UI kit (bitmap font, panels, cards, share card)
 - [ ] M5  Fine/Chunky setting, polish, performance, full QA matrix

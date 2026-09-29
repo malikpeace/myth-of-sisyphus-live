@@ -176,5 +176,75 @@
     return canvas;
   };
 
+
+  // ---------- palette + indexed framebuffer ----------
+  // A Palette owns up to 256 entries. Realms allocate NAMED RAMPS (dark -> light) so effects can move along a
+  // ramp (shade / lighten) and stay inside the palette. Animating the palette (dusk -> night, lightning flash,
+  // fades) recolours the whole scene without touching a single pixel of the framebuffer.
+  function Palette() { this.rgb = []; for (var i = 0; i < 256; i++) this.rgb.push([0, 0, 0]); this.n = 1; this.ramps = {}; this.p32 = new Uint32Array(256); this.dirty = true; }
+  Palette.prototype.ramp = function (name, colors) {
+    var base = this.n;
+    for (var i = 0; i < colors.length; i++) this.rgb[base + i] = colors[i].slice();
+    this.ramps[name] = { base: base, n: colors.length };
+    this.n += colors.length; this.dirty = true;
+    return base;
+  };
+  Palette.prototype.setRamp = function (name, colors) {
+    var r = this.ramps[name];
+    for (var i = 0; i < r.n; i++) { var c = colors[Math.min(i, colors.length - 1)]; this.rgb[r.base + i][0] = c[0]; this.rgb[r.base + i][1] = c[1]; this.rgb[r.base + i][2] = c[2]; }
+    this.dirty = true;
+  };
+  Palette.prototype.set = function (idx, c) { var e = this.rgb[idx]; e[0] = c[0]; e[1] = c[1]; e[2] = c[2]; this.dirty = true; };
+  Palette.prototype.build = function () {
+    if (!this.dirty) return this.p32;
+    for (var i = 0; i < 256; i++) {
+      var c = this.rgb[i];
+      this.p32[i] = (255 << 24) | ((Math.max(0, Math.min(255, Math.round(c[2]))) & 255) << 16) | ((Math.max(0, Math.min(255, Math.round(c[1]))) & 255) << 8) | (Math.max(0, Math.min(255, Math.round(c[0]))) & 255);
+    }
+    this.dirty = false; return this.p32;
+  };
+  PX.Palette = Palette;
+
+  function Frame(w, h) { this.resize(w, h); }
+  Frame.prototype.resize = function (w, h) {
+    this.w = w; this.h = h; this.d = new Uint8Array(w * h); this.im = null; this.d32 = null; this.cv = null;
+  };
+  Frame.prototype.clear = function (c) { this.d.fill(c || 0); };
+  Frame.prototype.set = function (x, y, c) { if (x >= 0 && y >= 0 && x < this.w && y < this.h) this.d[y * this.w + x] = c; };
+  Frame.prototype.get = function (x, y) { return (x >= 0 && y >= 0 && x < this.w && y < this.h) ? this.d[y * this.w + x] : 0; };
+  Frame.prototype.fillRect = function (x, y, w, h, c) {
+    var x0 = Math.max(0, x | 0), y0 = Math.max(0, y | 0), x1 = Math.min(this.w, (x + w) | 0), y1 = Math.min(this.h, (y + h) | 0);
+    if (x1 <= x0) return;
+    for (var yy = y0; yy < y1; yy++) this.d.fill(c, yy * this.w + x0, yy * this.w + x1);
+  };
+  Frame.prototype.vline = function (x, y0, y1, c) {                     // inclusive y0..y1-1 (clipped)
+    if (x < 0 || x >= this.w) return;
+    y0 = Math.max(0, y0 | 0); y1 = Math.min(this.h, y1 | 0);
+    for (var y = y0, o = y0 * this.w + x; y < y1; y++, o += this.w) this.d[o] = c;
+  };
+  // copy an indexed Sprite (slot 0 = transparent) at integer position; slots are offset by slotBase
+  Frame.prototype.blit = function (sp, dx, dy, slotBase) {
+    var sw = sp.w, sh = sp.h, sd = sp.d, w = this.w, h = this.h, d = this.d, base = slotBase | 0;
+    for (var y = 0; y < sh; y++) {
+      var ty = dy + y; if (ty < 0 || ty >= h) continue;
+      for (var x = 0; x < sw; x++) {
+        var v = sd[y * sw + x]; if (!v) continue;
+        var tx = dx + x; if (tx < 0 || tx >= w) continue;
+        d[ty * w + tx] = v + base;
+      }
+    }
+  };
+  // palette indices -> RGBA -> canvas (1:1, integer, no smoothing)
+  Frame.prototype.present = function (g, pal) {
+    var p32 = pal.build();
+    if (!this.cv) { this.cv = document.createElement("canvas"); this.cv.width = this.w; this.cv.height = this.h; this.im = this.cv.getContext("2d").createImageData(this.w, this.h); this.d32 = new Uint32Array(this.im.data.buffer); }
+    var d32 = this.d32, d = this.d, n = d.length;
+    for (var i = 0; i < n; i++) d32[i] = p32[d[i]];
+    this.cv.getContext("2d").putImageData(this.im, 0, 0);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(this.cv, 0, 0);
+  };
+  PX.Frame = Frame;
+
   root.PX = PX;
 })(typeof window !== "undefined" ? window : this);

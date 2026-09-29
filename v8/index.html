@@ -2064,6 +2064,9 @@
 <script src="v8/rock.js?v=v8-1"></script>
 <script src="v8/hero.js?v=v8-1"></script>
 <script src="v8/actor.js?v=v8-1"></script>
+<script src="v8/scenery.js?v=v8-1"></script>
+<script src="v8/core.js?v=v8-1"></script>
+<script src="v8/realms/hills.js?v=v8-1"></script>
 <script src="v8/endless-journey.js?v=v8-1"></script>
 <script src="v8/endless-scenery.js?v=v8-1"></script>
 <script src="v8/realm-architecture.js?v=v8-1"></script>
@@ -12395,8 +12398,9 @@
 
   }
 
-  // ---- V8 actor pass: hero + stone + shadow drawn natively on the pixel grid (see v8/actor.js) ----
+  // ---- V8 actor: hero + stone + shadow drawn natively on the pixel grid (see v8/actor.js) ----
   var V8_ACTOR = !!(window.V8Actor && window.Hero && window.Rock && window.PX) && params.get("v8actor") !== "0";
+  var V8_REALMS = V8_ACTOR && !!window.V8 && params.get("v8realm") !== "0";
   function v8RockLook(day) {
     if (selectedRealm === "dusk") return { mat: "obsidian", style: "granite" };
     if (selectedRealm === "snow") return { mat: "icy", style: "snowy" };
@@ -12406,12 +12410,13 @@
     if (lum(day.sky[2]) < 0.14) return { mat: "night", style: "granite" };
     return { mat: "granite", style: "granite" };
   }
-  function v8ActorPass(day, blx, bly, brad, manBlx, manBly, manBaseX, actorTheta, launchT, crestRoll, ztx, zty, zoom) {
-    var SINK = 3, ox = ztx + ANCHOR_X * zoom, oy = zty + (ANCHOR_Y + SINK) * zoom, cs = Math.cos(actorTheta), sn = Math.sin(actorTheta);
-    function map(lx, ly) { return [ox + zoom * (lx * cs + ly * sn), oy + zoom * (-lx * sn + ly * cs)]; }
-    var rcen = map(blx, bly); boulderSX = rcen[0]; boulderSY = rcen[1];
-    var sunL = currentSunLight(day), lightX = -0.3, lightY = -0.9, sunK = 0.12, sunCol = [190, 200, 230];
-    if (sunL) { var ddx = sunL.x - rcen[0], ddy = sunL.y - rcen[1], dl = Math.hypot(ddx, ddy) || 1; lightX = ddx / dl; lightY = ddy / dl; sunK = sunL.strength || 0; sunCol = sunL.col; }
+  // Everything the actor renderer needs, gathered from game state. `lightSrc` (optional) is the realm's own light.
+  function v8ActorParams(day, g0, ztx, zty, zoom, lightSrc) {
+    var SINK = 3, ox = ztx + ANCHOR_X * zoom, oy = zty + (ANCHOR_Y + SINK) * zoom, cs = Math.cos(g0.theta), sn = Math.sin(g0.theta);
+    var rx = ox + zoom * (g0.blx * cs + g0.bly * sn), ry = oy + zoom * (-g0.blx * sn + g0.bly * cs);
+    boulderSX = rx; boulderSY = ry;
+    var sunL = lightSrc || currentSunLight(day), lightX = -0.3, lightY = -0.9, sunK = 0.12, sunCol = [190, 200, 230];
+    if (sunL) { var ddx = sunL.x - rx, ddy = sunL.y - ry, dl = Math.hypot(ddx, ddy) || 1; lightX = ddx / dl; lightY = ddy / dl; sunK = (lightSrc ? lightSrc.k : sunL.strength) || 0; sunCol = lightSrc ? lightSrc.col : sunL.col; }
     var playing = gameState === "playing" && modePhase === "play";
     var brace = (gameState === "playing") ? Math.max(slideEffort, (activeFalling && braceHeld) ? bracePower * 0.35 : 0) : 0;
     var stumble = playing ? stumblePower : 0;
@@ -12419,52 +12424,128 @@
     var windLean = (!REDUCED && playing) ? clamp01(windGustPower) * (1 - brace) : 0;
     var mode = "push", cheer = null;
     if (playMode === "summit" && modePhase === "summitRest" && modeTimer >= CHEER_LAND) { mode = "cheer"; cheer = { release: summitCheerRelease, arms: summitCheerArms, jump: summitCheerJump }; }
-    else if (launchT > 0) { mode = "cheer"; cheer = { release: 1, arms: 0, jump: 0 }; }
+    else if (g0.launchT > 0) { mode = "cheer"; cheer = { release: 1, arms: 0, jump: 0 }; }
     var sq = 0;
     if (!REDUCED && playMode !== "endless") { if (heavePulse > 0.02) sq = Math.min(1, heavePulse) * 0.06; else if (rhythmPulse > 0.01) sq = Math.min(1, rhythmPulse) * 0.028; }
-    var rl = v8RockLook(day);
+    var rl = v8RockLook(day), R = selectedRealm && window.V8 && V8.realms[selectedRealm];
+    if (R && R.rock) rl = R.rock;
     var bridged = !!selectedRealm && ["waterfalls", "moon-rome", "sunset-rome"].indexOf(selectedRealm) >= 0;
-    var P = { z: zoom, s: BASE_SCALE, ox: ox, oy: oy, theta: actorTheta,
-      blx: blx, bly: bly, brad: brad, ratio: brad / (BOULDER_R * BASE_SCALE), roll: roll + crestRoll, squash: sq, lurchX: REDUCED ? 0 : lurchX,
-      manBaseX: manBaseX, mode: mode, cheer: cheer, wp: wp, activity: activity, effort: effort, slideEffort: slideEffort, brace: brace, stumble: stumble, pushDrive: pushDrive,
+    return { z: zoom, s: BASE_SCALE, ox: ox, oy: oy, theta: g0.theta,
+      blx: g0.blx, bly: g0.bly, brad: g0.brad, ratio: g0.brad / (BOULDER_R * BASE_SCALE), roll: roll + g0.crestRoll, squash: sq, lurchX: REDUCED ? 0 : lurchX,
+      manBaseX: g0.manBaseX, mode: mode, cheer: cheer, wp: wp, activity: activity, effort: effort, slideEffort: slideEffort, brace: brace, stumble: stumble, pushDrive: pushDrive,
       windLean: windLean, groove: REDUCED ? 0 : grooveLv, tSec: tSec, pushTime: pushTime, reduced: REDUCED, playing: playing,
       cosmetic: selectedCosmetic, look: customize.hero,
-      light: [lightX, lightY], sunK: sunK, sunCol: sunCol, ambient: day.sky[2], bright: clamp01(0.3 + 1.2 * lum(day.sky[2])), ground: day.ground,
+      light: [lightX, lightY], sunK: sunK, sunCol: sunCol,
+      ambient: lightSrc && lightSrc.ambient ? lightSrc.ambient : day.sky[2], bright: lightSrc && lightSrc.bright != null ? lightSrc.bright : clamp01(0.3 + 1.2 * lum(day.sky[2])),
+      ground: lightSrc && lightSrc.ground ? lightSrc.ground : day.ground,
       rockMat: rl.mat, rockStyle: rl.style,
       hideHero: gameState === "title" && !REALM_MENU_ENABLED,
       lipAt: function (sx) { return zty + terrainLipAt((sx - ztx) / zoom) * zoom; },
-      bridgeDepth: bridged ? 12 * zoom : 0, shadowCol: mix(day.ground, [0, 0, 0], 0.78), noShadow: duskActive() };
-    V8Actor.frame(g, P);
-    // effort dust: motion leaves evidence (step dust kicked back, churned soil while sliding, grit off the stone)
-    if (!REDUCED && gameState !== "title" && !bridgeGapActiveAt(ANCHOR_X, 150)) {
-      var spd4 = Math.abs(audioEffSpeed), dustCol = mix(day.ground, [255, 255, 255], 0.22), dustDark = mix(day.ground, [0, 0, 0], 0.25);
-      var dot = function (lx, ly, w, col, a) { if (a <= 0.02) return; var m = map(lx, ly); g.fillStyle = css(col, Math.min(1, a * 1.6)); g.fillRect(Math.round(m[0]), Math.round(m[1]), w, w > 1 ? 1 : 1); };
-      var lean = 0;
-      if (audioEffSpeed > 0.8 && effort > 0.15) {
-        var kick = clamp01(spd4 / 9);
-        for (var sd4 = 0; sd4 < 5; sd4++) {
-          var sph = (wp * 1.9 + sd4 * 0.41 + hash(sd4 * 7.3) * 0.2) % 1;
-          if (sph > 0.62) continue;
-          var sfade = 1 - sph / 0.62;
-          dot(manBaseX + lean - 6 - sph * (26 + kick * 18) - hash(sd4 * 3.1) * 6, -1 - sph * (5 + hash(sd4 * 5.7) * 5), sph < 0.2 ? 2 : 1, dustCol, (0.34 + kick * 0.2) * sfade * fxAmount());
-        }
-      }
-      if (slideEffort > 0.12) {
-        var churn = clamp01(slideEffort);
-        for (var cd4 = 0; cd4 < 7; cd4++) {
-          var cph = (tSec * (1.3 + hash(cd4 * 2.9) * 0.8) + hash(cd4 * 9.1)) % 1, cfade = Math.sin(cph * Math.PI);
-          dot(manBaseX + lean - 4 + cph * (30 + churn * 22) + hash(cd4 * 4.3) * 10, -2 - cph * 7 - hash(cd4 * 6.1) * 4, hash(cd4 * 8.7) > 0.6 ? 2 : 1, dustDark, 0.4 * churn * cfade * fxAmount());
-        }
-      }
-      if (spd4 > 2.2 && launchT <= 0.02) {
-        for (var gr5 = 0; gr5 < 3; gr5++) {
-          var gph = (roll * 2.4 + gr5 * 0.33) % 1;
-          if (gph > 0.5) continue;
-          dot(blx - brad * 0.35 - gph * 16 - hash(gr5 * 5.3) * 5, -1 - gph * (4 + hash(gr5 * 3.7) * 4), 1, dustCol, 0.4 * (1 - gph / 0.5) * clamp01(spd4 / 8) * fxAmount());
-        }
+      bridgeDepth: bridged ? 12 * zoom : 0, shadowCol: mix(day.ground, [0, 0, 0], 0.78), noShadow: duskActive() && !lightSrc };
+  }
+  // effort dust: motion leaves evidence (step dust kicked back, churned soil while sliding, grit off the stone), on integer pixels
+  function v8Dust(day, g0, ztx, zty, zoom) {
+    if (REDUCED || gameState === "title" || bridgeGapActiveAt(ANCHOR_X, 150)) return;
+    var SINK = 3, ox = ztx + ANCHOR_X * zoom, oy = zty + (ANCHOR_Y + SINK) * zoom, cs = Math.cos(g0.theta), sn = Math.sin(g0.theta);
+    function map(lx, ly) { return [ox + zoom * (lx * cs + ly * sn), oy + zoom * (-lx * sn + ly * cs)]; }
+    var spd4 = Math.abs(audioEffSpeed), dustCol = mix(day.ground, [255, 255, 255], 0.22), dustDark = mix(day.ground, [0, 0, 0], 0.25);
+    var dot = function (lx, ly, w, col, a) { if (a <= 0.02) return; var m = map(lx, ly); g.fillStyle = css(col, Math.min(1, a * 1.6)); g.fillRect(Math.round(m[0]), Math.round(m[1]), w, 1); };
+    if (audioEffSpeed > 0.8 && effort > 0.15) {
+      var kick = clamp01(spd4 / 9);
+      for (var sd4 = 0; sd4 < 5; sd4++) {
+        var sph = (wp * 1.9 + sd4 * 0.41 + hash(sd4 * 7.3) * 0.2) % 1;
+        if (sph > 0.62) continue;
+        dot(g0.manBaseX - 6 - sph * (26 + kick * 18) - hash(sd4 * 3.1) * 6, -1 - sph * (5 + hash(sd4 * 5.7) * 5), sph < 0.2 ? 2 : 1, dustCol, (0.34 + kick * 0.2) * (1 - sph / 0.62) * fxAmount());
       }
     }
+    if (slideEffort > 0.12) {
+      var churn = clamp01(slideEffort);
+      for (var cd4 = 0; cd4 < 7; cd4++) {
+        var cph = (tSec * (1.3 + hash(cd4 * 2.9) * 0.8) + hash(cd4 * 9.1)) % 1;
+        dot(g0.manBaseX - 4 + cph * (30 + churn * 22) + hash(cd4 * 4.3) * 10, -2 - cph * 7 - hash(cd4 * 6.1) * 4, hash(cd4 * 8.7) > 0.6 ? 2 : 1, dustDark, 0.4 * churn * Math.sin(cph * Math.PI) * fxAmount());
+      }
+    }
+    if (spd4 > 2.2 && g0.launchT <= 0.02) {
+      for (var gr5 = 0; gr5 < 3; gr5++) {
+        var gph = (roll * 2.4 + gr5 * 0.33) % 1;
+        if (gph > 0.5) continue;
+        dot(g0.blx - g0.brad * 0.35 - gph * 16 - hash(gr5 * 5.3) * 5, -1 - gph * (4 + hash(gr5 * 3.7) * 4), 1, dustCol, 0.4 * (1 - gph / 0.5) * clamp01(spd4 / 8) * fxAmount());
+      }
+    }
+  }
+  // legacy-canvas actor pass (used by every mode / realm that is not on the V8 pipeline)
+  function v8ActorPass(day, blx, bly, brad, manBlx, manBly, manBaseX, actorTheta, launchT, crestRoll, ztx, zty, zoom) {
+    var g0 = { blx: blx, bly: bly, brad: brad, manBaseX: manBaseX, theta: actorTheta, launchT: launchT, crestRoll: crestRoll };
+    V8Actor.frame(g, v8ActorParams(day, g0, ztx, zty, zoom, null));
+    v8Dust(day, g0, ztx, zty, zoom);
     updateControlHintNearRock(manBlx, manBly, brad, ztx, zty, zoom);
+  }
+
+  // ---- V8 realm pipeline: the whole world is built on one indexed framebuffer (see v8/core.js) ----
+  var v8LipCols = null;
+  function v8RealmId() {
+    if (!V8_REALMS) return null;
+    if (selectedRealm && V8.has(selectedRealm)) return selectedRealm;
+    if (!selectedRealm && gameState === "title" && REALM_MENU_ENABLED && V8.has("hills")) return "hills";
+    return null;
+  }
+  function v8Geometry() {
+    var boulderScale = boulderScaleNow(), brad = Math.round(BOULDER_R * BASE_SCALE * boulderScale);
+    var growT = clamp01((boulderScale - 1) / (BOULDER_GROW_MAX - 1)), blx = Math.round((19 - 11 * growT) * BASE_SCALE) + brad;
+    var contactGrowT = smoother01(clamp01((boulderScale - 1.10) / Math.max(0.01, BOULDER_GROW_MAX - 1.10)));
+    var contactSlopeT = smoother01(clamp01((Math.abs(leanSlope) - 0.18) / Math.max(0.01, MAX_SLOPE - 0.18)));
+    var boulderContact = 2 * BASE_SCALE + brad * (0.025 + contactSlopeT * 0.065) * contactGrowT;
+    var theta = Math.atan(leanSlope), sinT = Math.sin(theta), cosT = Math.max(0.12, Math.cos(theta)), bottomY = 0;
+    for (var solve = 0; solve < 7; solve++) {
+      var worldRelX = blx * cosT + bottomY * sinT;
+      var targetRelY = terrainLipAt(ANCHOR_X + worldRelX) - ANCHOR_Y + boulderContact;
+      bottomY = (targetRelY + blx * sinT) / cosT;
+    }
+    return { blx: blx, bly: Math.round(bottomY - brad), brad: brad, manBaseX: 0, theta: theta, launchT: 0, crestRoll: 0, boulderScale: boulderScale };
+  }
+  function v8DrawFx(ztx, zty, zoom) {
+    if (!fxP.length || REDUCED) return;
+    var base = altitude * GROUND_SCROLL;
+    for (var i = 0; i < fxP.length; i++) {
+      var p = fxP[i], k = p.life / p.max, a = k < 0.45 ? 0.95 : 0.95 * (1 - (k - 0.45) / 0.55);
+      if (p.grow) a *= 0.72;
+      var sz = p.grow ? Math.round(p.size + k * p.grow) : (p.size > 1 && k > 0.7 ? 1 : p.size);
+      g.fillStyle = css(p.col, a);
+      g.fillRect(Math.round(ztx + ((p.rel ? p.wx : p.wx - base)) * zoom - sz / 2), Math.round(zty + p.y * zoom - sz + 1), sz, sz);
+    }
+  }
+  function v8DrawRealm(day, zoom, shakeX, shakeY, openingT, openingDrop, pullA, realmId) {
+    var camT = cameraScaleT();
+    var focusX = Math.round(lerp(ANCHOR_X, VW * 0.31, camT)), focusY = Math.round(lerp(ANCHOR_Y, VH * 0.68, camT));
+    if (pullA > 0.001) { focusX = Math.round(lerp(focusX, VW * 0.30, pullA * 0.55)); focusY = Math.round(lerp(focusY, VH * 0.64, pullA * 0.45)); }
+    var ztx = Math.round(focusX - ANCHOR_X * zoom) + shakeX + (REDUCED ? 0 : Math.round(camPunchX));
+    var zty = Math.round(focusY - ANCHOR_Y * zoom) + shakeY + openingDrop;
+    curCamZtx = ztx; curCamZty = zty; curCamZoom = zoom; curCamZtxBase = ztx - shakeX; curCamZtyBase = zty - shakeY;
+    curGroundCol = day.ground;
+    if (!v8LipCols || v8LipCols.length !== VW) v8LipCols = new Int16Array(VW);
+    for (var x = 0; x < VW; x++) v8LipCols[x] = Math.round(zty + terrainLipAt((x - ztx) / zoom) * zoom);
+    var S = { w: VW, h: VH, zoom: zoom, ztx: ztx, zty: zty, altitude: altitude, scroll: altitude * GROUND_SCROLL, tSec: tSec, reduced: REDUCED,
+      anchorX: ANCHOR_X, anchorY: ANCHOR_Y, horizonY: HORIZON, lip: v8LipCols, slope: leanSlope, openingT: openingT, realmId: realmId,
+      windGust: windGustPower, gameState: gameState, pull: pullA, bestM: (gameState === "title" || playMode === "run") ? 0 : Math.max(0, Math.round(runStartBest || 0)), oldBestPassed: oldBestPassed,
+      cairns: (gameState === "title" || playMode === "run" || playMode === "summit") ? [] : cairnList((0 - ztx) / zoom, (VW - ztx) / zoom) };
+    var g0 = v8Geometry();
+    var light = V8.realms[realmId].light ? V8.realms[realmId].light(S) : null;
+    var P = v8ActorParams(day, g0, ztx, zty, zoom, light);
+    V8.render(g, S, P);
+    v8Dust(day, g0, ztx, zty, zoom);
+    updateControlHintNearRock(g0.blx, g0.bly, g0.brad, ztx, zty, zoom);
+    v8DrawFx(ztx, zty, zoom);
+    drawWindGust(day);
+    drawPullTrail();
+    drawHudLayers(day);
+  }
+  function drawHudLayers(day) {
+    drawModeHud(day);
+    drawOldSelfChaseHud(day);
+    drawChallengeHud(day);
+    drawMilestoneFlash(day);
+    drawRushFx(day);
+    syncHudTextColor(day);
   }
   function updateControlHintNearRock(blx, bly, brad, ztx, zty, zoom) {
     if (hintHidden || gameState !== "playing" || altitude > 8) {
@@ -13518,6 +13599,8 @@
     var shakeY = Math.round(Math.sin(tSec * 63.0 + 1.7) * shakeAmp * 0.55);
     var openingT = gameState === "title" ? 0 : (gameState === "intro" ? smooth01(introPan) : 1);
     var openingDrop = Math.round((1 - openingT) * VH * (REALM_MENU_ENABLED?0.15:0.62));
+    var v8id = v8RealmId();
+    if (v8id) { v8DrawRealm(day, zoom, shakeX, shakeY, openingT, openingDrop, pullA, v8id); return; }
 
     // background: image if loaded, else sky gradient
     if (mtBgReady) {
@@ -14521,12 +14604,7 @@
       g.fillStyle = vig;
       g.fillRect(0, 0, VW, VH);
     }
-    drawModeHud(day);
-    drawOldSelfChaseHud(day);
-    drawChallengeHud(day);
-    drawMilestoneFlash(day);
-    drawRushFx(day);
-    syncHudTextColor(day);
+    drawHudLayers(day);
   }
 
   // RUSH-only arcade flair: a combo multiplier number that pulses + colours up by
