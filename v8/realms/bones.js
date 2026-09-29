@@ -225,7 +225,7 @@
     R.birdIdx = I.boneN + 1;                                                // dark sepia buzzards against the pale sky
     R.watcherIdx = I.boneN + 1;                                             // a dark-cloaked watcher on the pale dust
     R.footprint = { col: I.dust + 1, hi: I.dust + 6 };                      // pressed dust with a pale rim
-    ST.built = ""; ST.skyKey = ""; ST.palKey = ""; ST.WS.t = -1; ST.WS.cp = 0; ST.veils = null;
+    ST.skyKey = ""; ST.palKey = ""; ST.WS.t = -1; ST.WS.cp = 0; ST.veils = null;                        // (the baked scene holds palette INDICES only: it stays valid across visits at the same size)
     R.pal = pal;
     buildScene(S);
   };

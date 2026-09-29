@@ -133,7 +133,7 @@
     R.footprint = { col: I.obs + 3, hi: I.sheen + 4 };                  // a scuff in the glass with a bright lit rim
     R.markerIdx = { c0: I.obs + 2, c1: I.obs + 5, c2: I.sheen + 5, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };   // cairns of black glass with a cyan edge
     R.pal = pal; RMAP = null;
-    built = "";
+    // (the baked scene holds palette INDICES only, keyed by screen size: it stays valid across re-inits, so a revisit costs ~nothing)
     build(S);
   };
 

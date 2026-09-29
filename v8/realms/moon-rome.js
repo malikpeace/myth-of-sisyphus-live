@@ -42,7 +42,7 @@
     TB = B.tables(pal); DK.T = TB; PK.T = TB;
     R.birdIdx = I.cloud + 4; R.watcherIdx = I.trim + 3;                           // moonlit silver birds; a moonlit cloak that reads on the dark city
     R.markerIdx = { c0: I.wall + 1, c1: I.trim + 3, c2: I.trim + 5, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };   // cairns in the deck's own stone
-    built = "";
+    // (the baked scene holds palette INDICES only, keyed by screen size: it stays valid across re-inits, so a revisit costs ~nothing)
     build(S);
   };
 

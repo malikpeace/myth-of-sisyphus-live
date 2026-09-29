@@ -268,6 +268,21 @@
     return gp;
   };
 
+  // ---- warm-up: a zone scene costs 30-150 ms to build the first time at a screen size (then it stays cached inside the scene module). The game
+  // builds the heavy ones on the gate / menu / pause screen, one per idle tick, so the first crossing into them is smooth. ----
+  V8._warm = {};
+  V8.warm = function (id) {
+    var S = V8.lastS, R = V8.realms[id];
+    if (!S || !R || !R.init || R === V8.realm) return false;
+    var sig = id + "|" + S.w + "x" + S.h + "@" + (S.adj || 1) + "|" + S.horizonY;
+    if (V8._warm[sig]) return false;
+    V8._warm[sig] = 1;
+    var t0 = performance.now(), S2 = {}, k;
+    try { for (k in S) S2[k] = S[k]; S2.realmId = id; S2.fx = null; S2.dots = null; S2.mythic = null; R.init(new PX.Palette(), S2); } catch (e) { try { console.error(e); } catch (_) {} }
+    V8.stats.warmMs = performance.now() - t0;
+    return true;
+  };
+
   V8.ensure = function (S) {
     var key = S.realmId + "|" + S.w + "x" + S.h;
     if (V8.key === key && V8.fb) return;
@@ -284,6 +299,7 @@
   // A = actor parameters (see actor.js) or null. Returns the light the realm is casting (for HUD tinting etc.)
   V8.render = function (g, S, A) {
     var t0 = performance.now();
+    V8.lastS = S;
     V8.ensure(S);
     var R = V8.realm, fb = V8.fb, pal = V8.pal;
     if (R.palette) R.palette(pal, S);

@@ -38,7 +38,7 @@
     I.ink = pal.ramp("ink", H(["#080b0d"]));
     R.footprint = { col: I.soil + 3, hi: I.soil + 5 }; R.birdIdx = I.mid;            // bare earth showing through the turf; birds dark against the sky
     R.pal = pal;
-    built = "";
+    // (the baked scene holds palette INDICES only, keyed by screen size: it stays valid across re-inits, so a revisit costs ~nothing)
     buildScene(S);
   };
 

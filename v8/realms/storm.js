@@ -387,7 +387,7 @@
     R.birdIdx = I.far + 1;                                                  // pale slate birds fleeing the storm, against the dark cloud deck
     R.watcherIdx = I.rock + 6;                                              // the watcher: a wet-grey cloak that reads on the dark rock
     R.footprint = { col: I.rock + 1, hi: I.rock + 6 };                      // dark damp marks with a wet lit rim
-    ST.built = ""; ST.skyKey = ""; ST.palKey = ""; ST.bolt = null; ST.boltKey = ""; ST.rain = null; ST.WS.t = -1;
+    ST.skyKey = ""; ST.palKey = ""; ST.bolt = null; ST.boltKey = ""; ST.WS.t = -1;                   // (the baked banks / crags / rain hold palette INDICES only and stay valid across visits at the same size)
     ST.next = 0; ST.fnext = 0; ST.sStart = -99;                             // a fresh visit: the first strike comes a few seconds in, not on the first frame
     R.pal = pal;
     buildScene(S);

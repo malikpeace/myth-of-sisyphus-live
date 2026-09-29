@@ -145,7 +145,7 @@
     R.footprint = { col: I.orng + 3, hi: I.orng + 7 };                  // pressed sand with a lit rim
     R.markerIdx = { c0: I.red + 1, c1: I.orng + 3, c2: I.orng + 6, p0: 247, p1: 248, f0: 249, f1: 250, g0: 251, g1: 252 };   // cairns in the local sandstone
     R.pal = pal; RMAP = null;
-    built = "";
+    // (the baked scene holds palette INDICES only, keyed by screen size: it stays valid across re-inits, so a revisit costs ~nothing)
     build(S);
   };
 

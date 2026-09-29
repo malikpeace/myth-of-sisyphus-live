@@ -1874,7 +1874,7 @@
   #realmcontinue { margin-top:10px; padding:12px 16px; color:#f4f0e8; border:1px solid #788596; background:#172232; font:inherit; font-size:12px; cursor:pointer; }
   @media(max-width:600px) { .realm-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .realm-choice { height:104px; } }
 </style>
-<link rel="stylesheet" href="v8/ui.css?v=v8-09290501">
+<link rel="stylesheet" href="v8/ui.css?v=v8-09290526">
 </head>
 <body>
   <div id="stage">
@@ -2067,36 +2067,36 @@
     </details>
   </div>
 
-<script src="v8/px.js?v=v8-09290501"></script>
-<script src="v8/rock.js?v=v8-09290501"></script>
-<script src="v8/hero.js?v=v8-09290501"></script>
-<script src="v8/actor.js?v=v8-09290501"></script>
-<script src="v8/scenery.js?v=v8-09290501"></script>
-<script src="v8/core.js?v=v8-09290501"></script>
-<script src="v8/overlays.js?v=v8-09290501"></script>
-<script src="v8/realms/hills.js?v=v8-09290501"></script>
-<script src="v8/realms/_bridge.js?v=v8-09290501"></script>
-<script src="v8/realms/waterfalls.js?v=v8-09290501"></script>
-<script src="v8/realms/moon-rome.js?v=v8-09290501"></script>
-<script src="v8/realms/sunset-rome.js?v=v8-09290501"></script>
-<script src="v8/realms/snow.js?v=v8-09290501"></script>
-<script src="v8/realms/blossom.js?v=v8-09290501"></script>
-<script src="v8/realms/dusk.js?v=v8-09290501"></script>
-<script src="v8/realms/galaxy.js?v=v8-09290501"></script>
-<script src="v8/realms/canyon.js?v=v8-09290501"></script>
-<script src="v8/realms/storm.js?v=v8-09290501"></script>
-<script src="v8/realms/volcanic.js?v=v8-09290501"></script>
-<script src="v8/realms/aurora.js?v=v8-09290501"></script>
-<script src="v8/realms/bones.js?v=v8-09290501"></script>
-<script src="v8/realms/obsidian.js?v=v8-09290501"></script>
-<script src="v8/realms/void.js?v=v8-09290501"></script>
-<script src="v8/endless-journey.js?v=v8-09290501"></script>
-<script src="v8/endless-scenery.js?v=v8-09290501"></script>
-<script src="v8/realm-architecture.js?v=v8-09290501"></script>
-<script src="v8/realm-catalog.js?v=v8-09290501"></script>
-<script src="v8/realm-dusk.js?v=v8-09290501"></script>
-<script src="v8/realm-scenes.js?v=v8-09290501"></script>
-<script src="v8/ui.js?v=v8-09290501"></script>
+<script src="v8/px.js?v=v8-09290526"></script>
+<script src="v8/rock.js?v=v8-09290526"></script>
+<script src="v8/hero.js?v=v8-09290526"></script>
+<script src="v8/actor.js?v=v8-09290526"></script>
+<script src="v8/scenery.js?v=v8-09290526"></script>
+<script src="v8/core.js?v=v8-09290526"></script>
+<script src="v8/overlays.js?v=v8-09290526"></script>
+<script src="v8/realms/hills.js?v=v8-09290526"></script>
+<script src="v8/realms/_bridge.js?v=v8-09290526"></script>
+<script src="v8/realms/waterfalls.js?v=v8-09290526"></script>
+<script src="v8/realms/moon-rome.js?v=v8-09290526"></script>
+<script src="v8/realms/sunset-rome.js?v=v8-09290526"></script>
+<script src="v8/realms/snow.js?v=v8-09290526"></script>
+<script src="v8/realms/blossom.js?v=v8-09290526"></script>
+<script src="v8/realms/dusk.js?v=v8-09290526"></script>
+<script src="v8/realms/galaxy.js?v=v8-09290526"></script>
+<script src="v8/realms/canyon.js?v=v8-09290526"></script>
+<script src="v8/realms/storm.js?v=v8-09290526"></script>
+<script src="v8/realms/volcanic.js?v=v8-09290526"></script>
+<script src="v8/realms/aurora.js?v=v8-09290526"></script>
+<script src="v8/realms/bones.js?v=v8-09290526"></script>
+<script src="v8/realms/obsidian.js?v=v8-09290526"></script>
+<script src="v8/realms/void.js?v=v8-09290526"></script>
+<script src="v8/endless-journey.js?v=v8-09290526"></script>
+<script src="v8/endless-scenery.js?v=v8-09290526"></script>
+<script src="v8/realm-architecture.js?v=v8-09290526"></script>
+<script src="v8/realm-catalog.js?v=v8-09290526"></script>
+<script src="v8/realm-dusk.js?v=v8-09290526"></script>
+<script src="v8/realm-scenes.js?v=v8-09290526"></script>
+<script src="v8/ui.js?v=v8-09290526"></script>
 <script>
 (function () {
   "use strict";
@@ -12647,6 +12647,16 @@
   ];
   var V8_ZONE_NAMES = { hills: "the hills", waterfalls: "the falls", snow: "above the clouds", galaxy: "the night sky", canyon: "the canyon", "sunset-rome": "the greek shore", storm: "storm pass", "moon-rome": "the ruins", volcanic: "the ash fields", aurora: "the aurora", bones: "the bone fields", obsidian: "obsidian", blossom: "elysium", void: "the void" };
   var V8_CROSS_SECONDS = 1.5, v8Want, v8Cross = null, v8MistA = 0, v8MistPat = [];
+  // zone-scene warm-up (V8.warm): the heavy scenes are built one per idle tick while the player is on the gate / menu / paused (never right after a tap),
+  // so the first mist crossing into the night sky, aurora or storm pass does not freeze the frame
+  var v8WarmIds = ["waterfalls", "snow", "galaxy", "canyon", "storm", "volcanic", "aurora", "bones", "blossom", "void", "obsidian"], v8WarmAt = 0, v8LastInput = 0;      // journey order; each first visit costs 20-150 ms once
+  ["pointerdown", "keydown", "touchstart"].forEach(function (ev) { window.addEventListener(ev, function () { v8LastInput = performance.now(); }, { passive: true, capture: true }); });
+  setInterval(function () {
+    if (!V8_REALMS || selectedRealm || document.hidden || !V8.warm || params.get("warm") === "0" || performance.now() < 6000) return;      // (not during the first seconds: the gate is still animating in)
+    if (!(gameState === "title" || paused || gameState === "again")) return;
+    var now = performance.now(); if (now - v8LastInput < 1500 || now < v8WarmAt) return;
+    for (var i = 0; i < v8WarmIds.length; i++) if (V8.has(v8WarmIds[i]) && V8.warm(v8WarmIds[i])) { v8WarmAt = now + 1200; return; }
+  }, 700);
   function v8LegacyWant() {
     if (!V8_REALMS || selectedRealm || gameState === "title") return null;
     var m = visualMeters();

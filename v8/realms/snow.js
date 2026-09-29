@@ -49,7 +49,7 @@
     R.watcherIdx = I.pine;                                              // the watcher reads as a dark figure on the snow
     R.footprint = { col: I.snow + 3, hi: I.snow + 7 };                  // blue pressed snow with a lit rim
     R.pal = pal; RMAP = null;
-    built = "";
+    // (the baked scene holds palette INDICES only, keyed by screen size: it stays valid across re-inits, so a revisit costs ~nothing)
     buildScene(S);
   };
 
