@@ -12371,7 +12371,7 @@
   // ---- the hero + stone drawn natively on the canvas grid by the rig renderer (v7/actor/: px, rock, hero, actor - ported from V8):
   // forward-bending knees, a constant-speed stance so planted feet don't skate, and a cast shadow projected from the real limbs.
   // ?v8actor=0 falls back to the old coarse figure; ?hero=color shows the full-colour figure (default: the dark rim-lit silhouette).
-  var V8_ACTOR = !!(window.V8Actor && window.Hero && window.Rock && window.PX) && params.get("v8actor") !== "0";
+  var V8_ACTOR = !!(window.V8Actor && window.Hero && window.Rock && window.PX) && params.get("v8actor") === "1";      // opt-in only: the original V7 figure + stone are the default
   var HERO_LOOK = (function () { var q = params.get("hero"); if (q === "color" || q === "shadow") return q; try { var v = localStorage.getItem("sisyphus7.heroLook"); if (v === "color" || v === "shadow") return v; } catch (e) {} return "shadow"; })();
   function v8RockLook(day) {
     if (selectedRealm === "dusk") return { mat: "obsidian", style: "granite" };
